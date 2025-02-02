@@ -1,76 +1,71 @@
-import NextAuth from "next-auth"
-import Credentials from "next-auth/providers/credentials"
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import { prisma } from "./prisma"
-import { schema } from "./schema"
-import { v4 as uuid } from "uuid"
-import { encode } from "@auth/core/jwt"
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { prisma } from "./prisma"; // Ensure prisma is correctly set up
+import { schema } from "./schema";
+import { encode, decode } from "next-auth/jwt";
 
-const adapter = PrismaAdapter(prisma);
-
-export const { auth, handlers, signIn, signOut } = NextAuth({ 
-    adapter,
+export const { auth, handlers, signIn, signOut } = NextAuth({
+    session: { strategy: "jwt" }, // Using JWT sessions
     providers: [
-        Credentials ({ 
-            credentials: { 
-                email: {}, 
-                password: {},
+        Credentials({
+            credentials: {
+                email: { label: "Email", type: "text" },
+                password: { label: "Password", type: "password" },
             },
             authorize: async (credentials) => {
-                const validatedCredentials = schema.parse(credentials); 
+                const validatedCredentials = schema.parse(credentials);
 
-                // Find user in the database
-                const user = await prisma.user.findFirst({
-                    where: {
-                        email: validatedCredentials.email,
-                        password: validatedCredentials.password,
-                    },
+                const user = await prisma.user.findUnique({
+                    where: { email: validatedCredentials.email },
                 });
 
-                // If user not found, throw error
-                if (!user) {
-                    throw new Error("Invalid credentials");
+                if (!user) throw new Error("Invalid credentials");
+
+                if (!user.password) throw new Error("Invalid credentials");
+
+                if (!user.emailVerified) {
+                    throw new Error("Email is not verified. Please check your inbox.");
                 }
 
-                // Return the user with role
-                return { ...user, role: user.role }; // Ensure the `role` is included
+                const isValidPassword = await bcrypt.compare(
+                    validatedCredentials.password,
+                    user.password
+                );
+
+                if (!isValidPassword) throw new Error("Invalid credentials");
+
+                return { id: user.id, email: user.email, role: user.role };
             },
         }),
     ],
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
-                token.role = user.role;  // Store role in the token
-                token.credentials = true; // Optional flag for credentials-based sign-in
+                token.role = user.role;
             }
             return token;
         },
-
-        
-    },
-
-    jwt: {
-        encode: async function (params) {
-          if (params.token?.credentials) {
-            const sessionToken = uuid();
-    
-            if (!params.token.sub) {
-              throw new Error("No user ID found in token");
-            }
-    
-            const createdSession = await adapter?.createSession?.({
-              sessionToken: sessionToken,
-              userId: params.token.sub,
-              expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            });
-    
-            if (!createdSession) {
-              throw new Error("Failed to create session");
-            }
-    
-            return sessionToken;
-          }
-          return encode(params);
+        async session({ session, token }) {
+            session.user.role = token.role as string; // Attach role to session
+            return session;
         },
     },
+    jwt: {
+        encode: async (params) => {
+            return encode({
+                secret: process.env.AUTH_SECRET || "fallback_secret",
+                token: params.token,
+                salt: ""
+            });
+        },
+        decode: async (params) => {
+            return decode({
+                secret: process.env.AUTH_SECRET || "fallback_secret",
+                token: params.token,
+                salt: ""
+            });
+        },
+    },
+    secret: process.env.AUTH_SECRET, // Ensure it's set in .env
 });

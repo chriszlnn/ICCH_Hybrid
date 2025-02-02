@@ -21,7 +21,22 @@ model User {
   accounts      Account[]
   Authenticator Authenticator[]
   sessions      Session[]
+  passwordResetTokens  PasswordResetToken[] 
 }
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    String   // Use String instead of Int to match the User model's id type
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])  // Optional: Add an index for better performance
+}
+
+
 
 model Account {
   userId            String
@@ -52,12 +67,15 @@ model Session {
 }
 
 model VerificationToken {
-  identifier String
+  id         String   @id @default(uuid()) @map("_id")
+  email      String
   token      String
   expires    DateTime
 
-  @@id([identifier, token])
+  @@unique([email, token])
+  @@index([expires])
 }
+
 
 model Authenticator {
   credentialID         String  @unique

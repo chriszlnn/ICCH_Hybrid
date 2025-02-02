@@ -6,3 +6,4 @@ const cn = (...inputs: ClassValue[]) => {
 };
 
 export { cn };
+

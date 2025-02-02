@@ -5,7 +5,7 @@
 import { auth } from "@/lib/auth";
 //import Link from "next/link";
 import { redirect } from "next/navigation";
-import SignUpForm from "@/components/sign-up-form";
+import SignUpForm from "@/components/auth/sign-up-form";
 
 const Page = async () => {
   const session = await auth();
