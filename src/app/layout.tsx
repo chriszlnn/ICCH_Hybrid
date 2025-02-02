@@ -1,9 +1,10 @@
 //import type { Metadata } from "next";
 //import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
+import { SessionProvider } from "next-auth/react";
 import { ReactNode } from "react";
-import Navbar from "@/components/nav-bar";
-import { auth } from "@/lib/auth";
+//import { auth } from "@/lib/auth";
+//import { redirect } from "next/navigation";
 
 /*const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,17 +25,25 @@ type LayoutProps = {
   children: ReactNode;
 };
 export default async function RootLayout({ children }: LayoutProps) {
-  const session = await auth()
+  //const session = await auth()
+
+  // if(!session)
+  // {
+  //   redirect("/sign-in");
+  // }
 
   return (
     <html>
       <body>
-        {session && <Navbar />}
+        
         <main className="flex items-center justify-center min-h-screen bg-gray-100">
-          <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+          <div>
+          <SessionProvider>
             {children}
+            </SessionProvider>
           </div>
         </main>
+        
       </body>
       </html>
    

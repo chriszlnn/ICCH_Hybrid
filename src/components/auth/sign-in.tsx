@@ -44,8 +44,12 @@ const SignInForm = async () => {
       </form>
 
       <div className="text-center">
+      <Button asChild variant="link">
+        <Link href="/forgot-password">Forgot password</Link>
+        </Button>
+        <br />
         <Button asChild variant="link">
-          <Link href="/sign-up">Don&apos;t have an account? Sign up</Link>
+        <Link href="/sign-up">Don&apos;t have an account? Sign up</Link>
         </Button>
       </div>
     </div>

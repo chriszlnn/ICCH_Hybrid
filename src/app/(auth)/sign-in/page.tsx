@@ -1,7 +1,7 @@
 
 import { auth} from "@/lib/auth";
 import { redirect } from "next/navigation";
-import SignInForm from "@/components/sign-in";
+import SignInForm from "@/components/auth/sign-in";
 
 type RoleRedirectMap = {
   [key: string]: string;
@@ -23,11 +23,11 @@ const Page = async () => {
       redirect(redirectPath);
     }
   }
-
+  
+  console.log("session", session);
   return (
     <div>
       <SignInForm />
-
     </div>
   );
 };
