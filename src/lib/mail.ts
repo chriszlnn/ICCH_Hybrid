@@ -15,3 +15,4 @@ export const sendVerificationEmail = async (email: string, token: string) => {
     })
     console.log("(mail.ts)Email sent to:", email)
 }
+

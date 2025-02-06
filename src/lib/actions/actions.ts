@@ -19,6 +19,10 @@ const signUp = async (formData: FormData) => {
           throw new Error("Email and password are required");
         }
 
+        if (password.length < 8) {
+          throw new Error("Password must be at least 8 characters long");
+        }        
+
         // Validate input data
         const validatedData = schema.parse({ email, password });
 
@@ -82,7 +86,7 @@ export async function forgotPassword(p0: string, formData: FormData) {
 
 
 
-export async function resetPassword(token: string, newPassword: string): Promise<void> {
+/* export async function resetPassword(token: string, newPassword: string): Promise<void> {
   // Find the token in the database
   const resetToken = await prisma.passwordResetToken.findUnique({
     where: { token },
@@ -110,7 +114,8 @@ export async function resetPassword(token: string, newPassword: string): Promise
   await prisma.passwordResetToken.delete({ where: { token } });
 
   console.log('Password has been reset successfully');
-}
+} */
+
 
 
 

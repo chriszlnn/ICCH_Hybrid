@@ -5,7 +5,7 @@
 import { auth } from "@/lib/auth";
 //import Link from "next/link";
 import { redirect } from "next/navigation";
-import ResetPasswordForm from "@/components/auth/reset-password-form";
+import EmailForgotPasswordForm from "@/components/auth/email-forgot-password-form";
 
 const Page = async () => {
   const session = await auth();
@@ -13,7 +13,7 @@ const Page = async () => {
   
   return (
     <div>
-      <ResetPasswordForm />
+      <EmailForgotPasswordForm />
     </div>
   );
 };

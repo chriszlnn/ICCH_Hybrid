@@ -1,6 +1,6 @@
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/general/button";
+import { Input } from "@/components/ui/general/input";
 import { signIn } from "@/lib/auth";
 import { executeAction } from "@/lib/executeAction";
 import Link from "next/link";
@@ -45,7 +45,7 @@ const SignInForm = async () => {
 
       <div className="text-center">
       <Button asChild variant="link">
-        <Link href="/forgot-password">Forgot password</Link>
+        <Link href="/email-forgot-password">Forgot password</Link>
         </Button>
         <br />
         <Button asChild variant="link">

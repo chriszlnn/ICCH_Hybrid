@@ -1,6 +1,6 @@
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/general/button";
+import { Input } from "@/components/ui/general/input";
 import { signUp } from "@/lib/actions/actions";
 import Link from "next/link";
 import { redirect } from "next/navigation";

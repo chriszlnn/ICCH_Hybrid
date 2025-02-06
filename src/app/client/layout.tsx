@@ -1,8 +1,10 @@
 import type { Metadata } from "next"
 import "../globals.css"
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { FloatingNav } from "@/components/nav-bar"
-import type React from "react" // Added import for React
+//import { SidebarProvider } from "@/components/ui/sidebar"
+//import { FloatingNav } from "@/components/nav-bar"
+import type React from "react" 
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/general/sidebar"
+import { AppSidebar } from "@/components/sidebar/app-sidebar"// Added import for React
 
 
 
@@ -18,10 +20,13 @@ export default function clientLayout({
 }) {
   return (
     <div>
-        <SidebarProvider>
-          {children}
-          <FloatingNav />
-        </SidebarProvider>
+      <SidebarProvider>
+      <AppSidebar />
+      <main>
+        <SidebarTrigger />
+        {children}
+      </main>
+    </SidebarProvider>
         
     </div>
   )
