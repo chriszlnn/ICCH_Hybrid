@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/general/button";
 import { signOut } from "next-auth/react";
 
 const SignOut = () => {

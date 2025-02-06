@@ -12,7 +12,6 @@ export const getVerificationTokenByEmail = async (email: string) => {
   } catch (error) {
     console.log(error);
   }
-
 }
 
 export const getVerificationTokenByToken = async (token: string) => {

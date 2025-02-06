@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/general/button";
 import Link from "next/link";
 
 interface BackButtonProps {

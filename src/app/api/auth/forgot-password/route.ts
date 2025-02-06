@@ -1,64 +1,26 @@
-import { prisma } from '@/lib/prisma';
-import { NextApiRequest, NextApiResponse } from 'next';
-import { v4 as uuidv4 } from 'uuid';
-import { sendPasswordResetEmail } from '@/utils/sendEmail';
+import { NextResponse } from "next/server";
+import { generateResetPasswordToken } from "@/lib/token";
+import { sendResetPasswordEmail } from "@/lib/reset-mail";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-export default async function POST(req: NextApiRequest, res: NextApiResponse): Promise<void> {
-  
-    const { email } = req.body;
-
-    try {
-      const user = await prisma.user.findUnique({
-        where: { email },
-      });
-
-      res.json({ message:email });
-
-      if (!user) {
-        res.status(404).json({ error: 'User not found' });
-        return;
-      }
-
-      const token = uuidv4(); // Generate a unique token
-      const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + 1); // Token expires in 1 hour
-
-      await prisma.passwordResetToken.create({
-        data: {
-          token,
-          userId: user.id,
-        },
-      });
-
-      await sendPasswordResetEmail(email, token);
-      res.json({ message: user.email });
-      res.status(200).json({ message: 'Password reset link sent' });
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) {
-      res.status(500).json({ error: 'Internal server error' });
-    }
- 
-}
-
-
-
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    const { data, error } = await resend.emails.send({
-      from: 'Acme <onboarding@resend.dev>',
-      to: ['chrislynjules@gmail.com'],
-      subject: 'Hello world',
-      react: await EmailTemplate({ firstName: 'John' }),
-    });
-
-    if (error) {
-      return Response.json({ error }, { status: 500 });
+    const body = await req.json();
+    if (!body || !body.email) {
+      return NextResponse.json({ message: "Email is required" }, { status: 400 });
     }
 
-    return Response.json(data);
+    const { email } = body;
+
+    const token = await generateResetPasswordToken(email);
+    if (!token || !token.token) {
+      return NextResponse.json({ message: "Failed to generate reset token" }, { status: 500 });
+    }
+
+    await sendResetPasswordEmail(email, token.token);
+
+    return NextResponse.json({ message: "Password reset email sent" });
   } catch (error) {
-    return Response.json({ error }, { status: 500 });
+    console.error("Error in forgot-password:", error);
+    return NextResponse.json({ message: "Failed to process request" }, { status: 500 });
   }
 }
