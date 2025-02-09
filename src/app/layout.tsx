@@ -35,9 +35,9 @@ export default async function RootLayout({ children }: LayoutProps) {
 
   return (
     <html>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <body>
-        
-        <main className="flex items-center justify-center min-h-screen bg-gray-100">
+        <main className="items-center justify-center min-h-screen bg-gray-100 p-5">
           <div>
           <SessionProvider>
             {children}
