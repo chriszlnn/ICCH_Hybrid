@@ -52,7 +52,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <a href={item.url}>
-                      <item.icon />
+                      <item.icon style={{ width: "50px", height: "50px" }}/>
                       <span>{item.title}</span>
                     </a>
                   </SidebarMenuButton>

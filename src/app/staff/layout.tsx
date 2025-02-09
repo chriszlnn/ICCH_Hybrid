@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import "./globals.css"
+import "../globals.css"
 import { SidebarProvider } from "@/components/ui/general/sidebar"
 import { FloatingNav } from "@/components/nav-bar"
 import type React from "react" // Added import for React
