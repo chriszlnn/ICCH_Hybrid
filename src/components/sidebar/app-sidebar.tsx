@@ -1,67 +1,52 @@
-import { Calendar, Home, Inbox, Search, Settings } from "lucide-react"
+import { Home, Info, PenSquare, Trophy, User } from "lucide-react";
+import Image from "next/image";
+import Logo from "../../assets/Innisfree-Logo.svg";
 
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/general/sidebar"
-
-// Menu items.
 const items = [
-  {
-    title: "Home",
-    url: "#",
-    icon: Home,
-  },
-  {
-    title: "Inbox",
-    url: "#",
-    icon: Inbox,
-  },
-  {
-    title: "Calendar",
-    url: "#",
-    icon: Calendar,
-  },
-  {
-    title: "Search",
-    url: "#",
-    icon: Search,
-  },
-  {
-    title: "Settings",
-    url: "#",
-    icon: Settings,
-  },
-]
+  { title: "Home", url: "/", icon: Home },
+  { title: "Information", url: "#", icon: Info },
+  { title: "Post", url: "#", icon: PenSquare },
+  { title: "Leaderboard", url: "#", icon: Trophy },
+  { title: "Profile", url: "#", icon: User },
+];
 
 export function AppSidebar() {
   return (
-    <Sidebar>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Application</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <a href={item.url}>
-                      <item.icon style={{ width: "50px", height: "50px" }}/>
-                      <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </Sidebar>
-  )
+    <>
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex md:flex-col w-64 bg-white shadow-md rounded-md h-screen p-4 fixed top-0 left-0">        
+        <Image
+          src={Logo}
+          alt="Logo"
+          width={150}
+          height={128}
+          className="mx-auto rounded-lg"
+        />
+        <nav className="flex flex-col gap-2 mt-8">
+          {items.map((item) => (
+            <a
+              key={item.title}
+              href={item.url}
+              className="flex items-center gap-4 p-3 rounded-lg hover:bg-[#12B560] hover:text-white transition-all duration-300"
+            >
+              <item.icon className="w-6 h-6" />
+              <span>{item.title}</span>
+            </a>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-md flex justify-around items-center p-2 md:hidden z-50">
+        {items.map((item) => (
+          <a
+            key={item.title}
+            href={item.url}
+            className="flex justify-center items-center w-full p-2 hover:bg-[#12B560] hover:text-white rounded-lg transition duration-300">
+            <item.icon className="w-6 h-6" />
+          </a>
+        ))}
+      </nav>
+    </>
+  );
 }

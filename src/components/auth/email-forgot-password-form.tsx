@@ -41,7 +41,11 @@ export default function ForgotPasswordForm() {
   
   if (success) {
     return (
-      <Card className="w-full max-w-md mx-auto">
+      <div className="min-h-screen flex items-center justify-center" >
+      <Card className="w-full max-w-md mx-auto space-y-6 w-full rounded-lg bg-white transition-all duration-300
+          shadow-[0_0_0_1px_rgba(18,181,96,0.1)]
+          hover:shadow-[0_0_20px_rgba(18,181,96,0.2)]
+          focus-within:shadow-[0_0_20px_rgba(18,181,96,0.3)]">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Check Your Email</CardTitle>
         </CardHeader>
@@ -54,16 +58,25 @@ export default function ForgotPasswordForm() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button className="w-full" onClick={() => router.push("/sign-in")}>
+          <Button className="w-full bg-[#12B560] hover:bg-[#12B560]/90
+              transition-all duration-300
+              shadow-[0_0_20px_rgba(18,181,96,0.3)]
+              hover:shadow-[0_0_30px_rgba(18,181,96,0.5)]
+              active:shadow-[0_0_40px_rgba(18,181,96,0.7)]" onClick={() => router.push("/sign-in")}>
             Back to Login
           </Button>
         </CardFooter>
       </Card>
+    </div>
     )
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <div className="min-h-screen flex items-center justify-center" >
+    <Card className="w-full max-w-md mx-auto space-y-6 w-full rounded-lg bg-white transition-all duration-300
+          shadow-[0_0_0_1px_rgba(18,181,96,0.1)]
+          hover:shadow-[0_0_20px_rgba(18,181,96,0.2)]
+          focus-within:shadow-[0_0_20px_rgba(18,181,96,0.3)]">
       <CardHeader>
         <CardTitle className="text-2xl font-bold">Forgot Password</CardTitle>
         <CardDescription>Enter your email to reset your password</CardDescription>
@@ -79,6 +92,11 @@ export default function ForgotPasswordForm() {
                 placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                style={{
+                  outline: 'none',
+                  boxShadow: 'none',
+                }}
+                className="border border-gray-300 rounded-md p-2 focus:outline-none focus:border-green-500 focus:bg-none autofill:!bg-green-100"
                 required
               />
             </div>
@@ -91,11 +109,16 @@ export default function ForgotPasswordForm() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button className="w-full" type="submit" disabled={isLoading}>
+          <Button className="w-full bg-[#12B560] hover:bg-[#12B560]/90
+              transition-all duration-300
+              shadow-[0_0_20px_rgba(18,181,96,0.3)]
+              hover:shadow-[0_0_30px_rgba(18,181,96,0.5)]
+              active:shadow-[0_0_40px_rgba(18,181,96,0.7)]" type="submit" disabled={isLoading}>
             {isLoading ? "Sending..." : "Reset Password"}
           </Button>
         </CardFooter>
       </form>
     </Card>
+    </div>
   )
 }

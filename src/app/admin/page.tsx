@@ -1,4 +1,3 @@
-//import { SessionProvider } from "next-auth/react"
 import  AdminDashboard  from "./admin-dashboard"
 
  
