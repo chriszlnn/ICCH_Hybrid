@@ -41,11 +41,14 @@ const VerifyEmailForm = () => {
     }, [onSubmit])
 
   return (
+    <div className="min-h-screen flex items-center justify-center max-w-2xl mx-auto">
+    
     <CardWrapper
       headerLabel="Confirming your email address"
       title="Confirming now..."
       backButtonHref="/sign-in"
-      backButtonLabel="Back to login"
+      backButtonLabel="Back to login" 
+      
     >
       <div className="flex items-center w-full justify-center">
         {!success && !error && <p>Loading</p>}
@@ -53,6 +56,8 @@ const VerifyEmailForm = () => {
         {!success && <FormError message={error} />}
       </div>
     </CardWrapper>
+    </div>
+   
   )
 }
 

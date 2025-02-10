@@ -5,6 +5,7 @@ import { prisma } from "./prisma"; // Ensure prisma is correctly set up
 import { schema } from "./schema";
 import { encode, decode } from "next-auth/jwt";
 
+
 export const { auth, handlers, signIn, signOut } = NextAuth({
     session: { strategy: "jwt" }, // Using JWT sessions
     providers: [
@@ -20,12 +21,15 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
                     where: { email: validatedCredentials.email },
                 });
 
-                if (!user) throw new Error("Invalid credentials");
+                if (!user) throw new Error("User does not exist");
+                    
 
-                if (!user.password) throw new Error("Invalid credentials");
+                if (!user.password) throw new Error("Wrong Password is wrong");
+                    
 
                 if (!user.emailVerified) {
                     throw new Error("Email is not verified. Please check your inbox.");
+                    
                 }
 
                 const isValidPassword = await bcrypt.compare(
@@ -33,12 +37,13 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
                     user.password
                 );
 
-                if (!isValidPassword) throw new Error("Invalid credentials");
+                if (!isValidPassword) throw new Error("Wrong Password");
 
                 return { id: user.id, email: user.email, role: user.role };
             },
         }),
     ],
+    
     callbacks: {
         async jwt({ token, user }) {
             if (user) {

@@ -1,15 +1,8 @@
-import type { Metadata } from "next"
+
 import "../globals.css"
-import { SidebarProvider } from "@/components/ui/general/sidebar"
-import { FloatingNav } from "@/components/nav-bar"
 import type React from "react" // Added import for React
-
-
-
-export const metadata: Metadata = {
-  title: "App with Floating Nav",
-  description: "An application with a floating navigation bar",
-}
+import { SidebarProvider} from "@/components/ui/general/sidebar"
+import { AppSidebar } from "@/components/sidebar/app-sidebar"
 
 export default function adminLayout({
   children,
@@ -18,11 +11,12 @@ export default function adminLayout({
 }) {
   return (
     <div>
-        <SidebarProvider>
-          {children}
-          <FloatingNav />
-        </SidebarProvider>
-        
+      <SidebarProvider>
+      <AppSidebar />
+      <main className="p-4 md:ml-64 mb-16">
+        {children}
+      </main>
+    </SidebarProvider>
     </div>
   )
 }

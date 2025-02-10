@@ -1,16 +1,9 @@
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+
 import "../globals.css"
-import { SidebarProvider } from "@/components/ui/general/sidebar"
-import { FloatingNav } from "@/components/nav-bar"
+import { SidebarProvider} from "@/components/ui/general/sidebar"
+import { AppSidebar } from "@/components/sidebar/app-sidebar"
 import type React from "react" // Added import for React
 
-const inter = Inter({ subsets: ["latin"] })
-
-export const metadata: Metadata = {
-  title: "App with Floating Nav",
-  description: "An application with a floating navigation bar",
-}
 
 export default function RootLayout({
   children,
@@ -18,13 +11,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    
-      <body className={inter.className}>
-        <SidebarProvider>
+    <div>
+      <SidebarProvider>
+      <AppSidebar />
+      <main className="p-4 md:ml-64 mb-16">
         {children}
-          <FloatingNav />
-        </SidebarProvider>
-      </body>
+      </main>
+    </SidebarProvider>
+    </div>
   
   )
 }
