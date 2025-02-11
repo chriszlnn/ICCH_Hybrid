@@ -21,6 +21,8 @@ model User {
   accounts      Account[]
   Authenticator Authenticator[]
   sessions      Session[]
+  bio       String? 
+  imageUrl  String
   
 }
 

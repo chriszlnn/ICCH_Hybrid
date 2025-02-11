@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./prisma"; // Ensure prisma is correctly set up
 import { schema } from "./schema";
 import { encode, decode } from "next-auth/jwt";
+import { User } from "next-auth";
+
 
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
@@ -39,7 +41,13 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
 
                 if (!isValidPassword) throw new Error("Wrong Password");
 
-                return { id: user.id, email: user.email, role: user.role };
+                return {
+                    id: user.id,
+                    email: user.email,
+                    role: user.role,
+                    username: user.username || null,
+                    bio: user.bio || null,
+                } as User;
             },
         }),
     ],
@@ -48,14 +56,19 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         async jwt({ token, user }) {
             if (user) {
                 token.role = user.role;
+                token.username = user.username; // ✅ Add username
+                token.bio = user.bio;           // ✅ Add bio
             }
             return token;
         },
         async session({ session, token }) {
-            session.user.role = token.role as string; // Attach role to session
+            session.user.role = token.role as string;
+            session.user.username = token.username as string; // ✅ Add username to session
+            session.user.bio = token.bio as string;           // ✅ Add bio to session
             return session;
         },
     },
+    
     jwt: {
         encode: async (params) => {
             return encode({

@@ -14,6 +14,9 @@ const signUp = async (formData: FormData) => {
         const email = formData.get("email") as string | null;
         const password = formData.get("password") as string | null;
         const role = (formData.get("role") as string) || "CLIENT";
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const imageUrl = (formData.get("imageUrl") as string) || "";
+
 
         if (!email || !password) {
           throw new Error("Email and password are required");
@@ -48,6 +51,7 @@ const signUp = async (formData: FormData) => {
             email: validatedData.email.toLowerCase(),
             password: hashedPassword,
             role: role,
+            imageUrl: "",
           },
         });
 
