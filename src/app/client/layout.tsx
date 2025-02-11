@@ -4,16 +4,18 @@ import type React from "react"
 import { SidebarProvider } from "@/components/ui/general/sidebar"
 import { AppSidebar } from "@/components/sidebar/app-sidebar"// Added import for React
 
+
 export default function clientLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   return (
-    <div>
+    <div className="flex min-h-screen">
       <SidebarProvider>
       <AppSidebar />
-      <main className="p-4 md:ml-64 mb-16">
+      <main className="flex-1 ml-0 md:ml-64 p-0 pl-0 pr-0 transition-all duration-300">
+      
         {children}
       </main>
     </SidebarProvider>

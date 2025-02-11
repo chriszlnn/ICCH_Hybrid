@@ -42,7 +42,7 @@ export default async function RootLayout({ children }: LayoutProps) {
   return (
     <html>
       <body>
-        <main className="items-center justify-center min-h-screen bg-gray-100" style={{padding:"0px 30px"}}>
+        <main className="items-center justify-center min-h-screen bg-white px-0 md:px-20">
           <div>
           <SessionProvider>
             {children}
