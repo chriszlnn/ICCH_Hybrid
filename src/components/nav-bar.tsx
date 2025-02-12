@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Home, Info, PenSquare, Trophy, User } from 'lucide-react'
+import { Home, Info, PenSquare, Trophy, User} from 'lucide-react'
 
 import {
   Sidebar,
@@ -11,6 +11,7 @@ import {
   SidebarMenuButton,
   SidebarProvider,
 } from '@/components/ui/general/sidebar'
+import { SignOut } from './auth/sign-out'
 
 const navItems = [
   { icon: Home, label: 'Home', href: '/' },
@@ -53,6 +54,9 @@ export function FloatingNav() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
+            <SidebarMenuItem>
+              <SignOut />
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
       </Sidebar>

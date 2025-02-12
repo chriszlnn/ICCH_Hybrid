@@ -2,14 +2,19 @@
 import "../globals.css"
 import type React from "react" 
 import { SidebarProvider } from "@/components/ui/general/sidebar"
-import { AppSidebar } from "@/components/sidebar/app-sidebar"// Added import for React
+import { AppSidebar } from "@/components/sidebar/app-sidebar"
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";// Added import for React
 
 
-export default function clientLayout({
+export default async function clientLayout({
+  
   children,
 }: {
   children: React.ReactNode
 }) {
+  const session = await auth();
+  if (!session) redirect("/sign-in");
   return (
     <div className="flex min-h-screen">
       <SidebarProvider>
