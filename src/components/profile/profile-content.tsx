@@ -5,6 +5,9 @@ import { EditableAvatar } from "@/components/avatar/editable-avatar";
 import { EditProfile } from "@/components/edit-profile/edit-profile";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
+import { signOut } from "next-auth/react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "../ui/general/button";
 
 interface ProfileContentProps {
   userEmail: string;
@@ -67,7 +70,20 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
   };
 
   return (
+    
     <div className="container mx-auto px-4 py-8">
+      <div className="absolute top-4 right-4">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline">Account</Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-32">
+          <Button variant="destructive" onClick={() => signOut({ callbackUrl: '/sign-in' })} className="w-full">
+              Sign Out
+            </Button>
+          </PopoverContent>
+        </Popover>
+      </div>
       <div className="flex flex-col md:flex-row items-center md:items-start mb-8">
         <EditableAvatar
           alt="Profile"
