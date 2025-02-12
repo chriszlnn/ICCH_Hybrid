@@ -8,6 +8,8 @@ import { Label } from "../ui/form/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import axios from "axios";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface EditProfileProps {
   currentProfile: {
@@ -26,44 +28,56 @@ export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
   const [saving, setSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [passwordError, setPasswordError] = useState("");
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState<"error" | "success" | "">("");
+  const [activeTab, setActiveTab] = useState("account");
   const maxChars = 100;
 
-  // 🔄 Sync form data with currentProfile when modal opens
   useEffect(() => {
     if (isOpen) {
       setUsername(currentProfile.username || "");
       setBio(currentProfile.bio || "");
+    } else {
+      resetAlerts();
     }
   }, [isOpen, currentProfile]);
+
+  const resetAlerts = () => {
+    setAlertMessage("");
+    setAlertType("");
+    setCurrentPassword("");
+    setNewPassword("");
+  };
 
   const handleSave = async () => {
     setSaving(true);
     await onSave(username, bio);
     setSaving(false);
-    setIsOpen(false); // Close modal after saving
+    setIsOpen(false);
   };
 
   const handleChangePassword = async () => {
     if (newPassword.length < 8) {
-      setPasswordError("Password must be at least 8 characters.");
+      setAlertType("error");
+      setAlertMessage("Password must be at least 8 characters.");
       return;
     }
-    setPasswordError("");
+    resetAlerts();
 
     try {
-      await axios.post("/api/change-password", {
+      await axios.post("/api/change-password", { 
         currentPassword,
         newPassword,
         email: currentProfile.email,
       });
-      alert("Password updated successfully!");
-      setCurrentPassword("");
-      setNewPassword("");
-      setIsOpen(false);
+
+      setAlertType("success");
+      setAlertMessage("Password updated successfully!");
+      setTimeout(() => setIsOpen(false), 2000);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      alert(error.response?.data?.message || "Failed to change password.");
+      setAlertType("error");
+      setAlertMessage(error.response?.data?.message || "Failed to change password.");
     }
   };
 
@@ -74,7 +88,15 @@ export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
       </DialogTrigger>
       <DialogContent className="w-full sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl">
         <DialogTitle>Edit Profile</DialogTitle>
-        <Tabs defaultValue="account" className="w-full">
+        <Tabs
+          defaultValue="account"
+          value={activeTab}
+          onValueChange={(value) => {
+            setActiveTab(value);
+            resetAlerts();
+          }}
+          className="w-full"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="account">Account</TabsTrigger>
             <TabsTrigger value="password">Password</TabsTrigger>
@@ -128,6 +150,18 @@ export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
                 <CardDescription>Change your password here.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-2">
+                {alertMessage && (
+                  <Alert variant={alertType === "error" ? "destructive" : "default"} className="mb-2">
+                    {alertType === "error" ? (
+                      <AlertCircle className="h-4 w-4 text-red-500" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    )}
+                    <AlertTitle>{alertType === "error" ? "Error" : "Success"}</AlertTitle>
+                    <AlertDescription>{alertMessage}</AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="space-y-1">
                   <Label htmlFor="current">Current Password</Label>
                   <Input
@@ -145,7 +179,6 @@ export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                   />
-                  {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
                 </div>
               </CardContent>
               <CardFooter>
