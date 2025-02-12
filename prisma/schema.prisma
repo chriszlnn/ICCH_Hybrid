@@ -8,7 +8,7 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model User {
+model User { 
   id            String          @id @default(cuid())
   email         String          @unique
   createdAt     DateTime        @default(now())
@@ -16,25 +16,50 @@ model User {
   image         String?
   updatedAt     DateTime        @updatedAt
   password      String?
-  username      String?
-  role          String          @default("CLIENT")
+  role          Role            @default(CLIENT)
   accounts      Account[]
   Authenticator Authenticator[]
   sessions      Session[]
-  bio       String? 
-  imageUrl  String
-  
+
+  // Relations to role-specific tables
+  client        Client?
+  admin         Admin?
+  staff         Staff?
 }
 
-model PasswordResetToken {
-  id        String   @id @default(uuid()) @map("_id")
-  email     String
-  token     String
-  expires   DateTime
-
-  @@unique([email, token])
-  @@index([expires])
+model Client {
+  id       String @id @default(cuid())
+  userId   String @unique
+  username      String?
+  user     User   @relation(fields: [userId], references: [id])
+  bio      String?
+  imageUrl String?
 }
+
+model Admin {
+  id       String @id @default(cuid())
+  userId   String @unique
+  username      String?
+  user     User   @relation(fields: [userId], references: [id])
+  bio      String?
+  imageUrl String?
+}
+
+model Staff {
+  id       String @id @default(cuid())
+  userId   String @unique
+  username      String?
+  user     User   @relation(fields: [userId], references: [id])
+  bio      String?
+  imageUrl String?
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+  STAFF
+}
+
 
 
 

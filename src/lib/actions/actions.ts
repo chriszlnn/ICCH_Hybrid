@@ -6,6 +6,7 @@ import { generateVerificationToken } from "../token";
 import { sendVerificationEmail } from "../mail";
 
 
+import { Role } from "@prisma/client";
 
 const signUp = async (formData: FormData) => {
   return executeAction({
@@ -13,10 +14,10 @@ const signUp = async (formData: FormData) => {
       try {
         const email = formData.get("email") as string | null;
         const password = formData.get("password") as string | null;
-        const role = (formData.get("role") as string) || "CLIENT";
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const role = (formData.get("role") as Role) || Role.CLIENT;
         const imageUrl = (formData.get("imageUrl") as string) || "";
-
+        const bio = (formData.get("bio") as string) || "";
+        const username = (formData.get("username") as string) || ""; // Username added
 
         if (!email || !password) {
           throw new Error("Email and password are required");
@@ -24,38 +25,53 @@ const signUp = async (formData: FormData) => {
 
         if (password.length < 8) {
           throw new Error("Password must be at least 8 characters long");
-        }        
+        }
 
-        // Validate input data
         const validatedData = schema.parse({ email, password });
 
-        // Generate verification token
         const verificationToken = await generateVerificationToken(email);
         console.log("Generated Verification Token:", verificationToken);
 
-        // Send verification email
-        try {
-          await sendVerificationEmail(email, verificationToken.token);
-          console.log("Verification email sent to:", email);
-        } catch (error) {
-          console.error("Error sending verification email:", error);
-          throw new Error("Failed to send verification email");
-        }
+        await sendVerificationEmail(email, verificationToken.token);
+        console.log("Verification email sent to:", email);
 
-        // Hash the password
         const hashedPassword = await bcrypt.hash(validatedData.password, 10);
 
-        // Store user in database
-        await prisma.user.create({
+        const newUser = await prisma.user.create({
           data: {
             email: validatedData.email.toLowerCase(),
             password: hashedPassword,
-            role: role,
-            imageUrl: "",
+            role,
           },
         });
 
-        console.log("User created successfully:", email);
+        console.log("User created successfully:", newUser.email);
+
+        // Create role-specific record with bio, imageUrl, and username
+        switch (role) {
+          case Role.CLIENT:
+            await prisma.client.create({
+              data: { userId: newUser.id, username, bio, imageUrl },
+            });
+            break;
+
+          case Role.ADMIN:
+            await prisma.admin.create({
+              data: { userId: newUser.id, username, bio, imageUrl },
+            });
+            break;
+
+          case Role.STAFF:
+            await prisma.staff.create({
+              data: { userId: newUser.id, username, bio, imageUrl },
+            });
+            break;
+
+          default:
+            throw new Error("Invalid role specified");
+        }
+
+        console.log(`${role} role created successfully for user:`, newUser.email);
       } catch (error) {
         console.error("Error during sign-up:", error);
         throw error;
@@ -63,7 +79,12 @@ const signUp = async (formData: FormData) => {
     },
   });
 };
+
+
+
+
 export { signUp };
+
 
 // src/app/actions.ts
 

@@ -1,17 +1,17 @@
 "use client";
 
-import { Home, Info, PenSquare, Trophy, User, LogOut } from "lucide-react";
+import { User, LogOut ,LayoutGrid, Gem, ChartNoAxesCombined, UsersRound} from "lucide-react";
 import Image from "next/image";
 import Logo from "../../assets/Innisfree-Logo.svg";
 import { useRouter, usePathname } from "next/navigation"; 
 import { signOut } from "next-auth/react";
 
 const items = [
-  { title: "Home", url: "/staff", icon: Home },
-  { title: "Information", url: "#", icon: Info },
-  { title: "Post", url: "#", icon: PenSquare },
-  { title: "Leaderboard", url: "#", icon: Trophy },
-  { title: "Profile", url: "/staff/profile", icon: User },
+  { title: "Dashboard", url: "/admin", icon: LayoutGrid },
+  { title: "Beauty Information", url: "#", icon: Gem },
+  { title: "Analytics", url: "#", icon: ChartNoAxesCombined },
+  { title: "Customer", url: "#", icon: UsersRound },
+  { title: "Profile", url: "/admin/profile", icon: User },
 ];
 
 export function AppSidebar() {
