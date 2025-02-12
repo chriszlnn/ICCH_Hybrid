@@ -60,7 +60,15 @@ enum Role {
   STAFF
 }
 
+model PasswordResetToken {
+  id      String   @id @default(cuid())   // Auto-generates unique ID
+  email   String                           // Required email
+  token   String   @unique                 // Token must be unique
+  expires DateTime                         // Expiration time
 
+  @@unique([email, token])                 // Composite unique constraint
+  @@index([expires])                       // Index for fast queries on expiration
+}
 
 
 model Account {

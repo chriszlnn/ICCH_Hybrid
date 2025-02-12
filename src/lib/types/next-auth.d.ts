@@ -6,6 +6,7 @@ declare module "next-auth" {
       role?: string;
       username?: string; // ✅ Add username
       bio?: string;
+      imageUrl?: string;
     } & DefaultSession["user"];
   }
 
@@ -13,6 +14,7 @@ declare module "next-auth" {
     role?: string;
     username?: string; // ✅ Add username
     bio?: string;
+    imageUrl?: string;
   }
 }
 
@@ -21,5 +23,6 @@ declare module "@auth/core/adapters" {
     role?: string;
     username?: string; // ✅ Add username
     bio?: string;
+    imageUrl?: string;
   }
 }

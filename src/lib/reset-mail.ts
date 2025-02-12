@@ -15,7 +15,7 @@ export const sendResetPasswordEmail = async (email: string, token: string) => {
       html: `<p>Click <a href="${forgotPasswordLink}">here</a> to reset your password.</p>`,
     });
   
-    console.log("(mail.ts) Email sent to:", email);
+    console.log("(mail.ts) Email sent to:", email); 
   };
 
   

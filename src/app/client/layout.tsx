@@ -14,7 +14,7 @@ export default async function clientLayout({
   children: React.ReactNode
 }) {
   const session = await auth();
-  if (!session) redirect("/sign-in");
+  if (session?.user?.role !== "CLIENT") redirect("/sign-in");
   return (
     <div className="flex min-h-screen">
       <SidebarProvider>
