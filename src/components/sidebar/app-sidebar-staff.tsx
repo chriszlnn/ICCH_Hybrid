@@ -7,11 +7,11 @@ import { useRouter, usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 
 const items = [
-  { title: "Dashboard", url: "/admin", icon: LayoutGrid },
+  { title: "Dashboard", url: "/staff", icon: LayoutGrid },
   { title: "Beauty Information", url: "#", icon: Gem },
   { title: "Analytics", url: "#", icon: ChartNoAxesCombined },
   { title: "Customer", url: "#", icon: UsersRound },
-  { title: "Profile", url: "/admin/profile", icon: User },
+  { title: "Profile", url: "/staff/profile", icon: User },
 ];
 
 export function AppSidebar() {
