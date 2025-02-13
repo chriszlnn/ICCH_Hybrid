@@ -15,6 +15,7 @@ export default async function RootLayout({
   const session = await auth();
   if (session?.user?.role !== "STAFF") redirect("/sign-in");
   
+  
   return (
     <div>
       <SidebarProvider>
