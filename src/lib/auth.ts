@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma"; // Ensure prisma is correctly set up
@@ -6,6 +6,13 @@ import { schema } from "./schema";
 import { encode, decode } from "next-auth/jwt";
 import { User } from "next-auth";
 
+class CustomError extends CredentialsSignin {
+    code: string;
+    constructor(message: string, code: string) {
+        super(message);
+        this.code = code;
+    }
+}
 
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
@@ -16,6 +23,8 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
                 email: { label: "Email", type: "text" },
                 password: { label: "Password", type: "password" },
             },
+
+            
             authorize: async (credentials) => {
                 const validatedCredentials = schema.parse(credentials);
 
@@ -23,24 +32,28 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
                     where: { email: validatedCredentials.email },
                 });
 
-                if (!user) throw new Error("User does not exist");
-                    
-
-                if (!user.password) throw new Error("Wrong Password is wrong");
-                    
-
-                if (!user.emailVerified) {
-                    throw new Error("Email is not verified. Please check your inbox.");
-                    
+                if (!user) {
+                    throw new CustomError("User does not exist", "user-not-found");
                 }
+            
+                if (!user.password) {
+                    throw new CustomError("Wrong Password", "invalid-password");
+                }
+            
+                if (!user.emailVerified) {
+                    throw new CustomError("Email is not verified", "email-not-verified");
+                }
+                
 
                 const isValidPassword = await bcrypt.compare(
                     validatedCredentials.password,
                     user.password
                 );
 
-                if (!isValidPassword) throw new Error("Wrong Password");
-
+                if (!isValidPassword) {
+                    throw new CustomError("Wrong Password", "invalid-password");
+                }
+                
                 return {
                     id: user.id,
                     email: user.email,
