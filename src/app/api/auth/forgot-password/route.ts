@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateResetPasswordToken } from "@/lib/token";
 import { sendResetPasswordEmail } from "@/lib/reset-mail";
+import { getUserByEmail } from "@/data/user"; // Assume you have this function to fetch user data
 
 export async function POST(req: Request) {
   try {
@@ -10,6 +11,12 @@ export async function POST(req: Request) {
     }
 
     const { email } = body;
+
+    // Check if user exists
+    const user = await getUserByEmail(email);
+    if (!user) {
+      return NextResponse.json({ message: "Email does not exist" }, { status: 404 });
+    }
 
     const token = await generateResetPasswordToken(email);
     if (!token || !token.token) {

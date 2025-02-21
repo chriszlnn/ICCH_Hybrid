@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/general/input";
 import { Button } from "@/components/ui/general/button";
 import { Label } from "@radix-ui/react-label";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
 
 export default function ResetPasswordForm() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [alertType, setAlertType] = useState<"error" | "success" | null>(null);
   const [success, setSuccess] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -35,12 +37,14 @@ export default function ResetPasswordForm() {
   
     if (!validatePassword(newPassword)) {
       setError("Password must be at least 8 characters long");
+      setAlertType("error");
       setIsLoading(false);
       return;
     }
   
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match");
+      setAlertType("error");
       setIsLoading(false);
       return;
     }
@@ -119,9 +123,23 @@ export default function ResetPasswordForm() {
       <form onSubmit={handleSubmit}>
         <CardContent>
           <div className="space-y-4">
+          {error && alertType && (
+          <Alert
+            variant={alertType === "error" ? "destructive" : "default"}
+            className="mb-2"
+          >
+            {alertType === "error" ? (
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+            )}
+            <AlertTitle>{alertType === "error" ? "Error" : "Success"}</AlertTitle>
+            <AlertDescription>{error}</AlertDescription> 
+          </Alert>
+        )}
             <div className="space-y-2">
               <Label htmlFor="new-password">New Password</Label>
-              <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} style={{
+              <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required  style={{
             outline: 'none',
             boxShadow: 'none',
           }}
@@ -129,18 +147,14 @@ export default function ResetPasswordForm() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm-password">Confirm New Password</Label>
-              <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} style={{
+              <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required  style={{
             outline: 'none',
             boxShadow: 'none',
           }}
           className="border border-gray-300 rounded-md p-2 focus:outline-none focus:border-green-500 focus:bg-none autofill:!bg-green-100" />
             </div>
-            {error && (
-              <div className="flex items-center space-x-2 text-red-600">
-                <AlertCircle className="w-4 h-4" />
-                <p className="text-sm">{error}</p>
-              </div>
-            )}
+            
+
           </div>
         </CardContent>
         <CardFooter>

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/general/input"
 import { Button } from "@/components/ui/general/button"
 import { Label } from "@radix-ui/react-label"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState("")
@@ -14,6 +15,7 @@ export default function ForgotPasswordForm() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
   const router = useRouter()
+  const [alertType, setAlertType] = useState<"error" | "success" | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,11 +31,13 @@ export default function ForgotPasswordForm() {
       const data = await res.json()
   
       if (!res.ok) throw new Error(data.message || "Something went wrong")
+        setAlertType("error");
   
       setSuccess(true)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message)
+      setAlertType("error");
     } finally {
       setIsLoading(false)
     }
@@ -84,6 +88,20 @@ export default function ForgotPasswordForm() {
       <form onSubmit={handleSubmit}>
         <CardContent>
           <div className="space-y-4">
+          {error && alertType && (
+          <Alert
+            variant={alertType === "error" ? "destructive" : "default"}
+            className="mb-2"
+          >
+            {alertType === "error" ? (
+              <AlertCircle className="h-4 w-4 text-red-500" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+            )}
+            <AlertTitle>{alertType === "error" ? "Error" : "Success"}</AlertTitle>
+            <AlertDescription>{error}</AlertDescription> 
+          </Alert>
+        )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -100,12 +118,7 @@ export default function ForgotPasswordForm() {
                 required
               />
             </div>
-            {error && (
-              <div className="flex items-center space-x-2 text-red-600">
-                <AlertCircle className="w-4 h-4" />
-                <p className="text-sm">{error}</p>
-              </div>
-            )}
+            
           </div>
         </CardContent>
         <CardFooter>
