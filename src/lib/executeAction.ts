@@ -7,10 +7,11 @@ type Options<T> = {
 
 const executeAction = async <T>({
   actionFn,
-  successMessage = "The actions was successful",
-}: Options<T>): Promise<{ success: boolean; message: string }> => {
+  successMessage = "The action was successful",
+}: Options<T>): Promise<{ success: boolean; message: string; error?: string }> => {
   try {
-    await actionFn();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const result = await actionFn(); // Capture the result
 
     return {
       success: true,
@@ -18,12 +19,15 @@ const executeAction = async <T>({
     };
   } catch (error) {
     if (isRedirectError(error)) {
-      throw error;
+      throw error; // Let Next.js handle redirects
     }
+
+    console.error("Action Error:", error);
 
     return {
       success: false,
-      message: "An error has occurred during executing the action",
+      message: "An error occurred while executing the action",
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 };
