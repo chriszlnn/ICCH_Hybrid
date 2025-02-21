@@ -1,30 +1,42 @@
-import { executeAction } from "../executeAction"
-import { prisma } from "../prisma"
-import { schema } from "../schema"
+"use server";
+
+import { executeAction } from "../executeAction";
+import { prisma } from "../prisma";
+import { schema } from "../schema";
 import bcrypt from "bcryptjs";
 import { generateVerificationToken } from "../token";
 import { sendVerificationEmail } from "../mail";
-
-
 import { Role } from "@prisma/client";
+
+class CustomError extends Error {
+  code: string;
+  constructor(message: string, code: string = "SIGNUP_ERROR") {
+    super(message);
+    this.code = code;
+  }
+}
 
 const signUp = async (formData: FormData) => {
   return executeAction({
     actionFn: async () => {
       try {
-        const email = formData.get("email") as string | null;
-        const password = formData.get("password") as string | null;
-        const role = (formData.get("role") as Role) || Role.CLIENT;
-        const imageUrl = (formData.get("imageUrl") as string) || "";
-        const bio = (formData.get("bio") as string) || "";
-        const username = (formData.get("username") as string) || ""; // Username added
+        const email = formData.get("email")?.toString();
+        const password = formData.get("password")?.toString();
+        const role = (formData.get("role")?.toString() as Role) || Role.CLIENT;
+        const imageUrl = formData.get("imageUrl")?.toString() || "";
+        const bio = formData.get("bio")?.toString() || "";
+        const username = formData.get("username")?.toString() || "";
+
+        if(await prisma.user.findUnique({where: {email: email}})){
+          throw new CustomError("User already exists");
+        }
 
         if (!email || !password) {
-          throw new Error("Email and password are required");
+          throw new CustomError("Email and password are required");
         }
 
         if (password.length < 8) {
-          throw new Error("Password must be at least 8 characters long");
+          throw new CustomError("Password must be at least 8 characters long");
         }
 
         const validatedData = schema.parse({ email, password });
@@ -48,42 +60,26 @@ const signUp = async (formData: FormData) => {
         console.log("User created successfully:", newUser.email);
 
         // Create role-specific record with bio, imageUrl, and username
-        switch (role) {
-          case Role.CLIENT:
-            await prisma.client.create({
-              data: { userId: newUser.id, username, bio, imageUrl },
-            });
-            break;
-
-          case Role.ADMIN:
-            await prisma.admin.create({
-              data: { userId: newUser.id, username, bio, imageUrl },
-            });
-            break;
-
-          case Role.STAFF:
-            await prisma.staff.create({
-              data: { userId: newUser.id, username, bio, imageUrl },
-            });
-            break;
-
-          default:
-            throw new Error("Invalid role specified");
-        }
+        const roleData = { userId: newUser.id, username, bio, imageUrl };
+        if (role === Role.CLIENT) await prisma.client.create({ data: roleData });
+        else if (role === Role.ADMIN) await prisma.admin.create({ data: roleData });
+        else if (role === Role.STAFF) await prisma.staff.create({ data: roleData });
+        else throw new CustomError("Invalid role specified");
 
         console.log(`${role} role created successfully for user:`, newUser.email);
+
+        return { success: true };
       } catch (error) {
         console.error("Error during sign-up:", error);
-        throw error;
+        throw new CustomError(error instanceof Error ? error.message : "An unknown error occurred");
       }
     },
+    successMessage: "User registered successfully!",
   });
 };
 
-
-
-
 export { signUp };
+
 
 
 // src/app/actions.ts
