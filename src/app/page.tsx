@@ -15,9 +15,7 @@ const Page = async () => {
         <p className="text-gray-600">Signed in as:</p>
         <p className="font-medium">{session.user?.email}</p>
       </div>
-      
     
-      
     </>
   );
 };
