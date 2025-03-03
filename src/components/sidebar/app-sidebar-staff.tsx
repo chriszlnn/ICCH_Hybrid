@@ -27,7 +27,9 @@ export function AppSidebar() {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex md:flex-col w-64 bg-white shadow-md rounded-md h-screen p-4 fixed top-0 left-0 justify-between">
+
+      <aside className="hidden md:flex md:flex-col w-64 bg-emerald-100 shadow-md rounded-md h-screen p-4 fixed top-0 left-0 justify-between">
+
         <div>
           <Image
             src={Logo}
@@ -65,7 +67,7 @@ export function AppSidebar() {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-md flex justify-around items-center p-2 md:hidden z-50">
+      <nav className="fixed bottom-0 left-0 right-0 bg-emerald-100 shadow-md flex justify-around items-center p-2 md:hidden z-50">
         {items.map((item) => (
           <button
             key={item.title}
