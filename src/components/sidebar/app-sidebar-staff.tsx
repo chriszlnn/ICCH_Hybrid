@@ -27,7 +27,9 @@ export function AppSidebar() {
   return (
     <>
       {/* Desktop Sidebar */}
+
       <aside className="hidden md:flex md:flex-col w-64 bg-emerald-100 shadow-md rounded-md h-screen p-4 fixed top-0 left-0 justify-between">
+
         <div>
           <Image
             src={Logo}

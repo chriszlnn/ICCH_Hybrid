@@ -8,7 +8,7 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model User {
+model User { 
   id            String          @id @default(cuid())
   email         String          @unique
   createdAt     DateTime        @default(now())
@@ -16,12 +16,60 @@ model User {
   image         String?
   updatedAt     DateTime        @updatedAt
   password      String?
-  username      String?
-  role          String          @default("CLIENT")
+  role          Role            @default(CLIENT)
   accounts      Account[]
   Authenticator Authenticator[]
   sessions      Session[]
+
+  // Relations to role-specific tables
+  client        Client?
+  admin         Admin?
+  staff         Staff?
 }
+
+model Client {
+  id       String @id @default(cuid())
+  userId   String @unique
+  username      String?
+  user     User   @relation(fields: [userId], references: [id])
+  bio      String?
+  imageUrl String?
+}
+
+model Admin {
+  id       String @id @default(cuid())
+  userId   String @unique
+  username      String?
+  user     User   @relation(fields: [userId], references: [id])
+  bio      String?
+  imageUrl String?
+}
+
+model Staff {
+  id       String @id @default(cuid())
+  userId   String @unique
+  username      String?
+  user     User   @relation(fields: [userId], references: [id])
+  bio      String?
+  imageUrl String?
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+  STAFF
+}
+
+model PasswordResetToken {
+  id      String   @id @default(cuid())   // Auto-generates unique ID
+  email   String                           // Required email
+  token   String   @unique                 // Token must be unique
+  expires DateTime                         // Expiration time
+
+  @@unique([email, token])                 // Composite unique constraint
+  @@index([expires])                       // Index for fast queries on expiration
+}
+
 
 model Account {
   userId            String
@@ -52,12 +100,15 @@ model Session {
 }
 
 model VerificationToken {
-  identifier String
+  id         String   @id @default(uuid()) @map("_id")
+  email      String
   token      String
   expires    DateTime
 
-  @@id([identifier, token])
+  @@unique([email, token])
+  @@index([expires])
 }
+
 
 model Authenticator {
   credentialID         String  @unique

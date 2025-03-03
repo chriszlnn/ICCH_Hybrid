@@ -1,4 +1,5 @@
-import { SignOut } from "@/components/sign-out";
+//import { SignOut } from "@/components/auth/sign-out";
+
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation"; 
 
@@ -15,8 +16,7 @@ const Page = async () => {
         <p className="font-medium">{session.user?.email}</p>
       </div>
       
-        
-    <SignOut />
+    
       
     </>
   );
