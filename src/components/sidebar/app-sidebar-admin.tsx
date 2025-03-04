@@ -10,7 +10,7 @@ const items = [
   { title: "Dashboard", url: "/admin", icon: LayoutGrid },
   { title: "Beauty Information", url: "/admin/beautyInformation", icon: Gem },
   { title: "Analytics", url: "#", icon: ChartNoAxesCombined },
-  { title: "Customer", url: "#", icon: UsersRound },
+  { title: "User", url: "/admin/user", icon: UsersRound },
   { title: "Profile", url: "/admin/profile", icon: User },
 ];
 

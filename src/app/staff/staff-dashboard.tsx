@@ -11,7 +11,7 @@ const StaffDashboard = () => {
 
   return (
       <div>
-        <div>Welcome Admin</div>
+        <div>Welcome Staff</div>
         <ViewFeedback />
     </div>
   )
