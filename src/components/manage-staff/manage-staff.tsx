@@ -41,8 +41,8 @@ export default function ManageUser() {
   const [showCard, setShowCard] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [clients, setClients] = useState<{ id: number; username: string; email: string; emailVerified: string | null }[]>([]);
-  const [staff, setStaff] = useState<{ id: number; username: string; email: string; name: string; department: string }[]>([]);
+  const [clients, setClients] = useState<{ userId: number; username: string; email: string; emailVerified: string | null }[]>([]);
+  const [staff, setStaff] = useState<{ userId: number; username: string; email: string; name: string; department: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [newStaff, setNewStaff] = useState({
     name: "",
@@ -106,7 +106,7 @@ export default function ManageUser() {
   };
   const filteredClients = clients.filter(
     (client) =>
-      client.id.toString().includes(searchQuery.toLowerCase()) ||
+      client.userId.toString().includes(searchQuery.toLowerCase()) ||
       client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       client.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -127,10 +127,39 @@ export default function ManageUser() {
     setDeleteDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    console.log("Deleting item:", itemToDelete);
-    setDeleteDialogOpen(false);
-    setItemToDelete(null);
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+  
+    try {
+      // Ensure the ID is a string
+      const id = String(itemToDelete.userId);
+  
+      // Log the ID for debugging
+      console.log("Deleting item with ID:", id);
+  
+      // Call the DELETE API endpoint
+      const response = await fetch(`/api/users/${id}`, {
+        method: "DELETE",
+      });
+  
+      if (response.ok) {
+        // Refresh the data
+        const clientRes = await fetch("/api/clients");
+        const staffRes = await fetch("/api/staff");
+        const clientData = await clientRes.json();
+        const staffData = await staffRes.json();
+        setClients(clientData);
+        setStaff(staffData);
+  
+        // Close the delete dialog
+        setDeleteDialogOpen(false);
+        setItemToDelete(null);
+      } else {
+        console.error("Failed to delete item");
+      }
+    } catch (error) {
+      console.error("Error deleting item:", error);
+    }
   };
 
   const handleSaveEdit = () => {
@@ -296,8 +325,8 @@ export default function ManageUser() {
                       </thead>
                       <tbody>
                         {filteredClients.map((client) => (
-                          <tr key={client.id} className="border-b">
-                            <td className="py-3">{client.id}</td>
+                          <tr key={client.userId} className="border-b">
+                            <td className="py-3">{client.userId}</td>
                             <td className="py-3">{client.email}</td>
                             <td className="py-3">{client.username}</td>
                             <td className="hidden py-3 sm:table-cell">
@@ -359,8 +388,8 @@ export default function ManageUser() {
                       </thead>
                       <tbody>
                         {filteredStaff.map((staff) => (
-                          <tr key={staff.id} className="border-b">
-                            <td className="py-3">{staff.id}</td>
+                          <tr key={staff.userId} className="border-b">
+                            <td className="py-3">{staff.userId}</td>
                             <td className="py-3">{staff.name}</td>
                             <td className="py-3">{staff.email}</td>
                             <td className="py-3">{staff.department}</td>
@@ -475,22 +504,22 @@ export default function ManageUser() {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              {activeTab === "clients" ? " client" : " staff member"} and remove their data from our servers.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete the
+            {activeTab === "clients" ? " client" : " staff member"} and remove their data from our servers.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </div>
   );
 }
