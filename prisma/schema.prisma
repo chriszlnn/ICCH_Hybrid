@@ -21,37 +21,47 @@ model User {
   Authenticator Authenticator[]
   sessions      Session[]
 
-  // Relations to role-specific tables
-  client        Client?
-  admin         Admin?
-  staff         Staff?
+  // Relations to role-specific tables (only defined on one side)
+  client        Client? @relation("UserClient")
+  admin         Admin?  @relation("UserAdmin")
+  staff         Staff?  @relation("UserStaff")
 }
 
+
+
 model Client {
-  id       String @id @default(cuid())
-  userId   String @unique
+  id            String @id @default(cuid())
+  userId        String @unique
+  email         String @unique 
+  emailVerified DateTime?
   username      String?
-  user     User   @relation(fields: [userId], references: [id])
-  bio      String?
-  imageUrl String?
+  user          User   @relation("UserClient", fields: [userId], references: [id], onDelete: Cascade) 
+  bio           String?
+  imageUrl      String?
 }
 
 model Admin {
   id       String @id @default(cuid())
   userId   String @unique
-  username      String?
-  user     User   @relation(fields: [userId], references: [id])
+  email    String @unique
+  username String?
+  user     User   @relation("UserAdmin", fields: [userId], references: [id], onDelete: Cascade) 
   bio      String?
   imageUrl String?
+  department String?
+  name       String?
 }
 
 model Staff {
   id       String @id @default(cuid())
   userId   String @unique
-  username      String?
-  user     User   @relation(fields: [userId], references: [id])
+  email    String @unique
+  username String?
+  user     User   @relation("UserStaff", fields: [userId], references: [id], onDelete: Cascade) 
   bio      String?
   imageUrl String?
+  department String?
+  name       String?
 }
 
 enum Role {

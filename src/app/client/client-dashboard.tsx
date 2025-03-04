@@ -11,7 +11,7 @@ const ClientDashboard = () => {
 
    return (
       <div>
-        <div>Welcome Admin</div>
+        <div>Welcome client</div>
         <GiveFeedback />
     </div>
     )

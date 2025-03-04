@@ -20,35 +20,50 @@ const signUp = async (formData: FormData) => {
   return executeAction({
     actionFn: async () => {
       try {
+        console.log("Received FormData:", Array.from(formData.entries()));
+
         const email = formData.get("email")?.toString();
         const password = formData.get("password")?.toString();
-        const role = (formData.get("role")?.toString() as Role) || Role.CLIENT;
+        const roleInput = formData.get("role")?.toString();
         const imageUrl = formData.get("imageUrl")?.toString() || "";
         const bio = formData.get("bio")?.toString() || "";
         const username = formData.get("username")?.toString() || "";
 
-        if(await prisma.user.findUnique({where: {email: email}})){
-          throw new CustomError("User already exists");
-        }
-
+        // Validate email and password existence
         if (!email || !password) {
           throw new CustomError("Email and password are required");
         }
 
+        // Validate password length
         if (password.length < 8) {
           throw new CustomError("Password must be at least 8 characters long");
         }
 
+        // Ensure role is valid
+        const role = Object.values(Role).includes(roleInput as Role) ? (roleInput as Role) : Role.CLIENT;
+        
+
+        // Check if user already exists
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+          throw new CustomError("User already exists");
+        }
+
+        // Validate using schema
         const validatedData = schema.parse({ email, password });
 
+        // Generate verification token
         const verificationToken = await generateVerificationToken(email);
         console.log("Generated Verification Token:", verificationToken);
 
+        // Send verification email
         await sendVerificationEmail(email, verificationToken.token);
         console.log("Verification email sent to:", email);
 
+        // Hash password
         const hashedPassword = await bcrypt.hash(validatedData.password, 10);
 
+        // Create user
         const newUser = await prisma.user.create({
           data: {
             email: validatedData.email.toLowerCase(),
@@ -59,12 +74,21 @@ const signUp = async (formData: FormData) => {
 
         console.log("User created successfully:", newUser.email);
 
-        // Create role-specific record with bio, imageUrl, and username
-        const roleData = { userId: newUser.id, username, bio, imageUrl };
-        if (role === Role.CLIENT) await prisma.client.create({ data: roleData });
-        else if (role === Role.ADMIN) await prisma.admin.create({ data: roleData });
-        else if (role === Role.STAFF) await prisma.staff.create({ data: roleData });
-        else throw new CustomError("Invalid role specified");
+        // Create role-specific profile
+        const roleData = { userId: newUser.id, email: newUser.email, username, bio, imageUrl };
+        switch (role) {
+          case Role.CLIENT:
+            await prisma.client.create({ data: roleData });
+            break;
+          case Role.ADMIN:
+            await prisma.admin.create({ data: roleData });
+            break;
+          case Role.STAFF:
+            await prisma.staff.create({ data: roleData });
+            break;
+          default:
+            throw new CustomError("Invalid role specified");
+        }
 
         console.log(`${role} role created successfully for user:`, newUser.email);
 
