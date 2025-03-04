@@ -1,5 +1,6 @@
 "use client";
 import { useSession } from "next-auth/react";
+import GiveFeedback from "@/components/give-feedback/give-feedback";
 
 const ClientDashboard = () => {
   const { data: session } = useSession();
@@ -8,7 +9,12 @@ const ClientDashboard = () => {
     // Do something for admin
   }
 
-  return <div>Welcome Client</div>;
-};
+   return (
+      <div>
+        <div>Welcome Admin</div>
+        <GiveFeedback />
+    </div>
+    )
+  }
 
 export default ClientDashboard;

@@ -11,6 +11,7 @@ import { handleSignIn } from '@/lib/actions/sign-in-action'; // Import the Serve
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
 import { AlertCircle, CheckCircle2 } from "lucide-react"; // Import icons
 import { useSession } from "next-auth/react";
+import picture from "../../assets/innisfree-login-page.jpg";
 
 
 const SignInForm = () => {
@@ -42,6 +43,17 @@ const SignInForm = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center">
+      <div className="flex bg-white rounded-lg shadow-lg overflow-hidden w-full max-w-4xl">
+      {/* Left Side - Image */}
+      <div className="hidden md:flex md:w-1/2 bg-gray-200">
+        <Image 
+          src={picture}
+          alt="Sign in illustration" 
+          width={500} 
+          height={500} 
+          className="object-cover w-full h-full"
+        />
+      </div>
       <div className="w-full max-w-sm p-10 mx-auto space-y-6 w-full max-w-md rounded-lg bg-white transition-all duration-300 shadow-[0_0_0_1px_rgba(18,181,96,0.1)] hover:shadow-[0_0_20px_rgba(18,181,96,0.2)] focus-within:shadow-[0_0_20px_rgba(18,181,96,0.3)]">
         <Image src={Logo} alt="Logo" width={200} height={128} className="mx-auto rounded-lg" />
 
@@ -82,6 +94,7 @@ const SignInForm = () => {
             }}
             className="border border-gray-300 rounded-md p-2 focus:outline-none focus:border-green-500 focus:bg-none autofill:!bg-green-100"
           />
+          
           <Input
             name="password"
             placeholder="Password"
@@ -110,6 +123,7 @@ const SignInForm = () => {
           </Button>
         </div>
       </div>
+    </div>
     </div>
   );
 };
