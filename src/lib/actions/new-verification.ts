@@ -32,7 +32,16 @@ export const newVerification = async (token: string) => {
             emailVerified: new Date(),
             email: existingToken.email
         }
-    })
+    });
+
+    await prisma.client.updateMany({
+        where: {
+            userId: existingUser.id,
+        },
+        data: {
+            emailVerified: new Date(),
+        },
+    });
 
     await prisma.verificationToken.delete({
         where: {

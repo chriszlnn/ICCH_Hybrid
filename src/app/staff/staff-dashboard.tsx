@@ -1,5 +1,6 @@
 "use client";
 import { useSession } from "next-auth/react";
+import ViewFeedback from "@/components/view-feedback/view-feedback";
 
 const StaffDashboard = () => {
   const { data: session } = useSession();
@@ -8,7 +9,12 @@ const StaffDashboard = () => {
     // Do something for admin
   }
 
-  return <div>Welcome Staff</div>;
-};
+  return (
+      <div>
+        <div>Welcome Staff</div>
+        <ViewFeedback />
+    </div>
+  )
+}
 
 export default StaffDashboard;
