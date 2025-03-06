@@ -5,16 +5,20 @@ import GiveFeedback from "@/components/give-feedback/give-feedback";
 const ClientDashboard = () => {
   const { data: session } = useSession();
 
-  if (session?.user?.role === "CLIENT") {
-    // Do something for admin
-  }
+    // Do something for client
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-6 p-4">
+      <h2 className="text-2xl font-semibold text-gray-800">
+        Welcome, {session?.user?.name || "Client"}!
+      </h2>
+      <p className="text-gray-600 mb-4">We appreciate your feedback.</p>
 
-   return (
-      <div>
-        <div>Welcome client</div>
+      <div className="w-full max-w-lg mb-10">
         <GiveFeedback />
+      </div>
     </div>
-    )
-  }
+  );
+};
 
 export default ClientDashboard;
+
