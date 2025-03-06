@@ -4,16 +4,15 @@ import ViewFeedback from "@/components/view-feedback/view-feedback";
 
 const AdminDashboard = () => {
   const { data: session } = useSession();
-
-  if (session?.user?.role === "ADMIN") {
+  
     // Do something for admin
-  }
   return (
-    <div>
-      <div>Welcome Admin</div>
+    <div className="p-4">
+      <h1 className="text-xl font-semibold mb-4">Welcome, Admin</h1>
+
       <ViewFeedback />
-  </div>
-  )
-}
+    </div>
+  );
+};
 
 export default AdminDashboard;
