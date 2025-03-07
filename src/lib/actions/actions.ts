@@ -40,7 +40,7 @@ const signUp = async (formData: FormData) => {
         }
 
         // Ensure role is valid
-        const role = Object.values(Role).includes(roleInput as Role) ? (roleInput as Role) : Role.ADMIN;
+        const role = Object.values(Role).includes(roleInput as Role) ? (roleInput as Role) : Role.CLIENT;
         
 
         // Check if user already exists
