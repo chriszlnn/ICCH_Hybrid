@@ -1,4 +1,4 @@
-import ManageProduct from "@/components/manage-product/page";
+import ManageProduct from "@/components/manage-product/manage-product";
 
 export default async function ProfilePage() {
  

@@ -1,4 +1,4 @@
-import ViewProductPage from "@/components/view-product/page";
+import ViewProductPage from "@/components/view-product/view-product";
 
 export default function ProductPage() {
     return (
