@@ -1,6 +1,6 @@
 "use client";
 
-import { User, LogOut ,LayoutGrid, Gem, ChartNoAxesCombined, UsersRound} from "lucide-react";
+import { User, LogOut ,LayoutGrid, Gem, UsersRound, Sparkles} from "lucide-react";
 import Image from "next/image";
 import Logo from "../../assets/Innisfree-Logo.svg";
 import { useRouter, usePathname } from "next/navigation"; 
@@ -9,7 +9,7 @@ import { signOut } from "next-auth/react";
 const items = [
   { title: "Dashboard", url: "/staff", icon: LayoutGrid },
   { title: "Beauty Information", url: "#", icon: Gem },
-  { title: "Analytics", url: "#", icon: ChartNoAxesCombined },
+  { title: "Products", url: "/staff/product", icon: Sparkles },
   { title: "User", url: "/staff/user", icon: UsersRound },
   { title: "Profile", url: "/staff/profile", icon: User },
 ];
