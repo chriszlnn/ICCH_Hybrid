@@ -1,4 +1,4 @@
-import ManageUser from "@/components/manage-staff/manage-staff";
+import ManageUser from "@/components/manage-user/manage-user";
 export default async function ManageUserPage() {
   
 

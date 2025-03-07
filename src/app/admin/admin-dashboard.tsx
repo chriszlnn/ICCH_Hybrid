@@ -2,7 +2,9 @@
 import { useSession } from "next-auth/react";
 import ViewFeedback from "@/components/view-feedback/view-feedback";
 
+
 const AdminDashboard = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { data: session } = useSession();
   
     // Do something for admin
