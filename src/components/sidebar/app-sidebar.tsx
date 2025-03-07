@@ -8,7 +8,7 @@ import { signOut } from "next-auth/react";
 
 const items = [
   { title: "Home", url: "/client", icon: Home },
-  { title: "Information", url: "#", icon: Info },
+  { title: "Information", url: "/client/information", icon: Info },
   { title: "Post", url: "#", icon: PenSquare },
   { title: "Leaderboard", url: "#", icon: Trophy },
   { title: "Profile", url: "/client/profile", icon: User },
@@ -42,7 +42,7 @@ export function AppSidebar() {
                 key={item.title}
                 onClick={() => handleNavigation(item.url)}
                 className={`flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ${
-                  pathname === item.url
+                  pathname === item.url || (item.url !== "/client" && pathname.startsWith(item.url))
                     ? "bg-[#12B560] text-white"
                     : "hover:bg-[#12B560] hover:text-white"
                 }`}
@@ -71,7 +71,7 @@ export function AppSidebar() {
             key={item.title}
             onClick={() => handleNavigation(item.url)}
             className={`flex justify-center items-center w-full p-2 rounded-lg transition duration-300 ${
-              pathname === item.url
+              pathname === item.url || (item.url !== "/client" && pathname.startsWith(item.url))
                 ? "bg-[#12B560] text-white"
                 : "hover:bg-[#12B560] hover:text-white"
             }`}
