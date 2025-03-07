@@ -133,3 +133,13 @@ model Authenticator {
 
   @@id([userId, credentialID])
 }
+
+model Feedback {
+  id          String   @id @default(cuid())
+  rating      Int
+  issues      String[] // Store selected issues as an array of strings
+  comment     String?
+  email       String   // Add this field to store the user's email
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

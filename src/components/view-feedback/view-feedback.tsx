@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Star } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton"; // Import the Skeleton component
 
 // Issue categories for filtering
 const ISSUE_TAGS = [
@@ -13,53 +14,44 @@ const ISSUE_TAGS = [
   "Other problems",
 ];
 
-// Mock feedback data
-const mockFeedback = [
-  {
-    id: "1",
-    rating: 5,
-    selectedIssues: ["Customer service"],
-    comment:
-      "The staff was incredibly helpful and attentive. The new community programs are excellent!",
-    submittedAt: "2024-03-01T14:30:00Z",
-    submittedBy: {
-      name: "Rachel Patel",
-      avatar: "/placeholder.svg",
-    },
-  },
-  {
-    id: "2",
-    rating: 4,
-    selectedIssues: ["Visual functionality", "Bad navigation"],
-    comment:
-      "Really impressed with the quality of service. The website could use some improvements in navigation, but otherwise, it's perfect!",
-    submittedAt: "2024-02-28T09:15:00Z",
-    submittedBy: {
-      name: "Christopher Lee",
-      avatar: "/placeholder.svg",
-    },
-  },
-];
-
-// Calculate average rating
-const averageRating = (
-  mockFeedback.reduce((acc, feedback) => acc + feedback.rating, 0) /
-  mockFeedback.length
-).toFixed(1);
-
-// Calculate rating distribution
-const ratingCounts = [5, 4, 3, 2, 1].map(
-  (rating) =>
-    mockFeedback.filter((feedback) => feedback.rating === rating).length
-);
-const totalReviews = mockFeedback.length;
-
 export default function ViewFeedback() {
   const [issueFilter, setIssueFilter] = useState("all");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [feedbackData, setFeedbackData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch feedback data from the API
+  useEffect(() => {
+    const fetchFeedback = async () => {
+      try {
+        const response = await fetch("/api/feedback");
+        const data = await response.json();
+        setFeedbackData(data);
+      } catch (error) {
+        console.error("Error fetching feedback:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeedback();
+  }, []);
+
+  // Calculate average rating
+  const averageRating = (
+    feedbackData.reduce((acc, feedback) => acc + feedback.rating, 0) / feedbackData.length
+  ).toFixed(1);
+
+  // Calculate rating distribution
+  const ratingCounts = [5, 4, 3, 2, 1].map(
+    (rating) =>
+      feedbackData.filter((feedback) => feedback.rating === rating).length
+  );
+  const totalReviews = feedbackData.length;
 
   // Filter feedback based on selected issue
-  const filteredFeedback = mockFeedback.filter((feedback) => {
-    return issueFilter === "all" || feedback.selectedIssues.includes(issueFilter);
+  const filteredFeedback = feedbackData.filter((feedback) => {
+    return issueFilter === "all" || feedback.issues.includes(issueFilter);
   });
 
   // Format date for display
@@ -79,19 +71,25 @@ export default function ViewFeedback() {
         {/* Average Rating Section */}
         <div className="md:col-span-1 bg-gray-50 p-6 rounded-lg shadow">
           <h2 className="text-xl font-semibold mb-2">Average Rating</h2>
-          <div className="flex items-center">
-            <span className="text-3xl font-bold">{averageRating}</span>
-            <div className="flex ml-2">
-              {Array.from({ length: 5 }, (_, index) => (
-                <Star
-                  key={index}
-                  fill={index < Math.round(Number(averageRating)) ? "currentColor" : "none"}
-                  className={`w-5 h-5 ${index < Math.round(Number(averageRating)) ? "text-yellow-500" : "text-gray-300"}`}
-                />
-              ))}
+          {loading ? (
+            <Skeleton className="h-8 w-24" /> // Skeleton for average rating
+          ) : (
+            <div className="flex items-center">
+              <span className="text-3xl font-bold">{averageRating}</span>
+              <div className="flex ml-2">
+                {Array.from({ length: 5 }, (_, index) => (
+                  <Star
+                    key={index}
+                    fill={index < Math.round(Number(averageRating)) ? "currentColor" : "none"}
+                    className={`w-5 h-5 ${index < Math.round(Number(averageRating)) ? "text-yellow-500" : "text-gray-300"}`}
+                  />
+                ))}
+              </div>
             </div>
+          )}
+          <div className="text-sm text-gray-500">
+              {loading ? <Skeleton className="h-4 w-16 mt-2" /> : `${totalReviews} Reviews`}
           </div>
-          <p className="text-sm text-gray-500">{totalReviews} Reviews</p>
 
           {/* Rating Distribution */}
           <div className="mt-4 space-y-1">
@@ -99,13 +97,21 @@ export default function ViewFeedback() {
               <div key={rating} className="flex items-center space-x-2">
                 <span className="text-sm font-medium">{rating}</span>
                 <div className="relative w-full h-2 bg-gray-200 rounded">
-                  <div
-                    className="absolute top-0 left-0 h-2 bg-yellow-500 rounded"
-                    style={{ width: `${(ratingCounts[index] / totalReviews) * 100 || 0}%` }}
-                  />
+                  {loading ? (
+                    <Skeleton className="h-2 w-full" /> // Skeleton for rating bar
+                  ) : (
+                    <div
+                      className="absolute top-0 left-0 h-2 bg-yellow-500 rounded"
+                      style={{ width: `${(ratingCounts[index] / totalReviews) * 100 || 0}%` }}
+                    />
+                  )}
                 </div>
                 <span className="text-xs text-gray-500">
-                  {((ratingCounts[index] / totalReviews) * 100 || 0).toFixed(0)}%
+                  {loading ? (
+                    <Skeleton className="h-4 w-8" /> // Skeleton for percentage
+                  ) : (
+                    `${((ratingCounts[index] / totalReviews) * 100 || 0).toFixed(0)}%`
+                  )}
                 </span>
               </div>
             ))}
@@ -119,74 +125,96 @@ export default function ViewFeedback() {
           {/* Issue Filter */}
           <div className="flex items-center gap-4 mb-6">
             <label htmlFor="issueFilter" className="font-medium text-gray-700">Filter by:</label>
-            <select
-              id="issueFilter"
-              value={issueFilter}
-              onChange={(e) => setIssueFilter(e.target.value)}
-              className="border border-gray-300 p-2 rounded-md focus:ring-green-500 focus:outline-none"
-            >
-              <option value="all">All Issues</option>
-              {ISSUE_TAGS.map((issue) => (
-                <option key={issue} value={issue}>
-                  {issue}
-                </option>
-              ))}
-            </select>
+            {loading ? (
+              <Skeleton className="h-10 w-32" /> // Skeleton for filter dropdown
+            ) : (
+              <select
+                id="issueFilter"
+                value={issueFilter}
+                onChange={(e) => setIssueFilter(e.target.value)}
+                className="border border-gray-300 p-2 rounded-md focus:ring-green-500 focus:outline-none"
+              >
+                <option value="all">All Issues</option>
+                {ISSUE_TAGS.map((issue) => (
+                  <option key={issue} value={issue}>
+                    {issue}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Feedback List */}
           <div className="space-y-4">
-            {filteredFeedback.map((feedback) => (
-              <div key={feedback.id} className="p-4 border rounded-lg shadow-sm bg-gray-50">
-                {/* User Info and Rating */}
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={feedback.submittedBy.avatar}
-                      alt="Avatar"
-                      className="w-10 h-10 rounded-full"
-                    />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{feedback.submittedBy.name}</h3>
-                      <p className="text-sm text-gray-400">{formatDate(feedback.submittedAt)}</p>
+            {loading ? (
+              // Skeleton for feedback list
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="p-4 border rounded-lg shadow-sm bg-gray-50">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="h-10 w-10 rounded-full" /> {/* Avatar */}
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" /> {/* Name */}
+                        <Skeleton className="h-3 w-24" /> {/* Date */}
+                      </div>
+                    </div>
+                    <Skeleton className="h-5 w-20" /> {/* Rating */}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Skeleton className="h-6 w-16" /> {/* Issue Tag */}
+                    <Skeleton className="h-6 w-20" /> {/* Issue Tag */}
+                  </div>
+                  <Skeleton className="h-4 w-full mt-2" /> {/* Comment */}
+                </div>
+              ))
+            ) : (
+              filteredFeedback.map((feedback) => (
+                <div key={feedback.id} className="p-4 border rounded-lg shadow-sm bg-gray-50">
+                  {/* User Info and Rating */}
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{feedback.email}</h3>
+                        <p className="text-sm text-gray-400">{formatDate(feedback.createdAt)}</p>
+                      </div>
+                    </div>
+
+                    {/* Star Rating */}
+                    <div className="flex">
+                      {Array.from({ length: 5 }, (_, index) => (
+                        <Star
+                          key={index}
+                          fill={index < feedback.rating ? "currentColor" : "none"}
+                          className={`w-5 h-5 ${
+                            index < feedback.rating ? "text-yellow-500" : "text-gray-300"
+                          }`}
+                        />
+                      ))}
                     </div>
                   </div>
 
-                  {/* Star Rating */}
-                  <div className="flex">
-                    {Array.from({ length: 5 }, (_, index) => (
-                      <Star
-                        key={index}
-                        fill={index < feedback.rating ? "currentColor" : "none"}
-                        className={`w-5 h-5 ${
-                          index < feedback.rating ? "text-yellow-500" : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
+                  {/* Issue Tags */}
+                  {feedback.issues.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {feedback.issues.map((issue: string) => (
+                        <span
+                          key={issue}
+                          className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md"
+                        >
+                          {issue}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Comment */}
+                  <p className="mt-2 text-gray-400">{feedback.comment}</p>
                 </div>
-
-                {/* Issue Tags */}
-                {feedback.selectedIssues.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {feedback.selectedIssues.map((issue) => (
-                      <span
-                        key={issue}
-                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-md"
-                      >
-                        {issue}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Comment */}
-                <p className="mt-2 text-gray-400">{feedback.comment}</p>
-              </div>
-            ))}
+              ))
+            )}
 
             {/* No Feedback Message */}
-            {filteredFeedback.length === 0 && (
+            {!loading && filteredFeedback.length === 0 && (
               <p className="text-gray-500 text-center">
                 No feedback available for this category.
               </p>

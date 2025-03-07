@@ -3,6 +3,7 @@
 import type React from "react";
 import { useState } from "react";
 import { Star } from "lucide-react";
+import { useSession } from "next-auth/react"; // Import useSession from next-auth
 
 const ISSUE_TAGS = [
   "Application bugs",
@@ -14,20 +15,59 @@ const ISSUE_TAGS = [
 ];
 
 export default function GiveFeedback() {
+  const { data: session } = useSession(); // Get the user session
   const [rating, setRating] = useState<number>(0);
   const [hoveredRating, setHoveredRating] = useState<number>(0);
   const [selectedIssues, setSelectedIssues] = useState<string[]>([]);
   const [comment, setComment] = useState<string>("");
   const [submitted, setSubmitted] = useState<boolean>(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+  
+    // Validate the input
     if (rating === 0 || selectedIssues.length === 0) {
       alert("Please select a rating and at least one issue before submitting.");
       return;
     }
-    console.log({ rating, selectedIssues, comment });
-    setSubmitted(true);
+  
+    // Get the email from the session
+    const email = session?.user?.email;
+    if (!email) {
+      alert("You must be logged in to submit feedback.");
+      return;
+    }
+  
+    try {
+      // Send the feedback data to the API
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rating,
+          issues: selectedIssues,
+          comment,
+          email,
+        }),
+      });
+  
+      // Log the response for debugging
+      const responseText = await response.text();
+      console.log("Response Text:", responseText);
+  
+      if (response.ok) {
+        setSubmitted(true);
+      } else {
+        // Parse the response as JSON
+        const errorData = JSON.parse(responseText);
+        alert(`Failed to submit feedback: ${errorData.error}`);
+      }
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      alert("Failed to submit feedback. Please try again.");
+    }
   };
 
   const handleReset = () => {
