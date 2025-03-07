@@ -3,6 +3,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Edit, MoreHorizontal, Plus, Search, Trash, Users } from "lucide-react";
+import { generateVerificationToken } from "@/lib/token";
+import { sendVerificationEmail } from "@/lib/mail";
 import Link from "next/link";
 import { Button } from "../ui/general/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -162,12 +164,76 @@ export default function ManageUser() {
     }
   };
 
-  const handleSaveEdit = () => {
-    console.log("Saving edited item:", editingItem);
-    setIsEditDialogOpen(false);
-    setEditingItem(null);
+  const handleSaveEdit = async () => {
+    if (!editingItem) return;
+  
+    try {
+      let requestBody;
+  
+      if (activeTab === "clients") {
+        requestBody = {
+          emailVerified: editingItem.emailVerified ? "Verified" : "Unverified",
+        };
+      } else if (activeTab === "staff") {
+        requestBody = {
+          name: editingItem.name,
+          department: editingItem.department,
+        };
+      } else {
+        console.error("Invalid active tab");
+        return;
+      }
+  
+      // Send the request to the API
+      const response = await fetch(`/api/users/${editingItem.userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+  
+      if (response.ok) {
+        // Refresh the data
+        if (activeTab === "clients") {
+          const clientRes = await fetch("/api/clients");
+          const clientData = await clientRes.json();
+          setClients(clientData);
+        } else if (activeTab === "staff") {
+          const staffRes = await fetch("/api/staff");
+          const staffData = await staffRes.json();
+          setStaff(staffData);
+        }
+  
+        // Close the edit dialog
+        setIsEditDialogOpen(false);
+        setEditingItem(null);
+      } else {
+        console.error("Failed to update item");
+      }
+    } catch (error) {
+      console.error("Error updating item:", error);
+    }
   };
 
+  const handleResendVerificationEmail = async () => {
+  try {
+    const response = await fetch(`/api/users/${editingItem.userId}`, {
+      method: "POST",
+    });
+
+    if (response.ok) {
+      alert("Verification email has been resent successfully!");
+    } else {
+      console.error("Failed to resend verification email");
+      alert("Failed to resend verification email. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error resending verification email:", error);
+    alert("Failed to resend verification email. Please try again.");
+  }
+};
+  
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
@@ -436,71 +502,112 @@ export default function ManageUser() {
           </DialogHeader>
           {editingItem && (
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={editingItem.name}
-                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  value={editingItem.email}
-                  onChange={(e) => setEditingItem({ ...editingItem, email: e.target.value })}
-                />
-              </div>
               {activeTab === "clients" ? (
                 <>
+                  {/* Client ID (non-editable) */}
                   <div className="grid gap-2">
-                    <Label htmlFor="phone">Phone</Label>
+                    <Label htmlFor="clientId">Client ID</Label>
                     <Input
-                      id="phone"
-                      value={editingItem.phone}
-                      onChange={(e) => setEditingItem({ ...editingItem, phone: e.target.value })}
+                      id="clientId"
+                      value={editingItem.userId}
+                      disabled // Make it non-editable
                     />
                   </div>
+
+                  {/* Email (read-only) */}
                   <div className="grid gap-2">
-                    <Label htmlFor="status">Status</Label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
-                      id="status"
-                      value={editingItem.status}
-                      onChange={(e) => setEditingItem({ ...editingItem, status: e.target.value })}
+                      id="email"
+                      value={editingItem.email}
+                      disabled // Make it non-editable
                     />
                   </div>
-                </>
+
+                  {/* Status Dropdown (editable) */}
+                  <div className="grid gap-2">
+                  <Label htmlFor="status">Status</Label>
+                  <select
+                    id="status"
+                    value={editingItem.emailVerified ? "Verified" : "Unverified"}
+                    onChange={(e) =>
+                      setEditingItem({
+                        ...editingItem,
+                        emailVerified: e.target.value === "Verified" ? new Date().toISOString() : null,
+                      })
+                    }
+                    className="p-2 border rounded"
+                  >
+                    <option value="Verified">Verified</option>
+                    <option value="Unverified">Unverified</option>
+                  </select>
+                </div>
+
+                {/* Resend Verification Email Button */}
+                {!editingItem.emailVerified && (
+                  <div className="grid gap-2">
+                    <Button
+                      onClick={handleResendVerificationEmail}
+                      disabled={!editingItem.email} // Disable if no email is available
+                    >
+                      Resend Verification Email
+                    </Button>
+                  </div>
+                )}
+              </>
               ) : (
                 <>
-                  <div className="grid gap-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Input
-                      id="role"
-                      value={editingItem.role}
-                      onChange={(e) => setEditingItem({ ...editingItem, role: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="department">Department</Label>
-                    <Input
-                      id="department"
-                      value={editingItem.department}
-                      onChange={(e) => setEditingItem({ ...editingItem, department: e.target.value })}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit}>Save changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                {/* Staff ID (non-editable) */}
+                <div className="grid gap-2">
+                  <Label htmlFor="staffId">Staff ID</Label>
+                  <Input
+                    id="staffId"
+                    value={editingItem.userId}
+                    disabled
+                  />
+                </div>
+    
+                {/* Name (editable) */}
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={editingItem.name}
+                    onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                  />
+                </div>
+    
+                {/* Department (editable) */}
+                <div className="grid gap-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Input
+                    id="department"
+                    value={editingItem.department}
+                    onChange={(e) => setEditingItem({ ...editingItem, department: e.target.value })}
+                  />
+                </div>
+    
+                {/* Email (non-editable) */}
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={editingItem.email}
+                    disabled
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSaveEdit}>Save changes</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
