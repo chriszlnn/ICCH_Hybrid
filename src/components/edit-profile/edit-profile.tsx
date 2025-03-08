@@ -19,10 +19,10 @@ interface EditProfileProps {
     bio: string;
     posts: string[];
   };
-  onSave: (username: string, bio: string) => Promise<void>;
+  onSaveAction: (username: string, bio: string) => Promise<void>;
 }
 
-export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
+export function EditProfile({ currentProfile, onSaveAction }: EditProfileProps) {
   const [username, setUsername] = useState(currentProfile.username || "");
   const [bio, setBio] = useState(currentProfile.bio || "");
   const [isOpen, setIsOpen] = useState(false);
@@ -56,7 +56,7 @@ export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(username, bio);
+      await onSaveAction(username, bio);
       setIsOpen(false); // Close the dialog after saving
     } catch (error) {
       setAlertType("error");
