@@ -8,7 +8,7 @@ import { signOut } from "next-auth/react";
 
 const items = [
   { title: "Dashboard", url: "/staff", icon: LayoutGrid },
-  { title: "Beauty Information", url: "#", icon: Gem },
+  { title: "Beauty Information", url: "/staff/beautyInformation", icon: Gem },
   { title: "Products", url: "/staff/product", icon: Sparkles },
   { title: "User", url: "/staff/user", icon: UsersRound },
   { title: "Profile", url: "/staff/profile", icon: User },

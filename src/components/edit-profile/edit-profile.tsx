@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -33,6 +34,7 @@ export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
   const [activeTab, setActiveTab] = useState("account");
   const maxChars = 100;
 
+  // Reset form fields and alerts when the dialog is opened or closed
   useEffect(() => {
     if (isOpen) {
       setUsername(currentProfile.username || "");
@@ -42,6 +44,7 @@ export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
     }
   }, [isOpen, currentProfile]);
 
+  // Reset alerts and password fields
   const resetAlerts = () => {
     setAlertMessage("");
     setAlertType("");
@@ -49,13 +52,21 @@ export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
     setNewPassword("");
   };
 
+  // Handle saving profile changes
   const handleSave = async () => {
     setSaving(true);
-    await onSave(username, bio);
-    setSaving(false);
-    setIsOpen(false);
+    try {
+      await onSave(username, bio);
+      setIsOpen(false); // Close the dialog after saving
+    } catch (error) {
+      setAlertType("error");
+      setAlertMessage("Failed to save profile changes.");
+    } finally {
+      setSaving(false);
+    }
   };
 
+  // Handle changing password
   const handleChangePassword = async () => {
     if (newPassword.length < 8) {
       setAlertType("error");
@@ -102,6 +113,7 @@ export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
             <TabsTrigger value="password">Password</TabsTrigger>
           </TabsList>
 
+          {/* Account Tab */}
           <TabsContent value="account">
             <Card>
               <CardHeader>
@@ -143,6 +155,7 @@ export function EditProfile({ currentProfile, onSave }: EditProfileProps) {
             </Card>
           </TabsContent>
 
+          {/* Password Tab */}
           <TabsContent value="password">
             <Card>
               <CardHeader>

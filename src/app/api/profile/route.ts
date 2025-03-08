@@ -24,9 +24,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Merge role-specific data with user data
+    // Determine the role-specific data
     const roleData = user.client || user.admin || user.staff || {};
-
     return NextResponse.json({ ...user, ...roleData }, { status: 200 });
   } catch (error) {
     console.error("Error fetching user:", error);
@@ -34,7 +33,6 @@ export async function GET(req: Request) {
   }
 }
 
-// POST to update or create user profile
 export async function POST(req: Request) {
   try {
     const { email, username, bio, imageUrl } = await req.json();
@@ -51,35 +49,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Update user role-specific data
+    // Prepare the data to update (only include fields that are provided)
+    const updateData: { username?: string; bio?: string; imageUrl?: string } = {};
+    if (username !== undefined) updateData.username = username;
+    if (bio !== undefined) updateData.bio = bio;
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+
+    // Update role-specific data based on the user's role
     let roleUpdate;
     if (user.role === "CLIENT") {
-      roleUpdate = await prisma.client.upsert({
+      roleUpdate = await prisma.client.update({
         where: { userId: user.id },
-        update: { username, bio, imageUrl },
-        create: { userId: user.id, username, bio, imageUrl },
+        data: updateData,
       });
     } else if (user.role === "ADMIN") {
-      roleUpdate = await prisma.admin.upsert({
+      roleUpdate = await prisma.admin.update({
         where: { userId: user.id },
-        update: { username, bio, imageUrl },
-        create: { userId: user.id, username, bio, imageUrl },
+        data: updateData,
       });
     } else if (user.role === "STAFF") {
-      roleUpdate = await prisma.staff.upsert({
+      roleUpdate = await prisma.staff.update({
         where: { userId: user.id },
-        update: { username, bio, imageUrl },
-        create: { userId: user.id, username, bio, imageUrl },
+        data: updateData,
       });
+    } else {
+      return NextResponse.json({ message: "Invalid user role" }, { status: 400 });
     }
 
     return NextResponse.json({ ...user, ...roleUpdate }, { status: 200 });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error updating user:", error);
-    return NextResponse.json(
-      { message: "Failed to update user", error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Failed to update user" }, { status: 500 });
   }
 }
