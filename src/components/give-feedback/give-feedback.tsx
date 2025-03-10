@@ -24,20 +24,20 @@ export default function GiveFeedback() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
-    // Validate the input
-    if (rating === 0 || selectedIssues.length === 0) {
-      alert("Please select a rating and at least one issue before submitting.");
+
+    // Validate the input (Only rating is required now)
+    if (rating === 0) {
+      alert("Please select a rating before submitting.");
       return;
     }
-  
+
     // Get the email from the session
     const email = session?.user?.email;
     if (!email) {
       alert("You must be logged in to submit feedback.");
       return;
     }
-  
+
     try {
       // Send the feedback data to the API
       const response = await fetch("/api/feedback", {
@@ -47,16 +47,16 @@ export default function GiveFeedback() {
         },
         body: JSON.stringify({
           rating,
-          issues: selectedIssues,
+          issues: selectedIssues, // Optional now
           comment,
           email,
         }),
       });
-  
+
       // Log the response for debugging
       const responseText = await response.text();
       console.log("Response Text:", responseText);
-  
+
       if (response.ok) {
         setSubmitted(true);
       } else {
@@ -116,9 +116,11 @@ export default function GiveFeedback() {
             </div>
           </div>
 
-          {/* Issue Selection */}
+          {/* Issue Selection (Optional) */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">What is wrong?</label>
+            <label className="block text-sm font-medium text-gray-700">
+              What is wrong? <span className="text-gray-400">(Optional)</span>
+            </label>
             <div className="grid grid-cols-2 gap-2">
               {ISSUE_TAGS.map((issue) => (
                 <button
@@ -138,10 +140,10 @@ export default function GiveFeedback() {
             </div>
           </div>
 
-          {/* Notes Section */}
+          {/* Notes Section (Optional) */}
           <div className="space-y-2">
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-              Notes (Optional)
+              Notes <span className="text-gray-400">(Optional)</span>
             </label>
             <textarea
               id="notes"
@@ -152,15 +154,15 @@ export default function GiveFeedback() {
             />
           </div>
 
-          {/* Submit Button */}
+          {/* Submit Button (Now enabled when rating is selected) */}
           <button
             type="submit"
             className={`w-full py-2 px-4 text-sm font-semibold rounded-md transition duration-200 ${
-              rating === 0 || selectedIssues.length === 0
+              rating === 0
                 ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                 : "bg-green-600 hover:bg-green-700 text-white"
             }`}
-            disabled={rating === 0 || selectedIssues.length === 0}
+            disabled={rating === 0}
           >
             Submit Feedback
           </button>
