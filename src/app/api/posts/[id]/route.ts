@@ -67,11 +67,29 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
     const id = parseInt(params.id, 10);
-    if (isNaN(id)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    console.log("Deleting post with ID:", id);
 
-    await prisma.beautyInfoPost.delete({
-      where: { id },
+    if (isNaN(id)) {
+      console.error("Invalid ID:", params.id);
+      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    }
+
+    // Check if the post exists
+    const post = await prisma.beautyInfoPost.findUnique({ where: { id } });
+    if (!post) {
+      console.error("Post not found with ID:", id);
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    // Delete all related BeautyInfoPostLike records
+    await prisma.beautyInfoPostLike.deleteMany({
+      where: { postId: id },
     });
+    console.log("Deleted related likes for post ID:", id);
+
+    // Delete the post
+    await prisma.beautyInfoPost.delete({ where: { id } });
+    console.log("Post deleted successfully:", id);
 
     return NextResponse.json({ message: "Post deleted" }, { status: 200 });
   } catch (error) {

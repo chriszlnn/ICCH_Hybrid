@@ -163,7 +163,7 @@ model BeautyInfoPostLike {
   createdAt DateTime @default(now()) // Timestamp for when the like occurred
   
   // Relations to other tables
-  post      BeautyInfoPost @relation(fields: [postId], references: [id])
+   post      BeautyInfoPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userEmail]) // Ensure each user can like a post only once by email
 }
