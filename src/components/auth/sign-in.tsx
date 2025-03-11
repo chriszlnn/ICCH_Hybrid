@@ -42,19 +42,24 @@ const SignInForm = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="flex bg-white rounded-lg shadow-lg overflow-hidden w-full max-w-4xl">
-      {/* Left Side - Image */}
-      <div className="hidden md:flex md:w-1/2 bg-gray-200">
-        <Image 
-          src={picture}
-          alt="Sign in illustration" 
-          width={500} 
-          height={500} 
-          className="object-cover w-full h-full"
-        />
-      </div>
-      <div className="w-full max-w-sm p-10 mx-auto space-y-6 w-full max-w-md rounded-lg bg-white transition-all duration-300 shadow-[0_0_0_1px_rgba(18,181,96,0.1)] hover:shadow-[0_0_20px_rgba(18,181,96,0.2)] focus-within:shadow-[0_0_20px_rgba(18,181,96,0.3)]">
+    <div className="min-h-screen flex items-center justify-center px-4 sm:px-6">
+  <div className="flex flex-col md:flex-row rounded-lg w-full max-w-4xl">
+    {/* Left Side - Image (Hidden on small screens) */}
+    <div className="hidden md:flex md:w-1/2 bg-gray-200">
+      <Image 
+        src={picture}
+        alt="Sign in illustration" 
+        width={500} 
+        height={500} 
+        className="object-cover w-full h-full"
+      />
+    </div>
+    {/* Right Side - Form */}
+    <div className="w-full max-w-sm p-10 space-y-6 md:max-w-md mx-auto 
+    bg-white transition-all duration-300 shadow-[0_0_0_1px_rgba(18,181,96,0.1)] 
+    hover:shadow-[0_0_20px_rgba(18,181,96,0.2)] focus-within:shadow-[0_0_20px_rgba(18,181,96,0.3)]
+    rounded-lg md:rounded-tr-lg md:rounded-br-lg md:rounded-tl-none md:rounded-bl-none">
+
         <Image src={Logo} alt="Logo" width={200} height={128} className="mx-auto rounded-lg" />
 
         {/* Display Alert for error or success */}
