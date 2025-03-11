@@ -1,0 +1,14 @@
+.cropper-container {
+    direction: ltr;
+    font-size: 0;
+    line-height: 0;
+    position: relative;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  
+  .cropper-bg {
+    background-image: none !important; /* Remove default cropper background */
+  }
+  

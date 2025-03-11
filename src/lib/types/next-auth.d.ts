@@ -7,6 +7,7 @@ declare module "next-auth" {
       username?: string; // ✅ Add username
       bio?: string;
       imageUrl?: string;
+      likedPosts: string[];
     } & DefaultSession["user"];
   }
 

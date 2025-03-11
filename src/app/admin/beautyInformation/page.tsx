@@ -1,9 +1,10 @@
-import EditBeautyInfo from "@/components/edit-beauty-info/edit-beauty-info";
+import EditDashboard from "@/components/edit-beauty-info/edit-dashboard";
 
-export default async function EditBeautyInformationPage() {
- 
+export default function CreateBeautyInformationPage() {
+  // Handler for when the content changes
 
-  return(
-    <EditBeautyInfo />
-);
+
+  return (
+    <EditDashboard />
+  );
 }

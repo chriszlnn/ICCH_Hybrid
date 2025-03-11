@@ -143,3 +143,28 @@ model Feedback {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model BeautyInfoPost {
+  id        Int      @id @default(autoincrement())
+  title     String   // Title of the post
+  images    String[] // List of image URLs (can store multiple images)
+  file      String   // URL of the uploaded file
+  likes     Int      @default(0) // Likes count, default to 0
+  createdAt DateTime @default(now()) // Timestamp for when the post was created
+  updatedAt DateTime @updatedAt // Timestamp for when the post was last updated
+
+  beautyInfoPostLikes BeautyInfoPostLike[]
+}
+
+model BeautyInfoPostLike {
+  id        Int      @id @default(autoincrement())
+  userEmail String   // User email of the person who liked the post
+  postId    Int      // ID of the post that was liked
+  createdAt DateTime @default(now()) // Timestamp for when the like occurred
+  
+  // Relations to other tables
+  post      BeautyInfoPost @relation(fields: [postId], references: [id])
+
+  @@unique([postId, userEmail]) // Ensure each user can like a post only once by email
+}
+

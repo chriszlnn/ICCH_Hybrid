@@ -3,10 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { generateVerificationToken } from '@/lib/token';
 import { sendVerificationEmail } from '@/lib/mail';
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { id } = params;
 
@@ -48,7 +46,8 @@ export async function DELETE(
 
 
 // PUT request to update user, client, or staff
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { emailVerified, name, department } = await request.json();
   const userId = params.id; // userId is a string (cuid)
 
@@ -113,7 +112,8 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // POST request to resend verification email
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const userId = params.id; // userId is a string (cuid)
 
   try {
