@@ -5,10 +5,15 @@ export type SignInResponse = {
 };
 
 export interface BeautyPost {
-    id: number
-    images: string[]
-    title: string
-    body: string
-    likes: number
-    liked?: boolean
-  }
+    id?: number;
+    title: string;
+    images: string[];
+    file: string;      // Added to match Prisma schema
+    likes: number;
+    createdAt?: Date;  // Optional since you might not always need these
+    updatedAt?: Date;  // Optional since you might not always need these
+    liked?: boolean;   // Client-side state
+}
+
+// Optional: Add a type for creating new posts
+export type CreateBeautyPost = Omit<BeautyPost, 'id' | 'likes' | 'createdAt' | 'updatedAt'>;
