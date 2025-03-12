@@ -12,6 +12,7 @@ import PassMD from "./pass-md";
 import { useUploadThing } from "@/lib/utils/uploadthing";
 import ImageUploader from "./image-uploader";
 import { BeautyPost } from "@/lib/types/types";
+import { useSession } from "next-auth/react";
 
 interface PostEditorProps {
   initialPost: BeautyPost;
@@ -22,6 +23,7 @@ interface PostEditorProps {
 export default function PostEditor({ initialPost, onSave, isUpdating }: PostEditorProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { data: session } = useSession(); 
   const [title, setTitle] = useState(initialPost?.title || "");
   const [fileContent, setFileContent] = useState(""); // Use `fileContent` instead of `body`
   const [images, setImages] = useState<string[]>(initialPost?.images || []);
@@ -79,7 +81,14 @@ export default function PostEditor({ initialPost, onSave, isUpdating }: PostEdit
       await onSave(postData);
 
       toast({ title: "Success", description: "Post updated successfully" });
-      router.push("/admin/beautyInformation");
+      if (session?.user?.role === "ADMIN") {
+        router.push("/admin/beautyInformation");
+      } else if (session?.user?.role === "STAFF") {
+        router.push("/staff/beautyInformation");
+      } else {
+        // Fallback for users without a role
+        router.push("/");
+      }
     } catch (error) {
       console.error("Error:", error);
       toast({ title: "Error", description: "An error occurred", variant: "destructive" });
@@ -114,7 +123,18 @@ export default function PostEditor({ initialPost, onSave, isUpdating }: PostEdit
         </div>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={() => router.push("/admin/beautyInformation/posts")} disabled={isUpdating}>
+          <Button type="button" variant="outline" onClick={() => {
+              // Redirect based on user role when canceling
+              if (session?.user?.role === "ADMIN") {
+                router.push("/admin/beautyInformation/posts");
+              } else if (session?.user?.role === "STAFF") {
+                router.push("/staff/beautyInformation/posts");
+              } else {
+                router.push("/");
+              }
+            }}
+            disabled={isUpdating}
+          >
             Cancel
           </Button>
           <Button type="submit" disabled={isUpdating}>

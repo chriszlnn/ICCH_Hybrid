@@ -163,8 +163,24 @@ model BeautyInfoPostLike {
   createdAt DateTime @default(now()) // Timestamp for when the like occurred
   
   // Relations to other tables
-  post      BeautyInfoPost @relation(fields: [postId], references: [id])
+   post      BeautyInfoPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userEmail]) // Ensure each user can like a post only once by email
 }
 
+
+model Product {
+  id          String   @id @default(cuid()) // Unique identifier for the product
+  name        String   // Product name
+  description String?  // Optional product description
+  price       Float    // Product price
+  category    String   // Product category (e.g., Skincare, Makeup, etc.)
+  image       String   // URL or path to the product image
+  createdAt   DateTime @default(now()) // Timestamp for when the product was created
+  updatedAt   DateTime @updatedAt // Timestamp for when the product was last updated
+
+  // Indexes for faster queries
+  @@index([name])
+  @@index([category])
+  @@index([price])
+}

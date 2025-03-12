@@ -1,10 +1,8 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState, useMemo } from "react"
-import Image from "next/image"
-import { Filter, X } from "lucide-react"
+import { useState, useMemo, useEffect } from "react";
+import Image from "next/image";
+import { Filter, X } from "lucide-react";
 
 // Add this style block at the top of the file, after the imports
 const styles = `
@@ -15,140 +13,78 @@ const styles = `
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-`
+`;
 
 // Define product type for backend integration
 interface Product {
-  id: string
-  name: string
-  price: number
-  image: string
-  category: string
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  category: string;
 }
 
 // Category type
-type Category = "All" | "Skincare" | "Makeup" | "Hair & Body" | "Promotions"
+type Category = "All" | "Skincare" | "Makeup" | "Hair & Body" | "Promotions";
 
 // Sort options
-type SortOption = "newest" | "price-low" | "price-high" | "name"
-
-// Sample data with categories (replaced with backend data)
-const allProducts: Product[] = [
-  {
-    id: "1",
-    name: "INNISFREE Green Tea Seed Hyaluronic Serum",
-    price: 132.0,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Skincare",
-  },
-  {
-    id: "2",
-    name: "INNISFREE Green Tea Seed Hyaluronic Cream",
-    price: 110.0,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Skincare",
-  },
-  {
-    id: "3",
-    name: "INNISFREE Green Tea Hyaluronic Lotion",
-    price: 90.0,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Skincare",
-  },
-  {
-    id: "4",
-    name: "INNISFREE Green Tea Hyaluronic Skin",
-    price: 80.0,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Skincare",
-  },
-  {
-    id: "5",
-    name: "INNISFREE No Sebum Mineral Powder",
-    price: 59.0,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Makeup",
-  },
-  {
-    id: "6",
-    name: "INNISFREE Vivid Cotton Ink",
-    price: 45.0,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Makeup",
-  },
-  {
-    id: "7",
-    name: "INNISFREE Green Tea Shampoo",
-    price: 65.0,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Hair & Body",
-  },
-  {
-    id: "8",
-    name: "INNISFREE Jeju Volcanic Body Scrub",
-    price: 75.0,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Hair & Body",
-  },
-  {
-    id: "9",
-    name: "INNISFREE Special Holiday Set",
-    price: 199.0,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Promotions",
-  },
-  {
-    id: "10",
-    name: "INNISFREE Buy 1 Free 1 Mask Pack",
-    price: 25.0,
-    image: "/placeholder.svg?height=200&width=200",
-    category: "Promotions",
-  },
-]
+type SortOption = "newest" | "price-low" | "price-high" | "name";
 
 export default function ViewProductPage() {
-  // State for active category
-  const [activeCategory, setActiveCategory] = useState<Category>("All")
-  // State for filter panel visibility
-  const [showFilterPanel, setShowFilterPanel] = useState<boolean>(false)
-  // State for sort option
-  const [sortOption, setSortOption] = useState<SortOption>("newest")
+  const [products, setProducts] = useState<Product[]>([]); // State for fetched products
+  const [activeCategory, setActiveCategory] = useState<Category>("All");
+  const [showFilterPanel, setShowFilterPanel] = useState<boolean>(false);
+  const [sortOption, setSortOption] = useState<SortOption>("newest");
+  const [minPrice, setMinPrice] = useState<string>("");
+  const [maxPrice, setMaxPrice] = useState<string>("");
+  const [tempMinPrice, setTempMinPrice] = useState<string>("");
+  const [tempMaxPrice, setTempMaxPrice] = useState<string>("");
+  const [isPriceFilterActive, setIsPriceFilterActive] = useState<boolean>(false);
+  const [tempSortOption, setTempSortOption] = useState<SortOption>(sortOption);
 
-  // Custom price range states
-  const [minPrice, setMinPrice] = useState<string>("")
-  const [maxPrice, setMaxPrice] = useState<string>("")
-  const [tempMinPrice, setTempMinPrice] = useState<string>("")
-  const [tempMaxPrice, setTempMaxPrice] = useState<string>("")
-  const [isPriceFilterActive, setIsPriceFilterActive] = useState<boolean>(false)
+  // Fetch products from the API on component mount
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch("/api/products");
+        if (!response.ok) throw new Error("Failed to fetch products");
+        const data = await response.json();
+        setProducts(data);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      }
+    };
 
-  // Add temporary state variables for filters that haven't been applied yet
-  const [tempSortOption, setTempSortOption] = useState<SortOption>(sortOption)
+    fetchProducts();
+  }, []);
 
   // Filter products based on selected category and price range
   const filteredProducts = useMemo(() => {
     let filtered =
-      activeCategory === "All" ? [...allProducts] : allProducts.filter((product) => product.category === activeCategory)
+      activeCategory === "All"
+        ? [...products]
+        : products.filter((product) => product.category === activeCategory);
 
     // Apply price range filter if active
     if (isPriceFilterActive) {
-      const min = minPrice ? Number.parseFloat(minPrice) : 0
-      const max = maxPrice ? Number.parseFloat(maxPrice) : Number.POSITIVE_INFINITY
+      const min = minPrice ? Number.parseFloat(minPrice) : 0;
+      const max = maxPrice ? Number.parseFloat(maxPrice) : Number.POSITIVE_INFINITY;
 
-      filtered = filtered.filter((product) => product.price >= min && product.price <= max)
+      filtered = filtered.filter((product) => product.price >= min && product.price <= max);
     }
 
     // Sort products
     if (sortOption === "price-low") {
-      return [...filtered].sort((a, b) => a.price - b.price)
+      return [...filtered].sort((a, b) => a.price - b.price);
     } else if (sortOption === "price-high") {
-      return [...filtered].sort((a, b) => b.price - a.price)
+      return [...filtered].sort((a, b) => b.price - a.price);
     } else if (sortOption === "name") {
-      return [...filtered].sort((a, b) => a.name.localeCompare(b.name))
+      return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
     }
 
     // For 'newest', we keep the original order
-    return filtered
-  }, [activeCategory, sortOption, minPrice, maxPrice, isPriceFilterActive])
+    return filtered;
+  }, [products, activeCategory, sortOption, minPrice, maxPrice, isPriceFilterActive]);
 
   // Toggle filter panel
   const toggleFilterPanel = () => {

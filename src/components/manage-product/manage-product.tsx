@@ -1,267 +1,292 @@
-"use client"
+/* eslint-disable @typescript-eslint/no-unused-vars */
+"use client";
 
-import type React from "react"
-
-import { useState, useMemo, useEffect } from "react"
-import Image from "next/image"
-import { Search, Plus, Edit2, Trash2, X, Filter, ChevronDown, Check, Store } from "lucide-react"
+import { useState, useMemo, useEffect } from "react";
+import Image from "next/image";
+import { Search, Plus, Edit2, Trash2, X, Filter, ChevronDown, Check, Store } from "lucide-react";
+import { useUploadThing } from "@/lib/utils/uploadthing"; // Import UploadThing
+import { useToast } from "../ui/toast/use-toast"; // Import toast for notifications
 
 interface Product {
-  id: string
-  name: string
-  price: number
-  category: string
-  image: string
-  // Add additional fields that might be needed for backend integration
-  description?: string
-  stock?: number
-  createdAt?: string
-  updatedAt?: string
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  image: string;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-// Sample data for development - replace with API call in production
-const sampleProducts: Product[] = [
-  {
-    id: "1",
-    name: "INNISFREE Green Tea Seed Hyaluronic Serum",
-    price: 132.0,
-    category: "Skincare",
-    image: "/placeholder.svg?height=200&width=200",
-    // Optional fields
-    description: "Hydrating serum with green tea extract",
-    stock: 25,
-  },
-  {
-    id: "2",
-    name: "INNISFREE Green Tea Seed Hyaluronic Cream",
-    price: 110.0,
-    category: "Skincare",
-    image: "/placeholder.svg?height=200&width=200",
-    // Optional fields
-    description: "Moisturizing cream with green tea extract",
-    stock: 18,
-  },
-]
-
 export default function ManageProduct() {
-  // State for products
-  const [products, setProducts] = useState<Product[]>(sampleProducts)
-
-  // State for new product
+  const [products, setProducts] = useState<Product[]>([]);
   const [newProduct, setNewProduct] = useState<Product>({
     id: "",
     name: "",
     price: 0,
     category: "Skincare",
     image: "/placeholder.svg?height=200&width=200",
-  })
+  });
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("All");
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<string>("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 
-  // State for editing product
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const files = e.target.files;
+  if (files && files.length > 0) {
+    setSelectedImageFile(files[0]); // Store the selected file
+  }
+};
 
-  // State for showing add product form
-  const [showAddForm, setShowAddForm] = useState(false)
-
-  // State for search and filters
-  const [searchQuery, setSearchQuery] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState<string>("All")
-  const [showFilters, setShowFilters] = useState(false)
-  const [sortBy, setSortBy] = useState<string>("name")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
+  // UploadThing for image uploads
+  const { startUpload } = useUploadThing("imageUploader");
+  const { toast } = useToast();
 
   // Load products on component mount
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        const data = await fetchProducts()
-        setProducts(data)
+        const data = await fetchProducts();
+        setProducts(data);
       } catch (error) {
-        console.error("Failed to fetch products:", error)
+        console.error("Failed to fetch products:", error);
       }
-    }
+    };
 
-    loadProducts()
-  }, [])
+    loadProducts();
+  }, []);
 
-  // TODO: Replace with actual API calls
-  // Backend integration points
+  // Fetch products from the API
   const fetchProducts = async (): Promise<Product[]> => {
-    // Replace with actual API call
-    // Example: return await fetch('/api/products').then(res => res.json())
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(sampleProducts), 500)
-    })
-  }
+    const response = await fetch("/api/products");
+    if (!response.ok) throw new Error("Failed to fetch products");
+    return response.json();
+  };
 
+  // Create a new product
   const createProduct = async (product: Omit<Product, "id">): Promise<Product> => {
-    // Replace with actual API call
-    // Example: return await fetch('/api/products', { method: 'POST', body: JSON.stringify(product) }).then(res => res.json())
-    return new Promise((resolve) => {
-      const newProduct = { ...product, id: Date.now().toString() }
-      setTimeout(() => resolve(newProduct), 500)
-    })
-  }
+    const response = await fetch("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(product),
+    });
+    if (!response.ok) throw new Error("Failed to create product");
+    return response.json();
+  };
 
+  // Update an existing product
   const updateProductById = async (id: string, product: Partial<Product>): Promise<Product> => {
-    // Replace with actual API call
-    // Example: return await fetch(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(product) }).then(res => res.json())
-    return new Promise((resolve) => {
-      const updatedProduct = { ...sampleProducts.find((p) => p.id === id), ...product, id }
-      setTimeout(() => resolve(updatedProduct as Product), 500)
-    })
-  }
+    const response = await fetch(`/api/products/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(product),
+    });
+    if (!response.ok) throw new Error("Failed to update product");
+    return response.json();
+  };
 
+  // Delete a product
   const deleteProductById = async (id: string): Promise<boolean> => {
-    // Replace with actual API call
-    // Example: return await fetch(`/api/products/${id}`, { method: 'DELETE' }).then(res => res.ok)
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(true), 500)
-    })
-  }
+    const response = await fetch(`/api/products/${id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) throw new Error("Failed to delete product");
+    return true;
+  };
 
+  // Handle image upload using UploadThing
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+  
+    setIsUploading(true); // Start loading
+  
+    try {
+      console.log("Starting upload...");
+      const uploadResponse = await startUpload(Array.from(files));
+      if (!uploadResponse || uploadResponse.length === 0) throw new Error("Upload failed");
+  
+      const uploadedImageUrl = uploadResponse[0].url;
+      console.log("Upload successful, URL:", uploadedImageUrl);
+  
+      if (editingProduct) {
+        setEditingProduct({ ...editingProduct, image: uploadedImageUrl });
+      } else {
+        setNewProduct((prev) => ({ ...prev, image: uploadedImageUrl }));
+        console.log("Updated newProduct with image URL:", uploadedImageUrl);
+      }
+  
+      toast({
+        title: "Success",
+        description: "Image uploaded successfully",
+      });
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast({ title: "Error", description: "Failed to upload image", variant: "destructive" });
+    } finally {
+      setIsUploading(false); // End loading
+    }
+  };
   // Handle input changes for new product
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setNewProduct((prev) => ({
       ...prev,
       [name]: name === "price" ? Number.parseFloat(value) || 0 : value,
-    }))
-  }
+    }));
+  };
 
   // Handle input changes for editing product
   const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    if (!editingProduct) return
+    if (!editingProduct) return;
 
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setEditingProduct({
       ...editingProduct,
       [name]: name === "price" ? Number.parseFloat(value) || 0 : value,
-    })
-  }
-
-  // Handle file input (image upload)
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, isEditing = false) => {
-    if (!e.target.files || e.target.files.length === 0) return
-
-    const file = e.target.files[0]
-    const imageUrl = URL.createObjectURL(file)
-
-    if (isEditing && editingProduct) {
-      setEditingProduct({ ...editingProduct, image: imageUrl })
-    } else {
-      setNewProduct((prev) => ({ ...prev, image: imageUrl }))
-    }
-  }
+    });
+  };
 
   // Add new product
   const addProduct = async () => {
     if (!newProduct.name || newProduct.price <= 0) {
-      alert("Please enter a product name and valid price")
-      return
+      alert("Please enter a product name and valid price");
+      return;
     }
-
+  
+    if (!selectedImageFile) {
+      alert("Please select an image before adding the product.");
+      return;
+    }
+  
+    setIsUploading(true); // Start loading
+  
     try {
-      // Remove the id field as it will be generated by the backend
-      const { id, ...productData } = newProduct
-
-      // Call the API to create the product
-      const createdProduct = await createProduct(productData)
-
-      // Update the local state with the new product
-      setProducts((prev) => [...prev, createdProduct])
-
-      // Reset form
+      // Step 1: Upload the image to UploadThing
+      console.log("Uploading image...");
+      const uploadResponse = await startUpload([selectedImageFile]);
+      if (!uploadResponse || uploadResponse.length === 0) throw new Error("Upload failed");
+  
+      const uploadedImageUrl = uploadResponse[0].url;
+      console.log("Image uploaded successfully, URL:", uploadedImageUrl);
+  
+      // Step 2: Create the product with the image URL
+      const productData = {
+        ...newProduct,
+        image: uploadedImageUrl, // Use the uploaded image URL
+      };
+  
+      // Step 3: Call the API to create the product
+      const createdProduct = await createProduct(productData);
+  
+      // Step 4: Update the local state with the new product
+      setProducts((prev) => [...prev, createdProduct]);
+  
+      // Step 5: Reset the form
       setNewProduct({
         id: "",
         name: "",
         price: 0,
         category: "Skincare",
         image: "/placeholder.svg?height=200&width=200",
-      })
-
-      setShowAddForm(false)
+      });
+      setSelectedImageFile(null); // Clear the selected image file
+      setShowAddForm(false);
+  
+      toast({
+        title: "Success",
+        description: "Product added successfully",
+      });
     } catch (error) {
-      console.error("Failed to create product:", error)
-      alert("Failed to create product. Please try again.")
+      console.error("Failed to add product:", error);
+      toast({ title: "Error", description: "Failed to add product", variant: "destructive" });
+    } finally {
+      setIsUploading(false); // End loading
     }
-  }
+  };
 
   // Update product
   const updateProduct = async () => {
-    if (!editingProduct) return
+    if (!editingProduct) return;
 
     try {
       // Call the API to update the product
-      const updatedProduct = await updateProductById(editingProduct.id, editingProduct)
+      const updatedProduct = await updateProductById(editingProduct.id, editingProduct);
 
       // Update the local state with the updated product
-      setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)))
+      setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)));
 
-      setEditingProduct(null)
+      setEditingProduct(null);
     } catch (error) {
-      console.error("Failed to update product:", error)
-      alert("Failed to update product. Please try again.")
+      console.error("Failed to update product:", error);
+      alert("Failed to update product. Please try again.");
     }
-  }
+  };
 
   // Delete product
   const deleteProduct = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
         // Call the API to delete the product
-        const success = await deleteProductById(id)
+        const success = await deleteProductById(id);
 
         if (success) {
           // Update the local state by removing the deleted product
-          setProducts((prev) => prev.filter((p) => p.id !== id))
+          setProducts((prev) => prev.filter((p) => p.id !== id));
         } else {
-          throw new Error("Failed to delete product")
+          throw new Error("Failed to delete product");
         }
       } catch (error) {
-        console.error("Failed to delete product:", error)
-        alert("Failed to delete product. Please try again.")
+        console.error("Failed to delete product:", error);
+        alert("Failed to delete product. Please try again.");
       }
     }
-  }
+  };
 
   // Toggle sort order
   const toggleSort = (field: string) => {
     if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
-      setSortBy(field)
-      setSortOrder("asc")
+      setSortBy(field);
+      setSortOrder("asc");
     }
-  }
+  };
 
   // Filter and sort products
   const filteredProducts = useMemo(() => {
     return products
       .filter((product) => {
         // Apply search filter
-        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
 
         // Apply category filter
-        const matchesCategory = categoryFilter === "All" || product.category === categoryFilter
+        const matchesCategory = categoryFilter === "All" || product.category === categoryFilter;
 
-        return matchesSearch && matchesCategory
+        return matchesSearch && matchesCategory;
       })
       .sort((a, b) => {
         // Apply sorting
         if (sortBy === "name") {
-          return sortOrder === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
+          return sortOrder === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
         } else if (sortBy === "price") {
-          return sortOrder === "asc" ? a.price - b.price : b.price - a.price
+          return sortOrder === "asc" ? a.price - b.price : b.price - a.price;
         } else if (sortBy === "category") {
-          return sortOrder === "asc" ? a.category.localeCompare(b.category) : b.category.localeCompare(a.category)
+          return sortOrder === "asc" ? a.category.localeCompare(b.category) : b.category.localeCompare(a.category);
         }
-        return 0
-      })
-  }, [products, searchQuery, categoryFilter, sortBy, sortOrder])
+        return 0;
+      });
+  }, [products, searchQuery, categoryFilter, sortBy, sortOrder]);
 
   const editProduct = (product: Product) => {
-    setEditingProduct(product)
-  }
+    setEditingProduct(product);
+  };
 
   // Reset new product form
   const resetNewProductForm = () => {
@@ -271,19 +296,19 @@ export default function ManageProduct() {
       price: 0,
       category: "Skincare",
       image: "/placeholder.svg?height=200&width=200",
-    })
-  }
+    });
+  };
 
   // Open add product modal
   const openAddProductModal = () => {
-    resetNewProductForm()
-    setShowAddForm(true)
-  }
+    resetNewProductForm();
+    setShowAddForm(true);
+  };
 
   // Close add product modal
   const closeAddProductModal = () => {
-    setShowAddForm(false)
-  }
+    setShowAddForm(false);
+  };
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -339,8 +364,8 @@ export default function ManageProduct() {
                           <button
                             key={category}
                             onClick={() => {
-                              setCategoryFilter(category)
-                              setShowFilters(false)
+                              setCategoryFilter(category);
+                              setShowFilters(false);
                             }}
                             className={`flex items-center w-full px-2 py-1 text-sm rounded-md ${
                               categoryFilter === category ? "bg-green-100 text-green-800" : "hover:bg-gray-100"
@@ -471,8 +496,8 @@ export default function ManageProduct() {
               <p className="text-gray-500">No products found matching your filters.</p>
               <button
                 onClick={() => {
-                  setSearchQuery("")
-                  setCategoryFilter("All")
+                  setSearchQuery("");
+                  setCategoryFilter("All");
                 }}
                 className="mt-2 text-green-600 hover:text-green-800 text-sm"
               >
@@ -543,11 +568,11 @@ export default function ManageProduct() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
                   <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageChange(e)}
-                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 focus:outline-none"
-                  />
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 focus:outline-none"
+                    />
                 </div>
               </div>
 
@@ -559,11 +584,12 @@ export default function ManageProduct() {
                   Cancel
                 </button>
                 <button
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                  onClick={addProduct}
-                >
-                  Add Product
-                </button>
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                    onClick={addProduct}
+                    disabled={isUploading || !selectedImageFile} // Disable if uploading or no image selected
+                  >
+                    {isUploading ? "Uploading..." : "Add Product"}
+                  </button>
               </div>
             </div>
           </div>
@@ -634,7 +660,7 @@ export default function ManageProduct() {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleImageChange(e, true)}
+                  onChange={handleImageUpload}
                   className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
               </div>
@@ -658,6 +684,5 @@ export default function ManageProduct() {
         </div>
       )}
     </div>
-  )
+  );
 }
-
