@@ -17,10 +17,10 @@ export async function POST(request: Request) {
 
     const { rating, issues, comment, email } = body;
 
-    // Validate the input
-    if (!rating || !issues || issues.length === 0 || !email) {
+    // Validate the input (Only rating and email are required)
+    if (!rating || !email) {
       return NextResponse.json(
-        { error: "Rating, at least one issue, and email are required." },
+        { error: "Rating and email are required." },
         { status: 400 }
       );
     }
@@ -46,16 +46,16 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-    try {
-      const feedback = await prisma.feedback.findMany({
-        orderBy: { createdAt: "desc" }, // Sort by most recent
-      });
-      return NextResponse.json(feedback);
-    } catch (error) {
-      console.error("Error fetching feedback:", error);
-      return NextResponse.json(
-        { error: "Internal Server Error" },
-        { status: 500 }
-      );
-    }
+  try {
+    const feedback = await prisma.feedback.findMany({
+      orderBy: { createdAt: "desc" }, // Sort by most recent
+    });
+    return NextResponse.json(feedback);
+  } catch (error) {
+    console.error("Error fetching feedback:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
+}
