@@ -7,7 +7,7 @@ const ClientDashboard = () => {
 
     // Do something for client
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center pt-6 p-4">
+    <div className="min-h-screen bg-white flex flex-col items-center pt-6 p-4">
       <h2 className="text-2xl font-semibold text-gray-800">
         Welcome, {session?.user?.name || "Client"}!
       </h2>
