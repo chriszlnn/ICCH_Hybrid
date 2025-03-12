@@ -117,7 +117,7 @@ export default function PostEditor({ initialPost, onSave, isUpdating }: PostEdit
 
         <div className="space-y-2">
           <Label>Markdown Preview</Label>
-          <Card className="p-4">
+          <Card className="p-4 overflow-auto">
             <PassMD markdown={fileContent} /> {/* Use `fileContent` */}
           </Card>
         </div>
@@ -126,9 +126,9 @@ export default function PostEditor({ initialPost, onSave, isUpdating }: PostEdit
           <Button type="button" variant="outline" onClick={() => {
               // Redirect based on user role when canceling
               if (session?.user?.role === "ADMIN") {
-                router.push("/admin/beautyInformation/posts");
+                router.push("/admin/beautyInformation");
               } else if (session?.user?.role === "STAFF") {
-                router.push("/staff/beautyInformation/posts");
+                router.push("/staff/beautyInformation");
               } else {
                 router.push("/");
               }

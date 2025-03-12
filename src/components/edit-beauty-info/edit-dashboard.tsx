@@ -75,7 +75,7 @@ export default function EditDashboard() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="p-6 flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Manage Posts</h2>
         <Link href={newPostLink}>
           <Button>
@@ -90,7 +90,7 @@ export default function EditDashboard() {
       ) : posts.length === 0 ? (
         <p>No posts found. Create your first beauty post!</p>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="p-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {posts.map((post) => {
             const editLink =
               role === "ADMIN"
