@@ -162,7 +162,7 @@ export default function ImageUploader({ images, onChange }: ImageUploaderProps) 
         </Card>
       </div>
 
-      {images.length > 0 && <p className="text-sm text-muted-foreground">Double-click an image to crop it.</p>}
+      
 
       {/* Crop Modal */}
       {isCropping && selectedImage && (

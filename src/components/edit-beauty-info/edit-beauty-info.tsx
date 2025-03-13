@@ -198,59 +198,6 @@ export default function WysiwygEditor({ value, onChange, onSave, onUpload }: Wys
       isActive: editor.isActive("italic"),
       id: "italic",
     },
-    {
-      icon: <Heading1 className="h-4 w-4" />,
-      label: "Heading 1",
-      action: () => applyInlineHeading(1),
-      isActive: editor.isActive("textStyle", { headingLevel: "1" }),
-      id: "h1",
-    },
-    {
-      icon: <Heading2 className="h-4 w-4" />,
-      label: "Heading 2",
-      action: () => applyInlineHeading(2),
-      isActive: editor.isActive("textStyle", { headingLevel: "2" }),
-      id: "h2",
-    },
-    {
-      icon: <Heading3 className="h-4 w-4" />,
-      label: "Heading 3",
-      action: () => applyInlineHeading(3),
-      isActive: editor.isActive("textStyle", { headingLevel: "3" }),
-      id: "h3",
-    },
-    {
-      icon: <List className="h-4 w-4" />,
-      label: "Bullet List",
-      action: () => editor.chain().focus().toggleBulletList().run(),
-      isActive: editor.isActive("bulletList"),
-      id: "bulletList",
-    },
-    {
-      icon: <ListOrdered className="h-4 w-4" />,
-      label: "Numbered List",
-      action: () => editor.chain().focus().toggleOrderedList().run(),
-      isActive: editor.isActive("orderedList"),
-      id: "numberedList",
-    },
-    {
-      icon: <LinkIcon className="h-4 w-4" />,
-      label: "Link",
-      action: () => {
-        const previousUrl = editor.getAttributes("link").href;
-        const url = window.prompt("URL", previousUrl);
-
-        if (url === null) return; // Cancelled
-        if (url === "") {
-          editor.chain().focus().extendMarkRange("link").unsetLink().run();
-          return;
-        }
-
-        editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
-      },
-      isActive: editor.isActive("link"),
-      id: "link",
-    },
   ];
 
   return (
