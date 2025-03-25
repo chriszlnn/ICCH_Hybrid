@@ -9,9 +9,26 @@
 }
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
   
+  font-family: "Nunito";
+  src: url("/font/Nunito-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 900; /* Adjust based on variable font range */
+  font-style: normal;
   
+}
+
+@font-face {
+  font-family: "Nunito";
+  src: url("/font/Nunito-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 900; /* Adjust based on variable font range */
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Nunito";
+  src: url("/font/Nunito-Italic-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: italic;
 }
 
 @layer base {
@@ -49,6 +66,7 @@ body {
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    --font-innisfree: "Nunito", sans-serif;
   }
   .dark {
     --background: 0 0% 3.9%;

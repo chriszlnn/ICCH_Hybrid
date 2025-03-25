@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "@/app/globals.css";
 import { SessionProvider } from "next-auth/react";
 import { ReactNode } from "react";
+
 //import Head from "next/head";
 
 //import Head from "next/head";
@@ -28,6 +29,8 @@ export const metadata: Metadata = {
 };
 
 
+
+
 type LayoutProps = {
   children: ReactNode;
 };
@@ -42,7 +45,7 @@ export default async function RootLayout({ children }: LayoutProps) {
   return (
     <html>
       <body>
-        <main className="items-center justify-center min-h-screen bg-white px-0 md:px-20">
+        <main className="items-center justify-center min-h-screen bg-white px-0 md:px-20 font-[var(--font-innisfree)] ">
           <div>
           <SessionProvider>
             {children}
