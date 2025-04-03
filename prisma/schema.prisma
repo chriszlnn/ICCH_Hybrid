@@ -20,11 +20,16 @@ model User {
   accounts      Account[]
   Authenticator Authenticator[]
   sessions      Session[]
+  reviews       Review[]
+  productLikes  ProductLike[]
+  postLikes     BeautyInfoPostLike[]
 
   // Relations to role-specific tables (only defined on one side)
   client        Client? @relation("UserClient")
   admin         Admin?  @relation("UserAdmin")
   staff         Staff?  @relation("UserStaff")
+
+  ProductVote ProductVote[]
 }
 
 
@@ -166,6 +171,7 @@ model BeautyInfoPostLike {
    post      BeautyInfoPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userEmail]) // Ensure each user can like a post only once by email
+  User User[]
 }
 
 
@@ -174,7 +180,15 @@ model Product {
   name        String   // Product name
   description String?  // Optional product description
   price       Float    // Product price
-  category    String   // Product category (e.g., Skincare, Makeup, etc.)
+  category    String  // Product category (e.g., Skincare, Makeup, etc.)
+  subcategory  String?
+  rank         Int?
+  rating       Float        @default(0)
+  reviewCount  Int          @default(0)
+  likes        Int          @default(0)
+  votes       Int           @default(0)
+  trending     Boolean      @default(false)
+  tags         String[]
   image       String   // URL or path to the product image
   createdAt   DateTime @default(now()) // Timestamp for when the product was created
   updatedAt   DateTime @updatedAt // Timestamp for when the product was last updated
@@ -183,4 +197,49 @@ model Product {
   @@index([name])
   @@index([category])
   @@index([price])
+  reviews      Review[]
+  productLikes ProductLike[]
+  ProductVote ProductVote[]
 }
+
+model Review {
+  id        String   @id @default(cuid())
+  content   String
+  rating    Int      // Remove @range(1, 5) - handle in application code
+  images    String[] 
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([productId])
+  @@index([authorId])
+}
+
+
+model ProductLike {
+  id        String   @id @default(cuid())
+  userEmail String   // Changed from userId
+  user      User     @relation(fields: [userEmail], references: [email])
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  createdAt DateTime @default(now())
+
+  @@unique([userEmail, productId]) // Ensure one like per email per product
+}
+
+model ProductVote {
+  id        String   @id @default(cuid())
+  userEmail String   // Changed from userId to userEmail
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  week      Int
+  year      Int
+  createdAt DateTime @default(now())
+
+  @@unique([userEmail, productId, week, year]) // Prevent duplicate votes per week
+  User User[]
+}
+

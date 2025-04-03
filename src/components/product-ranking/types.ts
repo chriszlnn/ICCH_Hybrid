@@ -17,6 +17,7 @@ export interface Product {
   rating: number
   reviewCount: number
   likes: number
+  votes: number
   trending: boolean
   date: string
   tags?: string[]
