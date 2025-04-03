@@ -186,6 +186,7 @@ model Product {
   rating       Float        @default(0)
   reviewCount  Int          @default(0)
   likes        Int          @default(0)
+  votes       Int           @default(0)
   trending     Boolean      @default(false)
   tags         String[]
   image       String   // URL or path to the product image
@@ -220,13 +221,13 @@ model Review {
 
 model ProductLike {
   id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
+  userEmail String   // Changed from userId
+  user      User     @relation(fields: [userEmail], references: [email])
   product   Product  @relation(fields: [productId], references: [id])
   productId String
   createdAt DateTime @default(now())
 
-  @@unique([userId, productId])
+  @@unique([userEmail, productId]) // Ensure one like per email per product
 }
 
 model ProductVote {
