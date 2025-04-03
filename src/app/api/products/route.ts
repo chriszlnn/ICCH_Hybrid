@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   try {
     const { name, description, price, category, image } = await request.json();
     const newProduct = await prisma.product.create({
-      data: { name, description, price, category, image },
+      data: { name, price, category, image },
     });
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {
