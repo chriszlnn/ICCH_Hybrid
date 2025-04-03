@@ -1,15 +1,13 @@
+/* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import type React from "react"
-
 import { useState, useMemo, useEffect } from "react"
 import Image from "next/image"
 import { Search, Plus, Edit2, Trash2, X, Filter, ChevronDown, Check, Store } from "lucide-react"
-// Adjust the import path based on your project structure
-// Import commented out to fix error - not needed for delete confirmation functionality
-// import { useUploadThing } from "@/utils/uploadthing";
-import { useToast } from "../ui/toast/use-toast" // Import toast for notifications
+import { useUploadThing } from "@/lib/utils/uploadthing"
+import { useToast } from "../ui/toast/use-toast"
 
 interface Product {
   id: string
@@ -40,29 +38,53 @@ export default function ManageProduct() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
   const [isUploading, setIsUploading] = useState(false)
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null)
-  // New state for delete confirmation modal
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ show: boolean; productId: string | null }>({
     show: false,
     productId: null,
   })
-  // Add a new state variable for delete loading after the other state declarations
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const { startUpload } = useUploadThing("imageUploader")
+  const { toast } = useToast()
+
+  // Clean up blob URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      if (selectedImageFile) {
+        URL.revokeObjectURL(URL.createObjectURL(selectedImageFile))
+      }
+    }
+  }, [selectedImageFile])
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (files && files.length > 0) {
-      setSelectedImageFile(files[0]) // Store the selected file
+    if (!files || files.length === 0) return
+    
+    const file = files[0]
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file",
+        description: "Please upload an image file",
+        variant: "destructive"
+      })
+      return
     }
+    
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 5MB",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    setSelectedImageFile(file)
   }
-
-  // Mock UploadThing functionality (commented out to fix error)
-  // const { startUpload } = useUploadThing("imageUploader")
-  const startUpload = async (files: File[]) => {
-    console.log("Mock upload called with files:", files)
-    // Return a mock response that matches the expected structure
-    return [{ url: URL.createObjectURL(files[0]) }]
-  }
-  const { toast } = useToast()
 
   // Load products on component mount
   useEffect(() => {
@@ -72,70 +94,87 @@ export default function ManageProduct() {
         setProducts(data)
       } catch (error) {
         console.error("Failed to fetch products:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load products",
+          variant: "destructive"
+        })
       }
     }
 
     loadProducts()
   }, [])
 
-  // Fetch products from the API
+  // API functions
   const fetchProducts = async (): Promise<Product[]> => {
     const response = await fetch("/api/products")
     if (!response.ok) throw new Error("Failed to fetch products")
     return response.json()
   }
 
-  // Create a new product
   const createProduct = async (product: Omit<Product, "id">): Promise<Product> => {
     const response = await fetch("/api/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(product),
     })
-    if (!response.ok) throw new Error("Failed to create product")
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || "Failed to create product")
+    }
     return response.json()
   }
 
-  // Update an existing product
+  
+
   const updateProductById = async (id: string, product: Partial<Product>): Promise<Product> => {
     const response = await fetch(`/api/products/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(product),
     })
-    if (!response.ok) throw new Error("Failed to update product")
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || "Failed to update product")
+    }
     return response.json()
   }
 
-  // Delete a product
   const deleteProductById = async (id: string): Promise<boolean> => {
     const response = await fetch(`/api/products/${id}`, {
       method: "DELETE",
     })
-    if (!response.ok) throw new Error("Failed to delete product")
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || "Failed to delete product")
+    }
     return true
   }
 
-  // Handle image upload using UploadThing
+  // Image upload handler
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
 
-    setIsUploading(true) // Start loading
+    setIsUploading(true)
 
     try {
-      console.log("Starting upload...")
       const uploadResponse = await startUpload(Array.from(files))
-      if (!uploadResponse || uploadResponse.length === 0) throw new Error("Upload failed")
+      if (!uploadResponse || uploadResponse.length === 0) {
+        throw new Error("Upload failed - no response from server")
+      }
 
       const uploadedImageUrl = uploadResponse[0].url
       console.log("Upload successful, URL:", uploadedImageUrl)
 
+      if (!uploadedImageUrl.startsWith('http')) {
+        throw new Error("Invalid image URL received from server")
+      }
+
       if (editingProduct) {
         setEditingProduct({ ...editingProduct, image: uploadedImageUrl })
       } else {
-        setNewProduct((prev) => ({ ...prev, image: uploadedImageUrl }))
-        console.log("Updated newProduct with image URL:", uploadedImageUrl)
+        setNewProduct(prev => ({ ...prev, image: uploadedImageUrl }))
       }
 
       toast({
@@ -144,21 +183,25 @@ export default function ManageProduct() {
       })
     } catch (error) {
       console.error("Error uploading image:", error)
-      toast({ title: "Error", description: "Failed to upload image", variant: "destructive" })
+      toast({ 
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to upload image", 
+        variant: "destructive" 
+      })
     } finally {
-      setIsUploading(false) // End loading
+      setIsUploading(false)
     }
   }
-  // Handle input changes for new product
+
+  // Form handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setNewProduct((prev) => ({
+    setNewProduct(prev => ({
       ...prev,
       [name]: name === "price" ? Number.parseFloat(value) || 0 : value,
     }))
   }
 
-  // Handle input changes for editing product
   const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     if (!editingProduct) return
 
@@ -169,42 +212,51 @@ export default function ManageProduct() {
     })
   }
 
-  // Add new product
+  // Product CRUD operations
   const addProduct = async () => {
+    if (isUploading) return
     if (!newProduct.name || newProduct.price <= 0) {
-      alert("Please enter a product name and valid price")
+      toast({
+        title: "Validation Error",
+        description: "Please enter a product name and valid price",
+        variant: "destructive"
+      })
       return
     }
 
     if (!selectedImageFile) {
-      alert("Please select an image before adding the product.")
+      toast({
+        title: "Validation Error",
+        description: "Please select an image before adding the product",
+        variant: "destructive"
+      })
       return
     }
 
-    setIsUploading(true) // Start loading
+    setIsUploading(true)
 
     try {
-      // Step 1: Upload the image to UploadThing
-      console.log("Uploading image...")
+      // Upload image
       const uploadResponse = await startUpload([selectedImageFile])
-      if (!uploadResponse || uploadResponse.length === 0) throw new Error("Upload failed")
-
-      const uploadedImageUrl = uploadResponse[0].url
-      console.log("Image uploaded successfully, URL:", uploadedImageUrl)
-
-      // Step 2: Create the product with the image URL
-      const productData = {
-        ...newProduct,
-        image: uploadedImageUrl, // Use the uploaded image URL
+      if (!uploadResponse || uploadResponse.length === 0) {
+        throw new Error("Upload failed - no response from server")
       }
 
-      // Step 3: Call the API to create the product
+      const uploadedImageUrl = uploadResponse[0].url
+      if (!uploadedImageUrl.startsWith('http')) {
+        throw new Error("Invalid image URL received from server")
+      }
+
+      // Create product
+      const productData = {
+        ...newProduct,
+        image: uploadedImageUrl,
+      }
+
       const createdProduct = await createProduct(productData)
+      setProducts(prev => [...prev, createdProduct])
 
-      // Step 4: Update the local state with the new product
-      setProducts((prev) => [...prev, createdProduct])
-
-      // Step 5: Reset the form
+      // Reset form
       setNewProduct({
         id: "",
         name: "",
@@ -212,7 +264,7 @@ export default function ManageProduct() {
         category: "Skincare",
         image: "/placeholder.svg?height=200&width=200",
       })
-      setSelectedImageFile(null) // Clear the selected image file
+      setSelectedImageFile(null)
       setShowAddForm(false)
 
       toast({
@@ -221,70 +273,70 @@ export default function ManageProduct() {
       })
     } catch (error) {
       console.error("Failed to add product:", error)
-      toast({ title: "Error", description: "Failed to add product", variant: "destructive" })
-    } finally {
-      setIsUploading(false) // End loading
-    }
-  }
-
-  // Update product
-  const updateProduct = async () => {
-    if (!editingProduct) return
-
-    try {
-      // Call the API to update the product
-      const updatedProduct = await updateProductById(editingProduct.id, editingProduct)
-
-      // Update the local state with the updated product
-      setProducts((prev) => prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)))
-
-      setEditingProduct(null)
-    } catch (error) {
-      console.error("Failed to update product:", error)
-      alert("Failed to update product. Please try again.")
-    }
-  }
-
-  // Show delete confirmation modal
-  const showDeleteConfirmation = (id: string) => {
-    setDeleteConfirmation({
-      show: true,
-      productId: id,
-    })
-  }
-
-  // Delete product
-  const deleteProduct = async () => {
-    if (!deleteConfirmation.productId) return
-
-    setIsDeleting(true) // Start loading state
-
-    try {
-      // Call the API to delete the product
-      const success = await deleteProductById(deleteConfirmation.productId)
-
-      if (success) {
-        // Update the local state by removing the deleted product
-        setProducts((prev) => prev.filter((p) => p.id !== deleteConfirmation.productId))
-
-        // Close the confirmation modal
-        setDeleteConfirmation({ show: false, productId: null })
-      } else {
-        throw new Error("Failed to delete product")
-      }
-    } catch (error) {
-      console.error("Failed to delete product:", error)
-      toast({
-        title: "Error",
-        description: "Failed to delete product. Please try again.",
-        variant: "destructive",
+      toast({ 
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to add product", 
+        variant: "destructive" 
       })
     } finally {
-      setIsDeleting(false) // End loading state
+      setIsUploading(false)
     }
   }
 
-  // Toggle sort order
+  const updateProduct = async () => {
+    if (!editingProduct) return;
+    
+    setIsSaving(true); // Start saving state
+  
+    try {
+      const updatedProduct = await updateProductById(editingProduct.id, editingProduct);
+      setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+      setEditingProduct(null);
+      
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+    } catch (error) {
+      console.error("Failed to update product:", error);
+      toast({ 
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to update product", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsSaving(false); // End saving state
+    }
+  }
+
+  const deleteProduct = async () => {
+    if (!deleteConfirmation.productId) return
+    if (isDeleting) return
+
+    setIsDeleting(true)
+
+    try {
+      await deleteProductById(deleteConfirmation.productId)
+      setProducts(prev => prev.filter(p => p.id !== deleteConfirmation.productId))
+      setDeleteConfirmation({ show: false, productId: null })
+      
+      toast({
+        title: "Success",
+        description: "Product deleted successfully",
+      })
+    } catch (error) {
+      console.error("Failed to delete product:", error)
+      toast({ 
+        title: "Error", 
+        description: error instanceof Error ? error.message : "Failed to delete product", 
+        variant: "destructive" 
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // UI helpers
   const toggleSort = (field: string) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc")
@@ -294,20 +346,14 @@ export default function ManageProduct() {
     }
   }
 
-  // Filter and sort products
   const filteredProducts = useMemo(() => {
     return products
-      .filter((product) => {
-        // Apply search filter
+      .filter(product => {
         const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
-
-        // Apply category filter
         const matchesCategory = categoryFilter === "All" || product.category === categoryFilter
-
         return matchesSearch && matchesCategory
       })
       .sort((a, b) => {
-        // Apply sorting
         if (sortBy === "name") {
           return sortOrder === "asc" ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name)
         } else if (sortBy === "price") {
@@ -323,7 +369,6 @@ export default function ManageProduct() {
     setEditingProduct(product)
   }
 
-  // Reset new product form
   const resetNewProductForm = () => {
     setNewProduct({
       id: "",
@@ -332,22 +377,28 @@ export default function ManageProduct() {
       category: "Skincare",
       image: "/placeholder.svg?height=200&width=200",
     })
+    setSelectedImageFile(null)
   }
 
-  // Open add product modal
   const openAddProductModal = () => {
     resetNewProductForm()
     setShowAddForm(true)
   }
 
-  // Close add product modal
   const closeAddProductModal = () => {
     setShowAddForm(false)
   }
 
+  const showDeleteConfirmation = (id: string) => {
+    setDeleteConfirmation({
+      show: true,
+      productId: id,
+    })
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-6">
-      {/* Header Section - Manage Products */}
+      {/* Header Section */}
       <div className="top-0 z-10 bg-white shadow-md rounded-lg p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
@@ -357,6 +408,7 @@ export default function ManageProduct() {
           <button
             onClick={openAddProductModal}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+            disabled={isUploading}
           >
             <Plus size={18} />
             Add Product
@@ -468,7 +520,7 @@ export default function ManageProduct() {
         </div>
       </div>
 
-      {/* Product List with fixed height and scrollable content */}
+      {/* Product List */}
       <div className="bg-white shadow-md rounded-lg flex flex-col h-[600px]">
         <div className="p-4 border-b">
           <div className="flex items-baseline">
@@ -510,6 +562,7 @@ export default function ManageProduct() {
                       <button
                         onClick={() => editProduct(product)}
                         className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
+                        disabled={isUploading}
                       >
                         <Edit2 size={14} />
                         Edit
@@ -517,6 +570,7 @@ export default function ManageProduct() {
                       <button
                         onClick={() => showDeleteConfirmation(product.id)}
                         className="flex items-center gap-1 text-red-600 hover:text-red-800 text-sm"
+                        disabled={isUploading}
                       >
                         <Trash2 size={14} />
                         Delete
@@ -551,7 +605,11 @@ export default function ManageProduct() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-green-700">Add New Product</h2>
-                <button onClick={closeAddProductModal} className="text-gray-500 hover:text-gray-700">
+                <button 
+                  onClick={closeAddProductModal} 
+                  className="text-gray-500 hover:text-gray-700"
+                  disabled={isUploading}
+                >
                   <X size={20} />
                 </button>
               </div>
@@ -567,6 +625,7 @@ export default function ManageProduct() {
                     placeholder="Enter product name"
                     className="w-full px-3 py-2 text-sm text-gray-600 placeholder-gray-400 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
                     required
+                    disabled={isUploading}
                   />
                 </div>
 
@@ -582,6 +641,7 @@ export default function ManageProduct() {
                     step="0.01"
                     min="0"
                     required
+                    disabled={isUploading}
                   />
                 </div>
 
@@ -592,6 +652,7 @@ export default function ManageProduct() {
                     value={newProduct.category}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
+                    disabled={isUploading}
                   >
                     <option value="Skincare">Skincare</option>
                     <option value="Makeup">Makeup</option>
@@ -607,7 +668,18 @@ export default function ManageProduct() {
                     accept="image/*"
                     onChange={handleImageChange}
                     className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 focus:outline-none"
+                    disabled={isUploading}
                   />
+                  {selectedImageFile && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500">Preview:</p>
+                      <img 
+                        src={URL.createObjectURL(selectedImageFile)} 
+                        alt="Preview" 
+                        className="mt-1 h-32 object-contain"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -615,13 +687,14 @@ export default function ManageProduct() {
                 <button
                   onClick={closeAddProductModal}
                   className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                  disabled={isUploading}
                 >
                   Cancel
                 </button>
                 <button
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:bg-green-400"
                   onClick={addProduct}
-                  disabled={isUploading || !selectedImageFile} // Disable if uploading or no image selected
+                  disabled={isUploading || !selectedImageFile}
                 >
                   {isUploading ? "Uploading..." : "Add Product"}
                 </button>
@@ -637,7 +710,11 @@ export default function ManageProduct() {
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-800">Edit Product</h2>
-              <button onClick={() => setEditingProduct(null)} className="text-gray-500 hover:text-gray-700">
+              <button 
+                onClick={() => setEditingProduct(null)} 
+                className="text-gray-500 hover:text-gray-700"
+                disabled={isUploading}
+              >
                 <X size={20} />
               </button>
             </div>
@@ -651,6 +728,7 @@ export default function ManageProduct() {
                   value={editingProduct.name}
                   onChange={handleEditInputChange}
                   className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  disabled={isUploading}
                 />
               </div>
 
@@ -664,6 +742,7 @@ export default function ManageProduct() {
                   className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   step="0.01"
                   min="0"
+                  disabled={isUploading}
                 />
               </div>
 
@@ -674,6 +753,7 @@ export default function ManageProduct() {
                   value={editingProduct.category}
                   onChange={handleEditInputChange}
                   className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  disabled={isUploading}
                 >
                   <option value="Skincare">Skincare</option>
                   <option value="Makeup">Makeup</option>
@@ -697,6 +777,7 @@ export default function ManageProduct() {
                   accept="image/*"
                   onChange={handleImageUpload}
                   className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  disabled={isUploading}
                 />
               </div>
             </div>
@@ -705,15 +786,17 @@ export default function ManageProduct() {
               <button
                 onClick={() => setEditingProduct(null)}
                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={isUploading}
               >
                 Cancel
               </button>
               <button
-                onClick={updateProduct}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
-              >
-                Save Changes
-              </button>
+              onClick={updateProduct}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors disabled:bg-green-400"
+              disabled={isUploading || isSaving} // Disable during both uploading and saving
+            >
+              {isUploading ? "Uploading..." : isSaving ? "Saving..." : "Save Changes"}
+            </button>
             </div>
           </div>
         </div>
@@ -726,13 +809,14 @@ export default function ManageProduct() {
             <div className="p-6">
               <h2 className="text-xl font-bold mb-4">Are you sure?</h2>
               <p className="text-gray-600 mb-6">
-              This action cannot be undone. This will permanently delete the product and remove its data from our servers.
+                This action cannot be undone. This will permanently delete the product and remove its data from our servers.
               </p>
 
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setDeleteConfirmation({ show: false, productId: null })}
                   className="px-6 py-2 border border-gray-300 rounded-lg text-gray-800 hover:bg-gray-50"
+                  disabled={isDeleting}
                 >
                   Cancel
                 </button>
@@ -751,4 +835,3 @@ export default function ManageProduct() {
     </div>
   )
 }
-
