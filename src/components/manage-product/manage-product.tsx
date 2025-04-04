@@ -8,12 +8,14 @@ import Image from "next/image"
 import { Search, Plus, Edit2, Trash2, X, Filter, ChevronDown, Check, Store } from "lucide-react"
 import { useUploadThing } from "@/lib/utils/uploadthing"
 import { useToast } from "../ui/toast/use-toast"
+import { categoryOptions } from "../product-ranking/mock-data"
 
 interface Product {
   id: string
   name: string
   price: number
   category: string
+  subcategory: string
   image: string
   description?: string
   createdAt?: string
@@ -26,13 +28,15 @@ export default function ManageProduct() {
     id: "",
     name: "",
     price: 0,
-    category: "Skincare",
+    category: "skincare",
+    subcategory: "cleansers",
     image: "/placeholder.svg?height=200&width=200",
   })
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<string>("All")
+  const [subcategoryFilter, setSubcategoryFilter] = useState<string>("All")
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState<string>("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
@@ -44,6 +48,26 @@ export default function ManageProduct() {
   })
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Get available subcategories based on selected category
+  const availableSubcategories = useMemo(() => {
+    const category = categoryOptions.find(cat => cat.id === newProduct.category)
+    return category ? category.subcategories : []
+  }, [newProduct.category])
+
+  // Get available subcategories for editing
+  const availableEditSubcategories = useMemo(() => {
+    if (!editingProduct) return []
+    const category = categoryOptions.find(cat => cat.id === editingProduct.category)
+    return category ? category.subcategories : []
+  }, [editingProduct])
+
+  // Get available subcategories for filtering
+  const availableFilterSubcategories = useMemo(() => {
+    if (categoryFilter === "All") return []
+    const category = categoryOptions.find(cat => cat.label === categoryFilter)
+    return category ? category.subcategories : []
+  }, [categoryFilter])
 
   const { startUpload } = useUploadThing("imageUploader")
   const { toast } = useToast()
@@ -196,20 +220,57 @@ export default function ManageProduct() {
   // Form handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setNewProduct(prev => ({
-      ...prev,
-      [name]: name === "price" ? Number.parseFloat(value) || 0 : value,
-    }))
+    
+    // If changing category, reset subcategory to first available option
+    if (name === "category") {
+      const category = categoryOptions.find(cat => cat.id === value)
+      const firstSubcategory = category?.subcategories[0]?.id || ""
+      
+      setNewProduct(prev => ({
+        ...prev,
+        [name]: value,
+        subcategory: firstSubcategory
+      }))
+    } else {
+      setNewProduct(prev => ({
+        ...prev,
+        [name]: name === "price" ? Number.parseFloat(value) || 0 : value,
+      }))
+    }
   }
 
   const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     if (!editingProduct) return
 
     const { name, value } = e.target
-    setEditingProduct({
-      ...editingProduct,
-      [name]: name === "price" ? Number.parseFloat(value) || 0 : value,
-    })
+    
+    // If changing category, reset subcategory to first available option
+    if (name === "category") {
+      const category = categoryOptions.find(cat => cat.id === value)
+      const firstSubcategory = category?.subcategories[0]?.id || ""
+      
+      setEditingProduct({
+        ...editingProduct,
+        [name]: value,
+        subcategory: firstSubcategory
+      })
+    } else if (name === "subcategory") {
+      // Ensure the selected subcategory is valid for the current category
+      const category = categoryOptions.find(cat => cat.id === editingProduct.category)
+      const subcategoryExists = category?.subcategories.some(sub => sub.id === value)
+      
+      if (subcategoryExists) {
+        setEditingProduct({
+          ...editingProduct,
+          [name]: value
+        })
+      }
+    } else {
+      setEditingProduct({
+        ...editingProduct,
+        [name]: name === "price" ? Number.parseFloat(value) || 0 : value,
+      })
+    }
   }
 
   // Product CRUD operations
@@ -261,7 +322,8 @@ export default function ManageProduct() {
         id: "",
         name: "",
         price: 0,
-        category: "Skincare",
+        category: "skincare",
+        subcategory: "cleansers",
         image: "/placeholder.svg?height=200&width=200",
       })
       setSelectedImageFile(null)
@@ -289,6 +351,32 @@ export default function ManageProduct() {
     setIsSaving(true); // Start saving state
   
     try {
+      // Validate that the subcategory is valid for the selected category
+      const category = categoryOptions.find(cat => cat.id === editingProduct.category);
+      
+      if (category && Array.isArray(category.subcategories) && category.subcategories.length > 0) {
+        const subcategoryExists = category.subcategories.some(sub => sub.id === editingProduct.subcategory);
+        
+        if (!subcategoryExists) {
+          // If subcategory is invalid, set it to the first available subcategory
+          const updatedProduct = {
+            ...editingProduct,
+            subcategory: category.subcategories[0].id
+          };
+          
+          const result = await updateProductById(editingProduct.id, updatedProduct);
+          setProducts(prev => prev.map(p => p.id === result.id ? result : p));
+          setEditingProduct(null);
+          
+          toast({
+            title: "Success",
+            description: "Product updated successfully (subcategory adjusted)",
+          });
+          return;
+        }
+      }
+      
+      // Proceed with the update as is
       const updatedProduct = await updateProductById(editingProduct.id, editingProduct);
       setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
       setEditingProduct(null);
@@ -350,8 +438,13 @@ export default function ManageProduct() {
     return products
       .filter(product => {
         const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase())
-        const matchesCategory = categoryFilter === "All" || product.category === categoryFilter
-        return matchesSearch && matchesCategory
+        const matchesCategory = categoryFilter === "All" || 
+          categoryOptions.find(cat => cat.id === product.category)?.label === categoryFilter
+        const matchesSubcategory = subcategoryFilter === "All" || 
+          categoryOptions
+            .find(cat => cat.id === product.category)
+            ?.subcategories.find(sub => sub.id === product.subcategory)?.label === subcategoryFilter
+        return matchesSearch && matchesCategory && matchesSubcategory
       })
       .sort((a, b) => {
         if (sortBy === "name") {
@@ -359,14 +452,41 @@ export default function ManageProduct() {
         } else if (sortBy === "price") {
           return sortOrder === "asc" ? a.price - b.price : b.price - a.price
         } else if (sortBy === "category") {
-          return sortOrder === "asc" ? a.category.localeCompare(b.category) : b.category.localeCompare(a.category)
+          const categoryA = categoryOptions.find(cat => cat.id === a.category)?.label || a.category
+          const categoryB = categoryOptions.find(cat => cat.id === b.category)?.label || b.category
+          return sortOrder === "asc" ? categoryA.localeCompare(categoryB) : categoryB.localeCompare(categoryA)
         }
         return 0
       })
-  }, [products, searchQuery, categoryFilter, sortBy, sortOrder])
+  }, [products, searchQuery, categoryFilter, subcategoryFilter, sortBy, sortOrder])
 
   const editProduct = (product: Product) => {
-    setEditingProduct(product)
+    // Find the category in categoryOptions
+    const category = categoryOptions.find(cat => cat.id === product.category);
+    
+    if (category) {
+      // Check if the current subcategory exists in the category's subcategories
+      const subcategoryExists = category.subcategories.some(sub => sub.id === product.subcategory);
+      
+      if (!subcategoryExists) {
+        // If subcategory doesn't exist, set it to the first available subcategory
+        setEditingProduct({
+          ...product,
+          subcategory: category.subcategories[0].id
+        });
+      } else {
+        // If subcategory exists, keep it
+        setEditingProduct(product);
+      }
+    } else {
+      // If category not found, set to first category and its first subcategory
+      const firstCategory = categoryOptions[0];
+      setEditingProduct({
+        ...product,
+        category: firstCategory.id,
+        subcategory: firstCategory.subcategories[0].id
+      });
+    }
   }
 
   const resetNewProductForm = () => {
@@ -374,7 +494,8 @@ export default function ManageProduct() {
       id: "",
       name: "",
       price: 0,
-      category: "Skincare",
+      category: "skincare",
+      subcategory: "cleansers",
       image: "/placeholder.svg?height=200&width=200",
     })
     setSelectedImageFile(null)
@@ -447,11 +568,12 @@ export default function ManageProduct() {
                     <div className="p-2">
                       <h3 className="text-sm font-medium text-gray-700 mb-2">Category</h3>
                       <div className="space-y-1">
-                        {["All", "Skincare", "Makeup", "Hair & Body", "Promotions"].map((category) => (
+                        {["All", ...categoryOptions.map(cat => cat.label)].map((category) => (
                           <button
                             key={category}
                             onClick={() => {
                               setCategoryFilter(category)
+                              setSubcategoryFilter("All") // Reset subcategory when category changes
                               setShowFilters(false)
                             }}
                             className={`flex items-center w-full px-2 py-1 text-sm rounded-md ${
@@ -463,6 +585,29 @@ export default function ManageProduct() {
                           </button>
                         ))}
                       </div>
+
+                      {categoryFilter !== "All" && (
+                        <>
+                          <h3 className="text-sm font-medium text-gray-700 mt-3 mb-2">Subcategory</h3>
+                          <div className="space-y-1">
+                            {["All", ...availableFilterSubcategories.map(sub => sub.label)].map((subcategory) => (
+                              <button
+                                key={subcategory}
+                                onClick={() => {
+                                  setSubcategoryFilter(subcategory)
+                                  setShowFilters(false)
+                                }}
+                                className={`flex items-center w-full px-2 py-1 text-sm rounded-md ${
+                                  subcategoryFilter === subcategory ? "bg-green-100 text-green-800" : "hover:bg-gray-100"
+                                }`}
+                              >
+                                {subcategoryFilter === subcategory && <Check size={16} className="mr-1" />}
+                                {subcategory}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
 
                       <h3 className="text-sm font-medium text-gray-700 mt-3 mb-2">Sort By</h3>
                       <div className="space-y-1">
@@ -496,12 +641,24 @@ export default function ManageProduct() {
           </div>
 
           {/* Active filters display */}
-          {(categoryFilter !== "All" || searchQuery) && (
+          {(categoryFilter !== "All" || subcategoryFilter !== "All" || searchQuery) && (
             <div className="flex flex-wrap gap-2 mt-3">
               {categoryFilter !== "All" && (
                 <div className="flex items-center bg-green-50 text-green-800 text-xs rounded-full px-3 py-1">
                   <span>Category: {categoryFilter}</span>
-                  <button onClick={() => setCategoryFilter("All")} className="ml-1 text-green-600 hover:text-green-800">
+                  <button onClick={() => {
+                    setCategoryFilter("All")
+                    setSubcategoryFilter("All")
+                  }} className="ml-1 text-green-600 hover:text-green-800">
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {subcategoryFilter !== "All" && (
+                <div className="flex items-center bg-green-50 text-green-800 text-xs rounded-full px-3 py-1">
+                  <span>Subcategory: {subcategoryFilter}</span>
+                  <button onClick={() => setSubcategoryFilter("All")} className="ml-1 text-green-600 hover:text-green-800">
                     <X size={14} />
                   </button>
                 </div>
@@ -552,9 +709,16 @@ export default function ManageProduct() {
                       <div>
                         <h3 className="font-medium text-gray-900 line-clamp-2">{product.name}</h3>
                         <p className="text-green-600 font-medium mt-1">RM {product.price.toFixed(2)}</p>
-                        <span className="inline-block mt-1 text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full">
-                          {product.category}
-                        </span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <span className="inline-block text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full">
+                            {categoryOptions.find(cat => cat.id === product.category)?.label || product.category}
+                          </span>
+                          <span className="inline-block text-xs px-2 py-1 bg-green-50 text-green-800 rounded-full">
+                            {categoryOptions
+                              .find(cat => cat.id === product.category)
+                              ?.subcategories.find(sub => sub.id === product.subcategory)?.label || product.subcategory}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -587,6 +751,7 @@ export default function ManageProduct() {
                 onClick={() => {
                   setSearchQuery("")
                   setCategoryFilter("All")
+                  setSubcategoryFilter("All")
                 }}
                 className="mt-2 text-green-600 hover:text-green-800 text-sm"
               >
@@ -654,10 +819,28 @@ export default function ManageProduct() {
                     className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
                     disabled={isUploading}
                   >
-                    <option value="Skincare">Skincare</option>
-                    <option value="Makeup">Makeup</option>
-                    <option value="Hair & Body">Hair & Body</option>
-                    <option value="Promotions">Promotions</option>
+                    {categoryOptions.map(category => (
+                      <option key={category.id} value={category.id}>
+                        {category.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+                  <select
+                    name="subcategory"
+                    value={newProduct.subcategory}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
+                    disabled={isUploading || availableSubcategories.length === 0}
+                  >
+                    {availableSubcategories.map(subcategory => (
+                      <option key={subcategory.id} value={subcategory.id}>
+                        {subcategory.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -755,10 +938,28 @@ export default function ManageProduct() {
                   className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   disabled={isUploading}
                 >
-                  <option value="Skincare">Skincare</option>
-                  <option value="Makeup">Makeup</option>
-                  <option value="Hair & Body">Hair & Body</option>
-                  <option value="Promotions">Promotions</option>
+                  {categoryOptions.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+                <select
+                  name="subcategory"
+                  value={editingProduct.subcategory}
+                  onChange={handleEditInputChange}
+                  className="border border-gray-300 p-2 rounded-md w-full focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  disabled={isUploading || availableEditSubcategories.length === 0}
+                >
+                  {availableEditSubcategories.map(subcategory => (
+                    <option key={subcategory.id} value={subcategory.id}>
+                      {subcategory.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 

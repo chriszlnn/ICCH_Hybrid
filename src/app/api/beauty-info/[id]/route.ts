@@ -5,15 +5,18 @@ import { auth } from "@/lib/auth";
 // GET function
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } } // Destructure params here
+  context: { params: { id: string } }
 ): Promise<Response> {
   try {
-    // Ensure params.id is available
-    if (!params?.id) {
+    // Await the params object
+    const { id } = await context.params;
+    
+    // Ensure id is available
+    if (!id) {
       return NextResponse.json({ error: "Missing post ID" }, { status: 400 });
     }
 
-    const postId = Number(params.id);
+    const postId = Number(id);
     if (isNaN(postId)) {
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
     }
@@ -53,15 +56,18 @@ export async function GET(
 // POST function
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } } // Destructure params here
+  context: { params: { id: string } }
 ): Promise<Response> {
   try {
-    // Ensure params.id is available
-    if (!params?.id) {
+    // Await the params object
+    const { id } = await context.params;
+    
+    // Ensure id is available
+    if (!id) {
       return NextResponse.json({ error: "Missing post ID" }, { status: 400 });
     }
 
-    const postId = Number(params.id);
+    const postId = Number(id);
     if (isNaN(postId)) {
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
     }

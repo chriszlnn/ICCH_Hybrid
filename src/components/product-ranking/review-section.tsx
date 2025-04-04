@@ -1,37 +1,46 @@
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import { useState } from "react"
 import { Star, ChevronRight } from "lucide-react"
 import type { Review } from "./types"
+import { useToast } from "../ui/toast/use-toast"
+import { ImagePopup } from "../ui/image-popup"
 
 interface ReviewSectionProps {
   productId: string
-  productRating: number
+  productRating?: number
   reviewCount: number
   onWriteReviewClick: () => void
-  reviews: Review[] // Pass reviews directly as a prop
+  reviews: Review[]
+  onReviewAdded?: (callback: (review: Review) => void) => (() => void) | undefined
 }
 
 export function ReviewSection({
   productId,
-  productRating,
+  productRating = 0,
   reviewCount,
   onWriteReviewClick,
   reviews,
+  onReviewAdded
 }: ReviewSectionProps) {
   const [expandedReview, setExpandedReview] = useState<string | null>(null)
   const [showAllReviews, setShowAllReviews] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const { toast } = useToast()
 
   const toggleExpandReview = (reviewId: string) => {
-    if (expandedReview === reviewId) {
-      setExpandedReview(null)
-    } else {
-      setExpandedReview(reviewId)
-    }
+    setExpandedReview(expandedReview === reviewId ? null : reviewId)
   }
 
   const handleViewAllReviews = () => {
     setShowAllReviews(true)
+  }
+
+  const handleImageClick = (imageUrl: string) => {
+    setSelectedImage(imageUrl)
   }
 
   // Calculate rating distribution
@@ -114,8 +123,10 @@ export function ReviewSection({
             >
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <p className="font-medium">{review.username}</p>
-                  <p className="text-xs text-gray-500">{review.date}</p>
+                  <p className="font-medium">{review.author.name || review.author.email}</p>
+                  <p className="text-xs text-gray-500">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
                 <div className="flex text-yellow-400">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -128,9 +139,9 @@ export function ReviewSection({
               </div>
 
               {/* Skin Type Tags */}
-              {review.skinType && review.skinType.length > 0 && (
+              {review.metadata?.skinType && review.metadata.skinType.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-2">
-                  {review.skinType.map((type, index) => (
+                  {review.metadata.skinType.map((type: string, index: number) => (
                     <span
                       key={index}
                       className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full border border-green-100"
@@ -140,34 +151,38 @@ export function ReviewSection({
                   ))}
                 </div>
               )}
-
               {/* Review Image (if any) */}
-              {review.image && (
-                <div className="mb-2">
-                  <img
-                    src={review.image || "/placeholder.svg"}
-                    alt="Review"
-                    className="h-20 w-20 object-cover rounded-md cursor-pointer"
-                    onClick={() => {
-                      if (review.image) {
-                        window.open(review.image, "_blank")
-                      }
-                    }}
-                  />
+              {review.images && review.images.length > 0 && (
+                <div className="flex gap-2 mt-2">
+                  {review.images.map((image, index) => (
+                    <img
+                      key={index}
+                      src={image}
+                      alt={`Review ${index + 1}`}
+                      className="h-20 w-20 object-cover rounded-md cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => handleImageClick(image)}
+                    />
+                  ))}
                 </div>
               )}
 
               {/* Review Content */}
-              <div className={expandedReview === review.id ? "" : "line-clamp-3"}>
-                <p className="text-gray-700 text-sm">{review.comment}</p>
+              <div className="mt-2 text-gray-600">
+                {review.content ? (
+                  expandedReview === review.id 
+                    ? review.content 
+                    : review.content.slice(0, 150) + (review.content.length > 150 ? '...' : '')
+                ) : (
+                  <span className="text-gray-400 italic">No review text provided</span>
+                )}
               </div>
 
-              {review.comment.length > 150 && (
+              {review.content && review.content.length > 150 && (
                 <button
                   onClick={() => toggleExpandReview(review.id)}
                   className="text-green-600 text-xs font-medium mt-2 hover:underline"
                 >
-                  {expandedReview === review.id ? "Show Less" : "Read More"}
+                  {expandedReview === review.id ? 'Show less' : 'Read more'}
                 </button>
               )}
             </div>
@@ -184,7 +199,14 @@ export function ReviewSection({
           <ChevronRight className="ml-1 h-4 w-4" />
         </button>
       )}
+
+      {/* Image Popup */}
+      {selectedImage && (
+        <ImagePopup
+          imageUrl={selectedImage}
+          onClose={() => setSelectedImage(null)}
+        />
+      )}
     </div>
   )
 }
-

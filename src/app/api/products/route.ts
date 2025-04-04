@@ -15,15 +15,43 @@ export async function GET() {
 }
 
 // POST a new product
-// POST a new product
 export async function POST(request: Request) {
   try {
-    const { name, description, price, category, image } = await request.json();
+    const { name, description, price, category, subcategory, image } = await request.json();
+
+    // Validate required fields
+    if (!name || !price || !category || !image) {
+      return NextResponse.json(
+        { error: 'Missing required fields: name, price, category, and image are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate price is a positive number
+    if (typeof price !== 'number' || price <= 0) {
+      return NextResponse.json(
+        { error: 'Price must be a positive number' },
+        { status: 400 }
+      );
+    }
+
     const newProduct = await prisma.product.create({
-      data: { name, price, category, image },
+      data: {
+        name,
+        price,
+        category,
+        subcategory,
+        image,
+        description: description || null,
+      },
     });
+
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
+    console.error('Error creating product:', error);
+    return NextResponse.json(
+      { error: 'Failed to create product' },
+      { status: 500 }
+    );
   }
 }

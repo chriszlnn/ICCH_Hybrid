@@ -60,7 +60,8 @@ export async function POST(request: Request) {
         userEmail: session.user.email,
         productId,
         week,
-        year
+        year,
+        createdAt: new Date()
       }
     })
 
@@ -124,43 +125,32 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const session = await auth();
-  
-  if (!session?.user?.email) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
-
-  try {
-    const { week, year } = getCurrentWeekAndYear()
+    const session = await auth();
     
-    const votes = await prisma.productVote.findMany({
-      where: {
-        userEmail: session.user.email,
-        week,
-        year
-      },
-      include: {
-        product: {
-          select: {
-            id: true,
-            votes: true
-          }
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+  
+    try {
+      const votes = await prisma.productVote.findMany({
+        where: {
+          userEmail: session.user.email,
+        },
+        select: {
+          productId: true,
+          createdAt: true
         }
-      }
-    })
-
-    return NextResponse.json(votes.map(v => ({
-      productId: v.productId,
-      votes: v.product.votes
-    })))
-  } catch (error) {
-    console.error('Error fetching votes:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch votes' },
-      { status: 500 }
-    )
+      })
+  
+      return NextResponse.json(votes)
+    } catch (error) {
+      console.error('Error fetching votes:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch votes' },
+        { status: 500 }
+      )
+    }
   }
-}

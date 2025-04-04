@@ -1,6 +1,8 @@
 // BACKEND INTEGRATION POINT:
 // These interfaces should match the data structure returned by your backend API
 
+
+
 export type Category = "skincare" | "makeup" | "hairbody"
 
 export interface Product {
@@ -8,7 +10,6 @@ export interface Product {
   name: string
   description: string
   price: number
-  volume?: string
   image: string
   brand: string
   category: Category
@@ -20,6 +21,9 @@ export interface Product {
   votes: number
   trending: boolean
   date: string
+  createdAt: string
+  updatedAt: string
+  reviews?: Review[]
   tags?: string[]
 }
 
@@ -37,15 +41,18 @@ export interface CategoryOption {
 // Enhanced Review interface with image support
 export interface Review {
   id: string
-  userId: string
-  username: string
+  author: {
+    name?: string
+    email: string
+  }
   rating: number
-  comment: string
-  date: string
-  likes: number
-  userLiked?: boolean
-  skinType?: string[]
-  image?: string | null // Added support for review images
+  content?: string
+  createdAt: string
+  skinType?: string[] // Correctly typed as an array of strings
+  images?: string[]
+  metadata?: {
+    skinType?: string[]
+  }
 }
 
 // You might want to add more interfaces for API responses

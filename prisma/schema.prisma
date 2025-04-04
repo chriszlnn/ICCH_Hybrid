@@ -204,13 +204,14 @@ model Product {
 
 model Review {
   id        String   @id @default(cuid())
-  content   String
+  content   String?
   rating    Int      // Remove @range(1, 5) - handle in application code
   images    String[] 
   author    User     @relation(fields: [authorId], references: [id])
   authorId  String
   product   Product  @relation(fields: [productId], references: [id])
   productId String
+  metadata  Json? 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -235,8 +236,8 @@ model ProductVote {
   userEmail String   // Changed from userId to userEmail
   product   Product  @relation(fields: [productId], references: [id])
   productId String
-  week      Int
-  year      Int
+  week      Int?
+  year      Int?
   createdAt DateTime @default(now())
 
   @@unique([userEmail, productId, week, year]) // Prevent duplicate votes per week

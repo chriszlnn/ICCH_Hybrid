@@ -18,6 +18,7 @@ const updateProductSchema = z.object({
   description: z.string().optional().nullable(),
   price: z.number().positive().optional(),
   category: z.string().optional(),
+  subcategory: z.string().optional().nullable(),
   image: z.string().optional(),
 }).partial(); // Make all fields optional
 
@@ -32,6 +33,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         description: true,
         price: true,
         category: true,
+        subcategory: true,
         image: true,
       },
     });
@@ -88,6 +90,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         name: true,
         price: true,
         category: true,
+        subcategory: true,
         image: true,
       },
     });
