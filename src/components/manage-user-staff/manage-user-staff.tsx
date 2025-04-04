@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Edit, MoreHorizontal, Search, Trash, Users } from "lucide-react";
 import { generateVerificationToken } from "@/lib/token";
 import { sendVerificationEmail } from "@/lib/mail";
@@ -9,26 +9,26 @@ import Link from "next/link";
 import { Button } from "../ui/general/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CustomDialog,
+  CustomDialogContent,
+  CustomDialogDescription,
+  CustomDialogFooter,
+  CustomDialogHeader,
+  CustomDialogTitle,
+} from "@/components/ui/custom-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "../ui/general/input";
 import { Label } from "../ui/form/label";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  CustomAlertDialog,
+  CustomAlertDialogAction,
+  CustomAlertDialogCancel,
+  CustomAlertDialogContent,
+  CustomAlertDialogDescription,
+  CustomAlertDialogFooter,
+  CustomAlertDialogHeader,
+  CustomAlertDialogTitle,
+} from "@/components/ui/custom-alert-dialog";
 
 export default function ManageUserStaff() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -38,8 +38,14 @@ export default function ManageUserStaff() {
   const [itemToDelete, setItemToDelete] = useState<any>(null);
   const [clients, setClients] = useState<{ userId: number; username: string; email: string; emailVerified: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const editDialogRef = useRef<HTMLDivElement>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Set mounted to true when component mounts
+    setMounted(true);
+    
     async function fetchData() {
       try {
         const clientRes = await fetch("/api/clients");
@@ -52,6 +58,31 @@ export default function ManageUserStaff() {
       }
     }
     fetchData();
+    
+    // Cleanup function to reset dialog states when component unmounts
+    return () => {
+      setMounted(false);
+      setIsEditDialogOpen(false);
+      setDeleteDialogOpen(false);
+      setEditingItem(null);
+      setItemToDelete(null);
+    };
+  }, []);
+
+  // Handle navigation events
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      setIsEditDialogOpen(false);
+      setDeleteDialogOpen(false);
+      setEditingItem(null);
+      setItemToDelete(null);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   const filteredClients = clients.filter(
@@ -71,14 +102,39 @@ export default function ManageUserStaff() {
     setDeleteDialogOpen(true);
   };
 
+  const handleCloseEditDialog = () => {
+    setIsEditDialogOpen(false);
+    // Use a timeout to reset the editing item after the dialog animation completes
+    setTimeout(() => {
+      setEditingItem(null);
+    }, 300);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    // Use a timeout to reset the item to delete after the dialog animation completes
+    setTimeout(() => {
+      setItemToDelete(null);
+    }, 300);
+  };
+
   const confirmDelete = async () => {
     if (!itemToDelete) return;
 
     try {
       const id = String(itemToDelete.userId);
-      const response = await fetch(`/api/users/${id}`, {
-        method: "DELETE",
+      
+      // Call the new DELETE API endpoint
+      const response = await fetch(`/api/users/delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
       });
+
+      // Log the response status for debugging
+      console.log("Delete response status:", response.status);
 
       if (response.ok) {
         const clientRes = await fetch("/api/clients");
@@ -87,7 +143,12 @@ export default function ManageUserStaff() {
         setDeleteDialogOpen(false);
         setItemToDelete(null);
       } else {
-        console.error("Failed to delete item");
+        // Get the error message from the response
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to delete item:", errorData.error || response.statusText);
+        if (errorData.details) {
+          console.error("Error details:", errorData.details);
+        }
       }
     } catch (error) {
       console.error("Error deleting item:", error);
@@ -243,94 +304,118 @@ export default function ManageUserStaff() {
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Client</DialogTitle>
-            <DialogDescription>
-              Make changes to the client information here.
-            </DialogDescription>
-          </DialogHeader>
-          {editingItem && (
-            <div className="grid gap-4 py-4">
-              {/* Client ID (non-editable) */}
-              <div className="grid gap-2">
-                <Label htmlFor="clientId">Client ID</Label>
-                <Input
-                  id="clientId"
-                  value={editingItem.userId}
-                  disabled
-                />
-              </div>
-
-              {/* Email (read-only) */}
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  value={editingItem.email}
-                  disabled
-                />
-              </div>
-
-              {/* Status Dropdown (editable) */}
-              <div className="grid gap-2">
-                <Label htmlFor="status">Status</Label>
-                <select
-                  id="status"
-                  value={editingItem.emailVerified ? "Verified" : "Unverified"}
-                  onChange={(e) =>
-                    setEditingItem({
-                      ...editingItem,
-                      emailVerified: e.target.value === "Verified" ? new Date().toISOString() : null,
-                    })
-                  }
-                  className="p-2 border rounded"
-                >
-                  <option value="Verified">Verified</option>
-                  <option value="Unverified">Unverified</option>
-                </select>
-              </div>
-
-              {/* Resend Verification Email Button */}
-              {!editingItem.emailVerified && (
+      {mounted && isEditDialogOpen && (
+        <CustomDialog 
+          open={isEditDialogOpen} 
+          onOpenChange={(open) => {
+            if (!open) {
+              handleCloseEditDialog();
+            }
+          }}
+        >
+          <CustomDialogContent className="sm:max-w-[425px]">
+            <CustomDialogHeader>
+              <CustomDialogTitle>Edit Client</CustomDialogTitle>
+              <CustomDialogDescription>
+                Make changes to the client information here.
+              </CustomDialogDescription>
+            </CustomDialogHeader>
+            {editingItem && (
+              <div className="grid gap-4 py-4">
+                {/* Client ID (non-editable) */}
                 <div className="grid gap-2">
-                  <Button
-                    onClick={handleResendVerificationEmail}
-                    disabled={!editingItem.email}
-                  >
-                    Resend Verification Email
-                  </Button>
+                  <Label htmlFor="clientId">Client ID</Label>
+                  <Input
+                    id="clientId"
+                    value={editingItem.userId}
+                    disabled
+                  />
                 </div>
-              )}
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEdit}>Save changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the client and remove their data from our servers.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                {/* Email (read-only) */}
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={editingItem.email}
+                    disabled
+                  />
+                </div>
+
+                {/* Status Dropdown (editable) */}
+                <div className="grid gap-2">
+                  <Label htmlFor="status">Status</Label>
+                  <select
+                    id="status"
+                    value={editingItem.emailVerified ? "Verified" : "Unverified"}
+                    onChange={(e) =>
+                      setEditingItem({
+                        ...editingItem,
+                        emailVerified: e.target.value === "Verified" ? new Date().toISOString() : null,
+                      })
+                    }
+                    className="p-2 border rounded"
+                  >
+                    <option value="Verified">Verified</option>
+                    <option value="Unverified">Unverified</option>
+                  </select>
+                </div>
+
+                {/* Resend Verification Email Button */}
+                {!editingItem.emailVerified && (
+                  <div className="grid gap-2">
+                    <Button
+                      onClick={handleResendVerificationEmail}
+                      disabled={!editingItem.email}
+                    >
+                      Resend Verification Email
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+            <CustomDialogFooter>
+              <Button variant="outline" onClick={handleCloseEditDialog}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit}>Save changes</Button>
+            </CustomDialogFooter>
+          </CustomDialogContent>
+        </CustomDialog>
+      )}
+
+      {/* Delete Dialog */}
+      {mounted && deleteDialogOpen && (
+        <CustomAlertDialog 
+          open={deleteDialogOpen} 
+          onOpenChange={(open) => {
+            if (!open) {
+              handleCloseDeleteDialog();
+            }
+          }}
+        >
+          <CustomAlertDialogContent>
+            <CustomAlertDialogHeader>
+              <CustomAlertDialogTitle>Are you sure?</CustomAlertDialogTitle>
+              <CustomAlertDialogDescription>
+                This action cannot be undone. This will permanently delete the client and remove their data from our servers.
+              </CustomAlertDialogDescription>
+            </CustomAlertDialogHeader>
+            <CustomAlertDialogFooter>
+              <CustomAlertDialogCancel onClick={handleCloseDeleteDialog}>Cancel</CustomAlertDialogCancel>
+              <CustomAlertDialogAction 
+                onClick={() => {
+                  confirmDelete();
+                  handleCloseDeleteDialog();
+                }} 
+                className="bg-destructive text-destructive-foreground"
+              >
+                Delete
+              </CustomAlertDialogAction>
+            </CustomAlertDialogFooter>
+          </CustomAlertDialogContent>
+        </CustomAlertDialog>
+      )}
     </div>
   );
 }

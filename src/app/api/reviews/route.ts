@@ -19,6 +19,12 @@ export async function GET(req: Request) {
           select: {
             email: true,
             image: true,
+            client: {
+              select: {
+                imageUrl: true,
+                username: true
+              }
+            }
           },
         },
       },

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Edit, MoreHorizontal, Plus, Search, Trash, Users } from "lucide-react";
 import { generateVerificationToken } from "@/lib/token";
 import { sendVerificationEmail } from "@/lib/mail";
@@ -9,28 +9,28 @@ import Link from "next/link";
 import { Button } from "../ui/general/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  CustomDialog,
+  CustomDialogContent,
+  CustomDialogDescription,
+  CustomDialogFooter,
+  CustomDialogHeader,
+  CustomDialogTitle,
+  CustomDialogTrigger,
+} from "@/components/ui/custom-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "../ui/general/input";
 import { Label } from "../ui/form/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  CustomAlertDialog,
+  CustomAlertDialogAction,
+  CustomAlertDialogCancel,
+  CustomAlertDialogContent,
+  CustomAlertDialogDescription,
+  CustomAlertDialogFooter,
+  CustomAlertDialogHeader,
+  CustomAlertDialogTitle,
+} from "@/components/ui/custom-alert-dialog";
 import { addStaffByAdmin } from "@/lib/actions/addStaff";
 
 export default function ManageUser() {
@@ -46,6 +46,9 @@ export default function ManageUser() {
   const [clients, setClients] = useState<{ userId: number; username: string; email: string; emailVerified: string | null }[]>([]);
   const [staff, setStaff] = useState<{ userId: number; username: string; email: string; name: string; department: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const editDialogRef = useRef<HTMLDivElement>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
   const [newStaff, setNewStaff] = useState({
     name: "",
     email: "",
@@ -55,6 +58,9 @@ export default function ManageUser() {
   });
 
   useEffect(() => {
+    // Set mounted to true when component mounts
+    setMounted(true);
+    
     async function fetchData() {
       try {
         const clientRes = await fetch("/api/clients");
@@ -70,6 +76,31 @@ export default function ManageUser() {
       }
     }
     fetchData();
+    
+    // Cleanup function to reset dialog states when component unmounts
+    return () => {
+      setMounted(false);
+      setIsEditDialogOpen(false);
+      setDeleteDialogOpen(false);
+      setEditingItem(null);
+      setItemToDelete(null);
+    };
+  }, []);
+
+  // Handle navigation events
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      setIsEditDialogOpen(false);
+      setDeleteDialogOpen(false);
+      setEditingItem(null);
+      setItemToDelete(null);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   const handleAddStaff = async () => {
@@ -139,11 +170,18 @@ export default function ManageUser() {
       // Log the ID for debugging
       console.log("Deleting item with ID:", id);
   
-      // Call the DELETE API endpoint
-      const response = await fetch(`/api/users/${id}`, {
-        method: "DELETE",
+      // Call the new DELETE API endpoint
+      const response = await fetch(`/api/users/delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id }),
       });
   
+      // Log the response status for debugging
+      console.log("Delete response status:", response.status);
+      
       if (response.ok) {
         // Refresh the data
         const clientRes = await fetch("/api/clients");
@@ -157,7 +195,12 @@ export default function ManageUser() {
         setDeleteDialogOpen(false);
         setItemToDelete(null);
       } else {
-        console.error("Failed to delete item");
+        // Get the error message from the response
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to delete item:", errorData.error || response.statusText);
+        if (errorData.details) {
+          console.error("Error details:", errorData.details);
+        }
       }
     } catch (error) {
       console.error("Error deleting item:", error);
@@ -233,6 +276,22 @@ export default function ManageUser() {
     alert("Failed to resend verification email. Please try again.");
   }
 };
+
+  const handleCloseEditDialog = () => {
+    setIsEditDialogOpen(false);
+    // Use a timeout to reset the editing item after the dialog animation completes
+    setTimeout(() => {
+      setEditingItem(null);
+    }, 300);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    // Use a timeout to reset the item to delete after the dialog animation completes
+    setTimeout(() => {
+      setItemToDelete(null);
+    }, 300);
+  };
   
   return (
     <div className="flex min-h-screen flex-col">
@@ -269,8 +328,8 @@ export default function ManageUser() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </form>
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
-              <DialogTrigger asChild>
+            <CustomDialog open={isOpen} onOpenChange={(open: boolean) => setIsOpen(open)}>
+              <CustomDialogTrigger asChild>
                 <div className="flex gap-2">
                   <Button size="sm" className="ml-auto md:hidden">
                     <Plus className="mr-2 h-4 w-4" />
@@ -281,9 +340,9 @@ export default function ManageUser() {
                     Add Staff
                   </Button>
                 </div>
-              </DialogTrigger>
-              <DialogContent className="w-full sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl">
-                <DialogTitle>Add Staff</DialogTitle>
+              </CustomDialogTrigger>
+              <CustomDialogContent className="w-full sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl">
+                <CustomDialogTitle>Add Staff</CustomDialogTitle>
                 <Card>
                   <CardHeader>
                     <CardTitle>Account</CardTitle>
@@ -359,8 +418,8 @@ export default function ManageUser() {
                     <Button onClick={handleAddStaff}>Save Staff</Button>
                   </CardFooter>
                 </Card>
-              </DialogContent>
-            </Dialog>
+              </CustomDialogContent>
+            </CustomDialog>
           </div>
           <Tabs defaultValue="clients" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="flex md:hidden">
@@ -492,141 +551,165 @@ export default function ManageUser() {
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit {activeTab === "clients" ? "Client" : "Staff"}</DialogTitle>
-            <DialogDescription>
-              Make changes to the {activeTab === "clients" ? "client" : "staff"} information here.
-            </DialogDescription>
-          </DialogHeader>
-          {editingItem && (
-            <div className="grid gap-4 py-4">
-              {activeTab === "clients" ? (
-                <>
-                  {/* Client ID (non-editable) */}
-                  <div className="grid gap-2">
-                    <Label htmlFor="clientId">Client ID</Label>
-                    <Input
-                      id="clientId"
-                      value={editingItem.userId}
-                      disabled // Make it non-editable
-                    />
-                  </div>
+      {mounted && isEditDialogOpen && (
+        <CustomDialog 
+          open={isEditDialogOpen} 
+          onOpenChange={(open: boolean) => {
+            if (!open) {
+              handleCloseEditDialog();
+            }
+          }}
+        >
+          <CustomDialogContent className="sm:max-w-[425px]">
+            <CustomDialogHeader>
+              <CustomDialogTitle>Edit {activeTab === "clients" ? "Client" : "Staff"}</CustomDialogTitle>
+              <CustomDialogDescription>
+                Make changes to the {activeTab === "clients" ? "client" : "staff"} information here.
+              </CustomDialogDescription>
+            </CustomDialogHeader>
+            {editingItem && (
+              <div className="grid gap-4 py-4">
+                {activeTab === "clients" ? (
+                  <>
+                    {/* Client ID (non-editable) */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="clientId">Client ID</Label>
+                      <Input
+                        id="clientId"
+                        value={editingItem.userId}
+                        disabled
+                      />
+                    </div>
 
-                  {/* Email (read-only) */}
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      value={editingItem.email}
-                      disabled // Make it non-editable
-                    />
-                  </div>
+                    {/* Email (read-only) */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        value={editingItem.email}
+                        disabled
+                      />
+                    </div>
 
-                  {/* Status Dropdown (editable) */}
-                  <div className="grid gap-2">
-                  <Label htmlFor="status">Status</Label>
-                  <select
-                    id="status"
-                    value={editingItem.emailVerified ? "Verified" : "Unverified"}
-                    onChange={(e) =>
-                      setEditingItem({
-                        ...editingItem,
-                        emailVerified: e.target.value === "Verified" ? new Date().toISOString() : null,
-                      })
-                    }
-                    className="p-2 border rounded"
-                  >
-                    <option value="Verified">Verified</option>
-                    <option value="Unverified">Unverified</option>
-                  </select>
-                </div>
+                    {/* Status Dropdown (editable) */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="status">Status</Label>
+                      <select
+                        id="status"
+                        value={editingItem.emailVerified ? "Verified" : "Unverified"}
+                        onChange={(e) =>
+                          setEditingItem({
+                            ...editingItem,
+                            emailVerified: e.target.value === "Verified" ? new Date().toISOString() : null,
+                          })
+                        }
+                        className="p-2 border rounded"
+                      >
+                        <option value="Verified">Verified</option>
+                        <option value="Unverified">Unverified</option>
+                      </select>
+                    </div>
 
-                {/* Resend Verification Email Button */}
-                {!editingItem.emailVerified && (
-                  <div className="grid gap-2">
-                    <Button
-                      onClick={handleResendVerificationEmail}
-                      disabled={!editingItem.email} // Disable if no email is available
-                    >
-                      Resend Verification Email
-                    </Button>
-                  </div>
+                    {/* Resend Verification Email Button */}
+                    {!editingItem.emailVerified && (
+                      <div className="grid gap-2">
+                        <Button
+                          onClick={handleResendVerificationEmail}
+                          disabled={!editingItem.email}
+                        >
+                          Resend Verification Email
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Staff ID (non-editable) */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="staffId">Staff ID</Label>
+                      <Input
+                        id="staffId"
+                        value={editingItem.userId}
+                        disabled
+                      />
+                    </div>
+          
+                    {/* Name (editable) */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="name">Name</Label>
+                      <Input
+                        id="name"
+                        value={editingItem.name}
+                        onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                      />
+                    </div>
+          
+                    {/* Department (editable) */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="department">Department</Label>
+                      <Input
+                        id="department"
+                        value={editingItem.department}
+                        onChange={(e) => setEditingItem({ ...editingItem, department: e.target.value })}
+                      />
+                    </div>
+          
+                    {/* Email (non-editable) */}
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        value={editingItem.email}
+                        disabled
+                      />
+                    </div>
+                  </>
                 )}
-              </>
-              ) : (
-                <>
-                {/* Staff ID (non-editable) */}
-                <div className="grid gap-2">
-                  <Label htmlFor="staffId">Staff ID</Label>
-                  <Input
-                    id="staffId"
-                    value={editingItem.userId}
-                    disabled
-                  />
-                </div>
-    
-                {/* Name (editable) */}
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    value={editingItem.name}
-                    onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  />
-                </div>
-    
-                {/* Department (editable) */}
-                <div className="grid gap-2">
-                  <Label htmlFor="department">Department</Label>
-                  <Input
-                    id="department"
-                    value={editingItem.department}
-                    onChange={(e) => setEditingItem({ ...editingItem, department: e.target.value })}
-                  />
-                </div>
-    
-                {/* Email (non-editable) */}
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    value={editingItem.email}
-                    disabled
-                  />
-                </div>
-              </>
+              </div>
             )}
-          </div>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSaveEdit}>Save changes</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <CustomDialogFooter>
+              <Button variant="outline" onClick={handleCloseEditDialog}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit}>Save changes</Button>
+            </CustomDialogFooter>
+          </CustomDialogContent>
+        </CustomDialog>
+      )}
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete the
-            {activeTab === "clients" ? " client" : " staff member"} and remove their data from our servers.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
-            Delete
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+      {/* Delete Dialog */}
+      {mounted && deleteDialogOpen && (
+        <CustomAlertDialog 
+          open={deleteDialogOpen} 
+          onOpenChange={(open: boolean) => {
+            if (!open) {
+              handleCloseDeleteDialog();
+            }
+          }}
+        >
+          <CustomAlertDialogContent>
+            <CustomAlertDialogHeader>
+              <CustomAlertDialogTitle>Are you sure?</CustomAlertDialogTitle>
+              <CustomAlertDialogDescription>
+                This action cannot be undone. This will permanently delete the
+                {activeTab === "clients" ? " client" : " staff member"} and remove their data from our servers.
+              </CustomAlertDialogDescription>
+            </CustomAlertDialogHeader>
+            <CustomAlertDialogFooter>
+              <CustomAlertDialogCancel onClick={handleCloseDeleteDialog}>Cancel</CustomAlertDialogCancel>
+              <CustomAlertDialogAction 
+                onClick={() => {
+                  confirmDelete();
+                  handleCloseDeleteDialog();
+                }} 
+                className="bg-destructive text-destructive-foreground"
+              >
+                Delete
+              </CustomAlertDialogAction>
+            </CustomAlertDialogFooter>
+          </CustomAlertDialogContent>
+        </CustomAlertDialog>
+      )}
     </div>
   );
 }

@@ -45,32 +45,50 @@ export async function GET(
 
 
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const id = parseInt(params.id, 10)
-    if (isNaN(id)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 })
+    const resolvedParams = await context.params;
+    
+    if (!resolvedParams?.id) {
+      return NextResponse.json({ error: "Params not found or ID missing" }, { status: 400 });
+    }
+    
+    const id = parseInt(resolvedParams.id, 10);
+    if (isNaN(id)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
 
-    const { title, images, file } = await request.json()
+    const { title, images, file } = await request.json();
 
     const updatedPost = await prisma.beautyInfoPost.update({
       where: { id },
       data: { title, images, file, updatedAt: new Date() },
-    })
+    });
 
-    return NextResponse.json(updatedPost, { status: 200 })
+    return NextResponse.json(updatedPost, { status: 200 });
   } catch (error) {
-    console.error("Error updating post:", error)
-    return NextResponse.json({ error: "Failed to update post" }, { status: 500 })
+    console.error("Error updating post:", error);
+    return NextResponse.json({ error: "Failed to update post" }, { status: 500 });
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const id = parseInt(params.id, 10);
+    const resolvedParams = await context.params;
+    
+    if (!resolvedParams?.id) {
+      return NextResponse.json({ error: "Params not found or ID missing" }, { status: 400 });
+    }
+    
+    const id = parseInt(resolvedParams.id, 10);
     console.log("Deleting post with ID:", id);
 
     if (isNaN(id)) {
-      console.error("Invalid ID:", params.id);
+      console.error("Invalid ID:", resolvedParams.id);
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 

@@ -1,16 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-
-// Singleton pattern for PrismaClient
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 // Input validation schema for product updates
 const updateProductSchema = z.object({
@@ -59,8 +50,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     console.log('Received update request body:', JSON.stringify(body, null, 2));
     
     // Validate input
+    let validatedData;
     try {
-      const validatedData = updateProductSchema.parse(body);
+      validatedData = updateProductSchema.parse(body);
       console.log('Validated data:', JSON.stringify(validatedData, null, 2));
     } catch (validationError) {
       console.error('Validation error:', validationError);
@@ -82,16 +74,24 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
+    // Prepare update data
+    const updateData = {
+      ...validatedData,
+      updatedAt: new Date(),
+    };
+
     const updatedProduct = await prisma.product.update({
       where: { id: params.id },
-      data: body, // Use the raw body since we've already validated it
+      data: updateData,
       select: {
         id: true,
         name: true,
+        description: true,
         price: true,
         category: true,
         subcategory: true,
         image: true,
+        updatedAt: true,
       },
     });
 

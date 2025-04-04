@@ -82,7 +82,13 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
                 <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
-                  {review.author.image ? (
+                  {review.author.client?.imageUrl ? (
+                    <img
+                      src={review.author.client.imageUrl}
+                      alt={review.author.client.username || "User"}
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : review.author.image ? (
                     <img
                       src={review.author.image}
                       alt={review.author.name || "User"}
@@ -90,7 +96,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                     />
                   ) : (
                     <span className="text-gray-500 text-sm">
-                      {(review.author.name || review.author.email).charAt(0).toUpperCase()}
+                      {(review.author.client?.username || review.author.name || review.author.email).charAt(0).toUpperCase()}
                     </span>
                   )}
                 </div>
@@ -99,7 +105,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-medium text-gray-900">
-                      {review.author.name || review.author.email.split("@")[0]}
+                      {review.author.client?.username || review.author.email}
                     </div>
                     <div className="text-sm text-gray-500">
                       {new Date(review.createdAt).toLocaleDateString()}
