@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronDown, Search, ArrowUpDown, Trophy, Heart, Star, Filter, Sparkles, Vote } from "lucide-react"
+import { ChevronDown, Search, ArrowUpDown, Trophy, Heart, Star, Filter, Sparkles } from "lucide-react"
 import type { Product } from "../product-ranking/types"
 
 interface ProductVotesTableProps {
@@ -100,7 +100,7 @@ export function ProductVotesTable({ products, onSelectProduct, selectedProductId
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => handleSort("votes")} className="cursor-pointer">
-                <Vote className={`mr-2 h-4 w-4 ${sortField === "votes" ? "text-green-600" : "text-gray-400"}`} />
+                <Trophy className={`mr-2 h-4 w-4 ${sortField === "votes" ? "text-green-600" : "text-gray-400"}`} />
                 Votes {sortField === "votes" && (sortDirection === "asc" ? "↑" : "↓")}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleSort("likes")} className="cursor-pointer">
@@ -140,28 +140,28 @@ export function ProductVotesTable({ products, onSelectProduct, selectedProductId
                   Subcategory {getSortIcon("subcategory")}
                 </button>
               </TableHead>
-              <TableHead className="text-right">
+              <TableHead className="text-center">
                 <button
                   onClick={() => handleSort("votes")}
-                  className="flex items-center font-semibold ml-auto text-gray-700"
+                  className="flex items-center font-semibold justify-center text-gray-700"
                 >
-                  <Vote className="mr-1 h-4 w-4 text-gray-400" />
+                  <Trophy className="mr-1 h-4 w-4 text-gray-400" />
                   Votes {getSortIcon("votes")}
                 </button>
               </TableHead>
-              <TableHead className="text-right">
+              <TableHead className="text-center">
                 <button
                   onClick={() => handleSort("likes")}
-                  className="flex items-center font-semibold ml-auto text-gray-700"
+                  className="flex items-center font-semibold justify-center text-gray-700"
                 >
                   <Heart className="mr-1 h-4 w-4 text-gray-400" />
                   Likes {getSortIcon("likes")}
                 </button>
               </TableHead>
-              <TableHead className="text-right">
+              <TableHead className="text-center">
                 <button
                   onClick={() => handleSort("rating")}
-                  className="flex items-center font-semibold ml-auto text-gray-700"
+                  className="flex items-center font-semibold justify-center text-gray-700"
                 >
                   <Star className="mr-1 h-4 w-4 text-gray-400" />
                   Rating {getSortIcon("rating")}
@@ -206,51 +206,28 @@ export function ProductVotesTable({ products, onSelectProduct, selectedProductId
                       </div>
                       <div>
                         <div className="font-medium text-gray-900">{product.name}</div>
-                        <div className="text-xs text-gray-500">{product.brand}</div>
+                        <div className="text-sm text-gray-500">{product.brand}</div>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium">
-                      {product.category}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="px-2 py-1 bg-green-50 text-green-700 rounded-md text-xs font-medium">
-                      {product.subcategory}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="font-medium text-gray-900 flex items-center justify-end">
-                      <Vote className="h-4 w-4 mr-1 text-blue-500" />
-                      {product.reviewCount}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="text-gray-900 flex items-center justify-end">
-                      <Heart className="h-4 w-4 mr-1 text-red-400" />
-                      {product.likes}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end">
-                      <div className="flex items-center bg-yellow-50 px-2 py-0.5 rounded">
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 mr-1" />
-                        <span className="font-medium">{product.rating.toFixed(1)}</span>
-                      </div>
-                    </div>
-                  </TableCell>
+                  <TableCell>{product.category}</TableCell>
+                  <TableCell>{product.subcategory}</TableCell>
+                  <TableCell className="text-center">{product.reviewCount}</TableCell>
+                  <TableCell className="text-center">{product.likes}</TableCell>
+                  <TableCell className="text-center">{product.rating.toFixed(1)}</TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={7} className="text-center py-8">
                   <div className="flex flex-col items-center">
-                    <Search className="h-8 w-8 text-gray-300 mb-2" />
-                    <p>No products found matching your search criteria</p>
-                    <button onClick={() => setSearchTerm("")} className="mt-2 text-green-600 text-sm hover:underline">
-                      Clear search
-                    </button>
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                      <Filter className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-700 mb-1">No Products Found</h3>
+                    <p className="text-gray-500 max-w-xs mx-auto">
+                      Try adjusting your filters or search criteria to find what you&apos;re looking for
+                    </p>
                   </div>
                 </TableCell>
               </TableRow>

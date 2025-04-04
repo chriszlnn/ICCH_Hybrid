@@ -44,6 +44,7 @@ export interface Review {
   author: {
     name?: string
     email: string
+    image?: string
   }
   rating: number
   content?: string
