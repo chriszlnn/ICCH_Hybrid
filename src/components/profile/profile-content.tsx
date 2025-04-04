@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "../ui/general/button";
 import { Skeleton } from "../ui/skeleton";
+import { ReviewHistoryModal } from "./review-history-modal";
 
 interface ProfileContentProps {
   userEmail: string;
@@ -17,7 +18,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
     email: userEmail,
     username: "",
     bio: "",
-    imageUrl: "", // ✅ Add imageUrl to the profile state
+    imageUrl: "",
     posts: [
       "/placeholder.svg?height=300&width=300",
       "/placeholder.svg?height=300&width=300",
@@ -37,12 +38,11 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
         if (res.ok) {
           const data = await res.json();
           setProfile((prevProfile) => ({
-            ...prevProfile, // Preserve the existing state
+            ...prevProfile,
             email: userEmail,
-            username: data.username || "New User", // ✅ Default username
-            bio: data.bio || "No bio yet.", // ✅ Default bio
-            imageUrl: data.imageUrl || "/blank-profile.svg", // ✅ Default image
-            // `posts` is preserved from the previous state
+            username: data.username || "New User",
+            bio: data.bio || "No bio yet.",
+            imageUrl: data.imageUrl || "/blank-profile.svg",
           }));
         } else {
           console.error("Failed to fetch profile");
@@ -55,7 +55,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
     };
 
     fetchProfile();
-  }, [userEmail]); // <-- Only `userEmail` is needed in the dependency array
+  }, [userEmail]);
 
   // Handle avatar update
   const handleAvatarUpdate = async (newSrc: string) => {
@@ -100,14 +100,14 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="absolute top-4 right-4">
-          <Skeleton className="h-10 w-24" /> {/* Skeleton for Account button */}
+          <Skeleton className="h-10 w-24" />
         </div>
         <div className="flex flex-col md:flex-row items-center md:items-start mb-8">
-          <Skeleton className="w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-full" /> {/* Skeleton for Avatar */}
+          <Skeleton className="w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36 rounded-full" />
           <div className="pl-9 space-y-2">
-            <Skeleton className="h-8 w-48" /> {/* Skeleton for Username */}
-            <Skeleton className="h-6 w-64" /> {/* Skeleton for Email */}
-            <Skeleton className="h-4 w-96" /> {/* Skeleton for Bio */}
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-6 w-64" />
+            <Skeleton className="h-4 w-96" />
           </div>
         </div>
       </div>
@@ -135,7 +135,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
       <div className="flex flex-col md:flex-row items-center md:items-start mb-8">
         <EditableAvatar
           alt="Profile"
-          fallback="?" // This is now unused because of the conditional rendering
+          fallback="?"
           className="w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36"
           onAvatarUpdate={handleAvatarUpdate}
         />
@@ -143,10 +143,13 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
           <h1 className="text-2xl font-bold mb-2">{profile.username}</h1>
           <h2 className="font-semibold mb-1">{profile.email}</h2>
           <p className="text-gray-600 pb-4">{profile.bio}</p>
-          <EditProfile
-            currentProfile={profile} // Pass the complete profile object
-            onSaveAction={handleSave} // Renamed to indicate it's a Server Action
-          />
+          <div className="flex flex-col sm:flex-row gap-2">
+            <EditProfile
+              currentProfile={profile}
+              onSaveAction={handleSave}
+            />
+            <ReviewHistoryModal userEmail={userEmail} />
+          </div>
         </div>
       </div>
     </div>
