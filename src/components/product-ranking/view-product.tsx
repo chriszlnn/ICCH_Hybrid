@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Star, Heart, ArrowLeft, MessageSquare } from "lucide-react"
-import { mockProducts } from "./mock-data" // This will be replaced with API calls
+import { Star, ArrowLeft, MessageSquare } from "lucide-react"
+//import { mockProducts } from "./mock-data" // This will be replaced with API calls
 import { ReviewSection } from "./review-section"
 import { WriteReviewModal } from "./write-review-modal"
+import { AnimatedHeart } from "../ui/animated-heart"
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import type { Product, Review } from "./types"
-import { mockReviews } from "./review-data" // Import mock reviews
+import { toast } from "../ui/toast/use-toast"
+//import { mockReviews } from "./review-data" // Import mock reviews
 
 export function ViewProduct() {
   const params = useParams()
@@ -29,45 +31,49 @@ export function ViewProduct() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
   const [isVoteDialogOpen, setIsVoteDialogOpen] = useState(false)
   const [hasVoted, setHasVoted] = useState(false)
+  const [nextVoteDate, setNextVoteDate] = useState<Date | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
+  const [reviewCallbacks, setReviewCallbacks] = useState<((review: Review) => void)[]>([])
   const reviewSectionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // BACKEND INTEGRATION POINT:
-    // Replace this with an API call to fetch product details
-    const fetchProduct = async () => {
+    const fetchProductData = async () => {
       try {
         setIsLoading(true)
-
-        // Mock data fetch - replace with actual API call
-        // Example: const response = await fetch(`/api/products/${productId}`)
-        // const data = await response.json()
-        const foundProduct = mockProducts.find((p) => p.id === productId)
-
-        if (foundProduct) {
-          setProduct(foundProduct)
-        } else {
-          setError("Product not found")
+        
+        // Fetch product details
+        const productResponse = await fetch(`/api/product/${productId}`)
+        if (!productResponse.ok) throw new Error('Failed to fetch product')
+        const { product: productData, hasVoted: initialHasVoted, nextVoteDate: initialNextVoteDate } = await productResponse.json()
+        if (!productData) throw new Error('Product data not found')
+        setProduct(productData)
+        setHasVoted(initialHasVoted)
+        if (initialNextVoteDate) {
+          setNextVoteDate(new Date(initialNextVoteDate))
         }
-
-        // Fetch reviews for this product
-        const productReviews = mockReviews[productId] || []
-        setReviews(productReviews)
+    
+        // Fetch reviews
+        const reviewsResponse = await fetch(`/api/product/${productId}/reviews`)
+        if (!reviewsResponse.ok) throw new Error('Failed to fetch reviews')
+        setReviews(await reviewsResponse.json())
+    
+        // Check like status
+        const likeResponse = await fetch(`/api/product/${productId}/like`)
+        if (likeResponse.ok) setIsLiked((await likeResponse.json()).isLiked)
       } catch (err) {
-        setError("Failed to load product")
-        console.error(err)
+        console.error('Error in fetchProductData:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load product')
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchProduct()
-
-    // Reset hasVoted state on each page load
-    setHasVoted(false)
+    fetchProductData()
   }, [productId])
 
+
   // Get the week number for vote tracking
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getWeekNumber = (date: Date) => {
     const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
     const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000
@@ -77,14 +83,33 @@ export function ViewProduct() {
   // BACKEND INTEGRATION POINT:
   // Replace with API call to toggle product like status
   const toggleLike = async () => {
-    // Example API call:
-    // await fetch(`/api/products/${productId}/like`, {
-    //   method: 'POST',
-    //   body: JSON.stringify({ liked: !isLiked }),
-    //   headers: { 'Content-Type': 'application/json' }
-    // })
+    try {
+      const response = await fetch(`/api/product/${productId}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
 
-    setIsLiked(!isLiked)
+      if (response.ok) {
+        setIsLiked(!isLiked)
+        if (product) {
+          setProduct({
+            ...product,
+            likes: isLiked ? product.likes - 1 : product.likes + 1
+          })
+        }
+      } else {
+        throw new Error('Failed to toggle like')
+      }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update like status",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleGoBack = () => {
@@ -100,13 +125,30 @@ export function ViewProduct() {
   }
 
   const handleAddReview = (newReview: Review) => {
-    // Add the new review to the reviews array
     setReviews([newReview, ...reviews])
+    // Update product rating
+    if (product) {
+      const newTotal = (product.rating * product.reviewCount) + newReview.rating
+      const newAverage = newTotal / (product.reviewCount + 1)
+      setProduct({
+        ...product,
+        rating: newAverage,
+        reviewCount: product.reviewCount + 1
+      })
+    }
+    // Notify all review callbacks
+    reviewCallbacks.forEach(callback => callback(newReview))
     closeReviewModal()
 
-    // Scroll to review section
     if (reviewSectionRef.current) {
       reviewSectionRef.current.scrollIntoView({ behavior: "smooth" })
+    }
+  }
+
+  const subscribeToReviews = (callback: (review: Review) => void) => {
+    setReviewCallbacks(prev => [...prev, callback])
+    return () => {
+      setReviewCallbacks(prev => prev.filter(cb => cb !== callback))
     }
   }
 
@@ -116,25 +158,41 @@ export function ViewProduct() {
 
   const handleVote = async () => {
     try {
-      // BACKEND INTEGRATION POINT:
-      // Replace with actual API call to submit vote
-      // Example:
-      // await fetch(`/api/products/${productId}/vote`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' }
-      // })
-
-      // Update state (but don't store in localStorage)
-      setHasVoted(true)
-
-      // Close dialog
-      setIsVoteDialogOpen(false)
-
-      // Show success message
-      alert("Thank you for your vote! Your vote has been recorded.")
+      const response = await fetch(`/api/product/${productId}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+  
+      if (response.ok) {
+        const { product: updatedProduct, nextVoteDate } = await response.json()
+        
+        setHasVoted(true)
+        setIsVoteDialogOpen(false)
+        setNextVoteDate(new Date(nextVoteDate))
+        
+        if (updatedProduct) {
+          setProduct(updatedProduct)
+        }
+        
+        toast({
+          title: "Vote Submitted",
+          description: "Thank you for your vote! You can vote again in 7 days.",
+        })
+      } else {
+        const errorData = await response.json()
+        if (errorData.nextVoteDate) {
+          setNextVoteDate(new Date(errorData.nextVoteDate))
+        }
+        throw new Error(errorData.error || 'Failed to submit vote')
+      }
     } catch (error) {
-      console.error("Failed to submit vote", error)
-      alert("Failed to submit your vote. Please try again.")
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to submit vote",
+        variant: "destructive",
+      })
     }
   }
 
@@ -184,23 +242,23 @@ export function ViewProduct() {
           <div className="space-y-6">
             {/* Product Info */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="text-sm text-green-600 font-medium mb-1">{product.subcategory}</div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
+              <div className="text-sm text-green-600 font-medium mb-1">{product.subcategory || 'Uncategorized'}</div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name || 'Product Name Not Available'}</h1>
 
               <div className="flex items-center mb-3">
                 <div className="flex items-center">
                   <Star className="h-5 w-5 text-yellow-400 fill-yellow-400" />
-                  <span className="ml-1 font-medium text-gray-900">{product.rating.toFixed(1)}</span>
+                  <span className="ml-1 font-medium text-gray-900">{product.rating ? product.rating.toFixed(1) : '0.0'}</span>
                 </div>
-                <span className="mx-2 text-gray-500">({product.reviewCount} votes)</span>
+                <span className="mx-2 text-gray-500">({product.votes || 0} votes)</span>
                 <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                  Rank #{product.rank}
+                  Rank #{product.rank || 'N/A'}
                 </div>
               </div>
 
               <p className="text-gray-700 mb-6">{product.description}</p>
 
-              <div className="text-3xl font-bold text-gray-900 mb-6">RM{product.price.toFixed(2)}</div>
+              <div className="text-3xl font-bold text-gray-900 mb-6">RM{product.price ? product.price.toFixed(2) : '0.00'}</div>
 
               <div className="flex space-x-4 mb-6">
                 <button
@@ -212,12 +270,16 @@ export function ViewProduct() {
                 >
                   {hasVoted ? "Voted" : "Vote"}
                 </button>
-                <button
+                {hasVoted && nextVoteDate && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    You can vote again on {nextVoteDate.toLocaleDateString()}
+                  </div>
+                )}
+                <AnimatedHeart
+                  isLiked={isLiked}
                   onClick={toggleLike}
-                  className="p-3 rounded-full border border-gray-200 hover:bg-gray-50 transition-colors"
-                >
-                  <Heart className={`h-6 w-6 ${isLiked ? "fill-red-500 text-red-500" : "text-gray-400"}`} />
-                </button>
+                  size={24}
+                />
               </div>
             </div>
 
@@ -229,6 +291,7 @@ export function ViewProduct() {
                 reviewCount={product.reviewCount}
                 onWriteReviewClick={openReviewModal}
                 reviews={reviews}
+                onReviewAdded={subscribeToReviews}
               />
             </div>
           </div>

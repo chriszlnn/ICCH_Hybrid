@@ -57,6 +57,7 @@ export async function GET(request: Request) {
         reviewCount: product.reviews.length,
         likes: product.productLikes.length
       }))
+
   
       return NextResponse.json(productsWithStats)
     } catch (error) {

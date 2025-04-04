@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
-import type React from "react"
 import { useState, useEffect } from "react"
 import { Star, Send, Upload, X } from "lucide-react"
 import type { Review } from "./types"
+import { useToast } from "../ui/toast/use-toast"
+import { useUploadThing } from "@/lib/utils/uploadthing"
 
 interface WriteReviewModalProps {
   productId: string
@@ -14,13 +16,15 @@ interface WriteReviewModalProps {
 export function WriteReviewModal({ productId, onClose, onReviewAdded }: WriteReviewModalProps) {
   const [newReview, setNewReview] = useState({
     rating: 5,
-    comment: "",
+    content: "",
     skinType: [] as string[],
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [reviewImage, setReviewImage] = useState<File | null>(null)
-  const [previewImage, setPreviewImage] = useState<string | null>(null)
+  const [reviewImages, setReviewImages] = useState<File[]>([])
+  const [previewImages, setPreviewImages] = useState<string[]>([])
+  const { toast } = useToast()
+  const { startUpload: uploadThing } = useUploadThing("imageUploader")
 
   const skinTypeOptions = [
     "Dry Skin",
@@ -55,80 +59,116 @@ export function WriteReviewModal({ productId, onClose, onReviewAdded }: WriteRev
   }, [])
 
   const handleSkinTypeToggle = (type: string) => {
-    if (newReview.skinType.includes(type)) {
-      setNewReview({
-        ...newReview,
-        skinType: newReview.skinType.filter((t) => t !== type),
-      })
-    } else {
-      setNewReview({
-        ...newReview,
-        skinType: [...newReview.skinType, type],
-      })
-    }
+    setNewReview(prev => ({
+      ...prev,
+      skinType: prev.skinType.includes(type)
+        ? prev.skinType.filter(t => t !== type)
+        : [...prev.skinType, type]
+    }))
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = e.target.files
+    if (!files || files.length === 0) return
 
-    // Check file size (limit to 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Image size should be less than 5MB")
-      return
-    }
+    // Check total size (limit to 5MB per image)
+    const validFiles = Array.from(files).filter(file => {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: `${file.name} is too large (max 5MB)`,
+          variant: "destructive",
+        })
+        return false
+      }
+      return true
+    })
 
-    // Create a preview
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      setPreviewImage(event.target?.result as string)
-    }
-    reader.readAsDataURL(file)
+    // Limit to 3 images
+    const filesToAdd = validFiles.slice(0, 3 - reviewImages.length)
+    if (filesToAdd.length === 0) return
 
-    // Store the file object
-    setReviewImage(file)
+    // Create previews
+    const newPreviews: string[] = []
+    filesToAdd.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        newPreviews.push(event.target?.result as string)
+        if (newPreviews.length === filesToAdd.length) {
+          setPreviewImages([...previewImages, ...newPreviews])
+        }
+      }
+      reader.readAsDataURL(file)
+    })
+
+    // Store the file objects
+    setReviewImages([...reviewImages, ...filesToAdd])
   }
 
-  const removeImage = () => {
-    setPreviewImage(null)
-    setReviewImage(null)
+  const removeImage = (index: number) => {
+    setPreviewImages(previewImages.filter((_, i) => i !== index))
+    setReviewImages(reviewImages.filter((_, i) => i !== index))
   }
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    if (!newReview.comment.trim()) {
-      setError("Please enter a review comment")
-      return
-    }
-
     try {
       setIsSubmitting(true)
 
-      // BACKEND INTEGRATION POINT:
-      // In a real app, this would be an API call to save the review
-      // For now, we'll create a mock review object to simulate the process
-      const newReviewObj: Review = {
-        id: `new-${Date.now()}`,
-        userId: "current-user",
-        username: "You",
-        rating: newReview.rating,
-        comment: newReview.comment,
-        date: new Date().toISOString().split("T")[0],
-        likes: 0,
-        skinType: newReview.skinType,
-        image: previewImage,
+      // Upload images first using UploadThing
+      let imageUrls: string[] = []
+      if (reviewImages.length > 0) {
+        try {
+          const uploadResponse = await uploadThing(reviewImages)
+          if (!uploadResponse || uploadResponse.length === 0) {
+            throw new Error("Upload failed - no response from server")
+          }
+          imageUrls = uploadResponse.map(result => result.url)
+        } catch (uploadError) {
+          console.error("Error uploading images:", uploadError)
+          toast({
+            title: "Error",
+            description: "Failed to upload images. Please try again.",
+            variant: "destructive",
+          })
+          return
+        }
       }
 
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // Submit review data
+      const response = await fetch(`/api/product/${productId}/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rating: newReview.rating,
+          content: newReview.content.trim() || null,
+          skinType: newReview.skinType,
+          images: imageUrls,
+        }),
+      })
 
-      // Pass the new review to the parent component
-      onReviewAdded(newReviewObj)
+      // Parse the response body only once
+      const responseData = await response.json()
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to submit review')
+      }
+
+      // Use the already parsed response data
+      onReviewAdded(responseData)
+      
+      toast({
+        title: "Review Submitted",
+        description: "Thank you for your review!",
+      })
+      onClose()
     } catch (err) {
       console.error("Failed to submit review", err)
-      setError("Failed to submit review. Please try again.")
+      setError(err instanceof Error ? err.message : "Failed to submit review. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -191,14 +231,14 @@ export function WriteReviewModal({ productId, onClose, onReviewAdded }: WriteRev
           </div>
 
           <div className="mb-4">
-            <label htmlFor="comment" className="block text-gray-700 mb-2 font-medium">
-              Your Review
+            <label htmlFor="content" className="block text-gray-700 mb-2 font-medium">
+              Your Review  (Optional)
             </label>
             <textarea
-              id="comment"
+              id="content"
               rows={4}
-              value={newReview.comment}
-              onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+              value={newReview.content}
+              onChange={(e) => setNewReview({ ...newReview, content: e.target.value })}
               className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${
                 error ? "border-red-500" : "border-gray-300"
               } transition-colors`}
@@ -209,26 +249,32 @@ export function WriteReviewModal({ productId, onClose, onReviewAdded }: WriteRev
           </div>
 
           <div className="mb-6">
-            <label className="block text-gray-700 mb-2 font-medium">Add Photo (Optional)</label>
+            <label className="block text-gray-700 mb-2 font-medium">Add Photos (Optional)</label>
 
-            {previewImage ? (
-              <div className="relative w-32 h-32 mb-2">
-                <img
-                  src={previewImage || "/placeholder.svg"}
-                  alt="Review"
-                  className="w-full h-full object-cover rounded-md"
-                />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+            {previewImages.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {previewImages.map((image, index) => (
+                  <div key={index} className="relative">
+                    <img
+                      src={image}
+                      alt={`Preview ${index + 1}`}
+                      className="h-24 w-24 object-cover rounded-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 -mt-1 -mr-1"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ) : (
+            )}
+
+            {previewImages.length < 3 && (
               <div className="mb-2">
-                <label className="flex items-center justify-center w-32 h-32 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
+                <label className="flex items-center justify-center w-24 h-24 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:bg-gray-50">
                   <div className="text-center">
                     <Upload className="mx-auto h-6 w-6 text-gray-400" />
                     <span className="mt-2 block text-xs text-gray-500">Add Photo</span>
@@ -239,11 +285,12 @@ export function WriteReviewModal({ productId, onClose, onReviewAdded }: WriteRev
                     accept="image/*"
                     onChange={handleImageUpload}
                     disabled={isSubmitting}
+                    multiple
                   />
                 </label>
               </div>
             )}
-            <p className="text-xs text-gray-500">Max file size: 5MB. Supported formats: JPG, PNG</p>
+            <p className="text-xs text-gray-500">Max 3 images, 5MB each. Supported formats: JPG, PNG</p>
           </div>
 
           <div className="flex space-x-3">

@@ -35,25 +35,34 @@ export function ProductList({ products, initialLikedProductIds, onVoteSuccess }:
   const { toast } = useToast()
 
 
-  useEffect(() => {
-    const fetchVotedProducts = async () => {
-      try {
-        const response = await fetch('/api/product/vote');
-        if (response.ok) {
-          const data = await response.json();
-          setVotedProducts(data.map((v: { productId: string }) => v.productId));
-        }
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load your voting history",
-          variant: "destructive",
-        });
+  // In ProductList component
+useEffect(() => {
+  const fetchVotedProducts = async () => {
+    try {
+      const response = await fetch('/api/product/vote');
+      if (response.ok) {
+        const data = await response.json();
+        // Filter votes to only those in the last week
+        const now = new Date();
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        
+        const recentVotes = data.filter((vote: { createdAt: string }) => 
+          new Date(vote.createdAt) > oneWeekAgo
+        );
+        
+        setVotedProducts(recentVotes.map((v: { productId: string }) => v.productId));
       }
-    };
-    
-    fetchVotedProducts();
-  }, [toast]);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load your voting history",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  fetchVotedProducts();
+}, [toast]);
 
   const toggleLike = async (e: React.MouseEvent, productId: string) => {
     e.stopPropagation()
