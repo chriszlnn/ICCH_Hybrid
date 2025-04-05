@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { Trophy, Heart, Star, TrendingUp, BarChart3, Users, Calendar, Tag, Vote } from "lucide-react"
 import type { Product } from "../product-ranking/types"
+import { AddToRecommendationsButton } from "@/components/product/add-to-recommendations-button"
 
 interface ProductStatsProps {
   product: Product
@@ -54,8 +55,13 @@ export function ProductStats({ product }: ProductStatsProps) {
             )}
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
-            <p className="text-sm text-gray-500">{product.brand}</p>
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
+                <p className="text-sm text-gray-500">{product.brand}</p>
+              </div>
+              <AddToRecommendationsButton productId={product.id} variant="icon" />
+            </div>
             <div className="flex items-center gap-2 mt-1">
               <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium">
                 {product.category}

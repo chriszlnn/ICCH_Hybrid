@@ -18,6 +18,21 @@ export async function DELETE() {
   try {
     // Use the withRetry utility to handle connection pool issues
     await withRetry(async () => {
+      // First, get all reviews by the user to know which products need updating
+      const userReviews = await prisma.review.findMany({
+        where: {
+          author: {
+            email: userEmail
+          }
+        },
+        select: {
+          productId: true
+        }
+      });
+
+      // Get unique product IDs that need updating
+      const productIds = [...new Set(userReviews.map(review => review.productId))];
+
       // Delete all reviews by the user
       await prisma.review.deleteMany({
         where: {
@@ -34,6 +49,11 @@ export async function DELETE() {
         },
       });
 
+      // Update review counts and ratings for all affected products
+      for (const productId of productIds) {
+        await updateProductReviewStats(productId);
+      }
+
       console.log(`Deleted review history for user: ${userEmail}`);
     });
 
@@ -47,4 +67,24 @@ export async function DELETE() {
       { status: 500 }
     );
   }
+}
+
+async function updateProductReviewStats(productId: string) {
+  // Get all reviews for this product
+  const reviews = await prisma.review.findMany({
+    where: { productId }
+  });
+
+  // Calculate new average rating
+  const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+  const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
+
+  // Update the product
+  await prisma.product.update({
+    where: { id: productId },
+    data: {
+      rating: averageRating,
+      reviewCount: reviews.length
+    }
+  });
 } 

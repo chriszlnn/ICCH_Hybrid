@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button"
 import type { Product } from "./types"
 import { useToast } from "../ui/toast/use-toast"
+import { AddToRecommendationsButton } from "@/components/product/add-to-recommendations-button"
 
 interface ProductListProps {
   products: Product[]
@@ -207,6 +208,9 @@ const getRankBadge = (rank?: number) => {
               >
                 <Heart className={`h-5 w-5 ${likedProducts.includes(product.id) ? "fill-red-500 text-red-500" : ""}`} />
               </button>
+              <div className="absolute top-3 right-12 z-10">
+                <AddToRecommendationsButton productId={product.id} variant="icon" />
+              </div>
             </div>
 
             <div className="p-4">
@@ -229,15 +233,17 @@ const getRankBadge = (rank?: number) => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-lg mr-4">RM{product.price.toFixed(2)}</span>
-                  <button
-                    onClick={(e) => openVoteDialog(e, product)}
-                    className={`px-4 py-2 border border-green-600 text-green-600 rounded-md hover:bg-green-50 transition-colors ${
-                      votedProducts.includes(product.id) ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                    disabled={votedProducts.includes(product.id)}
-                  >
-                    {votedProducts.includes(product.id) ? "Voted" : "Vote"}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => openVoteDialog(e, product)}
+                      className={`px-4 py-2 border border-green-600 text-green-600 rounded-md hover:bg-green-50 transition-colors ${
+                        votedProducts.includes(product.id) ? "opacity-50 cursor-not-allowed" : ""
+                      }`}
+                      disabled={votedProducts.includes(product.id)}
+                    >
+                      {votedProducts.includes(product.id) ? "Voted" : "Vote"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

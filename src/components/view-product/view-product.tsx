@@ -22,17 +22,70 @@ interface Product {
   price: number;
   image: string;
   category: string;
+  subcategory?: string;
 }
 
 // Category type
-type Category = "All" | "Skincare" | "Makeup" | "Hair & Body" | "Promotions";
+type Category = "All" | "skincare" | "makeup" | "hairbody";
 
 // Sort options
 type SortOption = "newest" | "price-low" | "price-high" | "name";
 
+// Category options
+const categoryOptions: CategoryOption[] = [
+  { 
+    id: "skincare", 
+    label: "Skincare",
+    subcategories: [
+      { id: "cleansers", label: "Cleansers" },
+      { id: "toners", label: "Toners & Mists" },
+      { id: "serums", label: "Serums & Ampoules" },
+      { id: "moisturizers", label: "Moisturizers & Creams" },
+      { id: "eyecare", label: "Eye Care" },
+      { id: "masks", label: "Masks & Treatments" },
+      { id: "sunscreen", label: "Sunscreen & UV Protection" }
+    ]
+  },
+  { 
+    id: "makeup", 
+    label: "Makeup",
+    subcategories: [
+      { id: "face", label: "Face Makeup" },
+      { id: "lip", label: "Lip Products" },
+      { id: "eye", label: "Eye Makeup" },
+      { id: "base", label: "Makeup Base & Primers" },
+      { id: "setting", label: "Setting & Finishing Products" }
+    ]
+  },
+  { 
+    id: "hairbody", 
+    label: "Hair & Body",
+    subcategories: [
+      { id: "shampoo", label: "Shampoo & Conditioners" },
+      { id: "treatments", label: "Hair Treatments & Oils" },
+      { id: "bodywash", label: "Body Wash & Soaps" },
+      { id: "lotions", label: "Body Lotions & Creams" },
+      { id: "hand", label: "Hand & Foot Care" },
+      { id: "scrubs", label: "Body Scrubs & Exfoliators" },
+      { id: "perfumes", label: "Deodorants & Perfumes" }
+    ]
+  }
+];
+
+// Type for category options
+type CategoryOption = {
+  id: string;
+  label: string;
+  subcategories: Array<{
+    id: string;
+    label: string;
+  }>;
+};
+
 export default function ViewProductPage() {
   const [products, setProducts] = useState<Product[]>([]); // State for fetched products
   const [activeCategory, setActiveCategory] = useState<Category>("All");
+  const [activeSubcategory, setActiveSubcategory] = useState<string>("All");
   const [showFilterPanel, setShowFilterPanel] = useState<boolean>(false);
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [minPrice, setMinPrice] = useState<string>("");
@@ -41,6 +94,23 @@ export default function ViewProductPage() {
   const [tempMaxPrice, setTempMaxPrice] = useState<string>("");
   const [isPriceFilterActive, setIsPriceFilterActive] = useState<boolean>(false);
   const [tempSortOption, setTempSortOption] = useState<SortOption>(sortOption);
+
+  // Get available subcategories based on selected category
+  const availableSubcategories = useMemo(() => {
+    if (activeCategory === "All") return [];
+    const category = categoryOptions.find(cat => cat.id === activeCategory);
+    return category ? category.subcategories : [];
+  }, [activeCategory]);
+
+  // Reset subcategory when category changes
+  useEffect(() => {
+    if (activeCategory === "All") {
+      setActiveSubcategory("All");
+    } else {
+      // Always set to "All" when changing categories
+      setActiveSubcategory("All");
+    }
+  }, [activeCategory]);
 
   // Fetch products from the API on component mount
   useEffect(() => {
@@ -58,12 +128,19 @@ export default function ViewProductPage() {
     fetchProducts();
   }, []);
 
-  // Filter products based on selected category and price range
+  // Filter products based on selected category, subcategory and price range
   const filteredProducts = useMemo(() => {
-    let filtered =
-      activeCategory === "All"
-        ? [...products]
-        : products.filter((product) => product.category === activeCategory);
+    let filtered = [...products];
+
+    // Apply category filter
+    if (activeCategory !== "All") {
+      filtered = filtered.filter((product) => product.category === activeCategory);
+    }
+
+    // Apply subcategory filter
+    if (activeSubcategory !== "All") {
+      filtered = filtered.filter((product) => product.subcategory === activeSubcategory);
+    }
 
     // Apply price range filter if active
     if (isPriceFilterActive) {
@@ -84,7 +161,7 @@ export default function ViewProductPage() {
 
     // For 'newest', we keep the original order
     return filtered;
-  }, [products, activeCategory, sortOption, minPrice, maxPrice, isPriceFilterActive]);
+  }, [products, activeCategory, activeSubcategory, sortOption, minPrice, maxPrice, isPriceFilterActive]);
 
   // Toggle filter panel
   const toggleFilterPanel = () => {
@@ -109,6 +186,8 @@ export default function ViewProductPage() {
     setMinPrice("")
     setMaxPrice("")
     setIsPriceFilterActive(false)
+    setActiveCategory("All")
+    setActiveSubcategory("All")
 
     // Close the filter panel
     setShowFilterPanel(false)
@@ -149,47 +228,49 @@ export default function ViewProductPage() {
           >
             All
           </button>
+          {categoryOptions.map((category) => (
           <button
+              key={category.id}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              activeCategory === "Skincare"
+                activeCategory === category.id
                 ? "bg-green-100 text-green-800" 
                 : "bg-gray-200 text-gray-900"
             }`}
-            onClick={() => setActiveCategory("Skincare")}
+              onClick={() => setActiveCategory(category.id as Category)}
           >
-            Skincare
+              {category.label}
           </button>
-          <button
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              activeCategory === "Makeup"
-                ? "bg-green-100 text-green-800" 
-                : "bg-gray-200 text-gray-900"
-            }`}
-            onClick={() => setActiveCategory("Makeup")}
-          >
-            Makeup
-          </button>
-          <button
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              activeCategory === "Hair & Body"
-                ? "bg-green-100 text-green-800" 
-                : "bg-gray-200 text-gray-900"
-            }`}
-            onClick={() => setActiveCategory("Hair & Body")}
-          >
-            Hair & Body
-          </button>
-          <button
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              activeCategory === "Promotions"
-                ? "bg-green-100 text-green-800" 
-                : "bg-gray-200 text-gray-900"
-            }`}
-            onClick={() => setActiveCategory("Promotions")}
-          >
-            Promotions
-          </button>
+          ))}
         </div>
+
+        {/* Subcategory Filters */}
+        {activeCategory !== "All" && availableSubcategories.length > 0 && (
+          <div className="flex flex-wrap gap-2 justify-center md:justify-start mt-3">
+          <button
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                activeSubcategory === "All"
+                ? "bg-green-100 text-green-800" 
+                : "bg-gray-200 text-gray-900"
+            }`}
+              onClick={() => setActiveSubcategory("All")}
+          >
+              All in {categoryOptions.find(cat => cat.id === activeCategory)?.label}
+          </button>
+            {availableSubcategories.map((subcategory) => (
+          <button
+                key={subcategory.id}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  activeSubcategory === subcategory.id
+                ? "bg-green-100 text-green-800" 
+                : "bg-gray-200 text-gray-900"
+            }`}
+                onClick={() => setActiveSubcategory(subcategory.id)}
+          >
+                {subcategory.label}
+          </button>
+            ))}
+        </div>
+        )}
       </div>
 
       {/* Filter Button and Panel */}
@@ -297,6 +378,33 @@ export default function ViewProductPage() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="text-sm text-gray-600">Showing {filteredProducts.length} products:</span>
 
+        {activeCategory !== "All" && (
+          <div className="flex items-center bg-green-50 text-green-800 text-xs rounded-full px-2 py-1">
+            <span>Category: {categoryOptions.find(cat => cat.id === activeCategory)?.label}</span>
+            <button 
+              onClick={() => {
+                setActiveCategory("All");
+                setActiveSubcategory("All");
+              }} 
+              className="ml-1 text-green-600 hover:text-green-800"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+
+        {activeSubcategory !== "All" && (
+          <div className="flex items-center bg-green-50 text-green-800 text-xs rounded-full px-2 py-1">
+            <span>Subcategory: {availableSubcategories.find(sub => sub.id === activeSubcategory)?.label}</span>
+            <button 
+              onClick={() => setActiveSubcategory("All")} 
+              className="ml-1 text-green-600 hover:text-green-800"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+
         {isPriceFilterActive && (
           <div className="flex items-center bg-green-50 text-green-800 text-xs rounded-full px-2 py-1">
             <span>
@@ -332,10 +440,22 @@ export default function ViewProductPage() {
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-5 transition-opacity duration-300"></div>
               </div>
             </div>
+            <div className="space-y-1">
             <h3 className="text-xs font-medium line-clamp-2 group-hover:text-green-700 transition-colors">
               {product.name}
             </h3>
+              <div className="flex flex-wrap gap-1">
+                <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-800 rounded-full">
+                  {categoryOptions.find(cat => cat.id === product.category)?.label || product.category}
+                </span>
+                <span className="text-xs px-2 py-0.5 bg-green-50 text-green-800 rounded-full">
+                  {categoryOptions
+                    .find(cat => cat.id === product.category)
+                    ?.subcategories.find(sub => sub.id === product.subcategory)?.label || product.subcategory}
+                </span>
+              </div>
             <p className="text-xs mt-1 text-gray-600">RM {product.price.toFixed(2)}</p>
+            </div>
           </div>
         ))}
       </div>

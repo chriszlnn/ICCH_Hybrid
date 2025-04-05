@@ -105,16 +105,16 @@ export async function POST(
       }
     })
 
-    // Recalculate ranks for products in the same category/subcategory
+    // Recalculate ranks for products in the same subcategory only
     const product = await prisma.product.findUnique({
       where: { id },
       select: { category: true, subcategory: true }
     })
 
-    if (product) {
-      const categoryProducts = await prisma.product.findMany({
+    if (product && product.subcategory) {
+      // Get all products in the same subcategory only
+      const subcategoryProducts = await prisma.product.findMany({
         where: {
-          category: product.category,
           subcategory: product.subcategory
         },
         orderBy: [
@@ -123,7 +123,8 @@ export async function POST(
         ]
       })
 
-      const updatePromises = categoryProducts.map((p, index) => 
+      // Update ranks only for products in this subcategory
+      const updatePromises = subcategoryProducts.map((p, index) => 
         prisma.product.update({
           where: { id: p.id },
           data: { rank: index + 1 }

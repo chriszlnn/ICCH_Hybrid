@@ -73,20 +73,19 @@ export async function POST(request: Request) {
       }
     })
 
-    // Recalculate all ranks for products in this category
+    // Recalculate all ranks for products in this subcategory
     const product = await prisma.product.findUnique({
       where: { id: productId },
       select: { category: true, subcategory: true }
     })
 
-    if (!product) {
-      throw new Error('Product not found')
+    if (!product || !product.subcategory) {
+      throw new Error('Product not found or has no subcategory')
     }
 
-    // Get all products in the same category/subcategory
-    const categoryProducts = await prisma.product.findMany({
+    // Get all products in the same subcategory only
+    const subcategoryProducts = await prisma.product.findMany({
       where: {
-        category: product.category,
         subcategory: product.subcategory
       },
       orderBy: [
@@ -95,8 +94,8 @@ export async function POST(request: Request) {
       ]
     })
 
-    // Update ranks for all products in the category
-    const updatePromises = categoryProducts.map((p, index) => 
+    // Update ranks for all products in this subcategory
+    const updatePromises = subcategoryProducts.map((p, index) => 
       prisma.product.update({
         where: { id: p.id },
         data: { rank: index + 1 }  // 1-based ranking

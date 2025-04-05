@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { History, Trash2, Settings, User, Star, ChevronLeft } from "lucide-react";
+import { History, Trash2, Settings, User, Star, ChevronLeft, BookmarkIcon } from "lucide-react";
 import { Button } from "@/components/ui/general/button";
 import {
   Dialog,
@@ -37,6 +37,19 @@ interface Review {
   };
 }
 
+interface Recommendation {
+  id: string;
+  createdAt: string;
+  product: {
+    id: string;
+    name: string;
+    image: string;
+    price: number;
+    category: string;
+    subcategory: string;
+  };
+}
+
 interface SidebarItem {
   icon: React.ReactNode;
   label: string;
@@ -50,23 +63,26 @@ interface ReviewHistoryModalProps {
 export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState("history");
 
-  // Sidebar items for future expansion
+  // Sidebar items including recommendations
   const sidebarItems: SidebarItem[] = [
     { icon: <History className="h-5 w-5" />, label: "Review History", id: "history" },
+    { icon: <BookmarkIcon className="h-5 w-5" />, label: "Recommendations", id: "recommendations" },
     { icon: <Star className="h-5 w-5" />, label: "Favorites", id: "favorites" },
     { icon: <User className="h-5 w-5" />, label: "Profile", id: "profile" },
     { icon: <Settings className="h-5 w-5" />, label: "Settings", id: "settings" },
   ];
 
-  // Fetch reviews when the modal is opened
+  // Fetch data when the modal is opened
   useEffect(() => {
     if (isOpen) {
       fetchReviews();
+      fetchRecommendations();
     }
   }, [isOpen]);
 
@@ -87,6 +103,41 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
       toast.error("An error occurred while loading your reviews");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchRecommendations = async () => {
+    try {
+      const res = await fetch("/api/recommendations");
+      
+      if (res.ok) {
+        const data = await res.json();
+        setRecommendations(data.recommendations || []);
+      } else {
+        console.error("Failed to fetch recommendations");
+        toast.error("Failed to load your recommendations");
+      }
+    } catch (error) {
+      console.error("Error fetching recommendations:", error);
+      toast.error("An error occurred while loading your recommendations");
+    }
+  };
+
+  const handleRemoveRecommendation = async (productId: string) => {
+    try {
+      const res = await fetch(`/api/recommendations/${productId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        setRecommendations((prev) => prev.filter((rec) => rec.product.id !== productId));
+        toast.success("Removed from recommendations");
+      } else {
+        toast.error("Failed to remove recommendation");
+      }
+    } catch (error) {
+      console.error("Error removing recommendation:", error);
+      toast.error("An error occurred while removing the recommendation");
     }
   };
 
@@ -177,10 +228,10 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
               ))}
             </div>
             
-            <div className="mt-auto pt-4 border-t">
+            {activeTab === "history" && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive" className="w-full">
+                  <Button variant="destructive" className="w-full mt-auto">
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete All History
                   </Button>
@@ -204,11 +255,11 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            </div>
+            )}
           </div>
           
           {/* Main content */}
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 p-6 overflow-y-auto">
             {activeTab === "history" && (
               <>
                 {isLoading ? (
@@ -383,9 +434,74 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
                 )}
               </>
             )}
-            
+
+            {activeTab === "recommendations" && (
+              <>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="border rounded-lg p-4">
+                        <div className="flex items-start gap-4">
+                          <Skeleton className="h-16 w-16 rounded-md" />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-4 w-1/2" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : recommendations.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center">
+                    <BookmarkIcon className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No recommendations</h3>
+                    <p className="text-muted-foreground">
+                      You haven&apos;t added any products to your recommendations yet.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {recommendations.map((rec) => (
+                      <div key={rec.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="relative w-full aspect-square mb-3">
+                          <img
+                            src={rec.product.image}
+                            alt={rec.product.name}
+                            className="object-cover rounded-md w-full h-full"
+                          />
+                        </div>
+                        <h4 className="font-medium text-lg">{rec.product.name}</h4>
+                        <div className="flex flex-col gap-1 mt-2 mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-700">Category:</span>
+                            <span className="text-sm text-gray-600">{rec.product.category}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-700">Subcategory:</span>
+                            <span className="text-sm text-gray-600">{rec.product.subcategory}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-green-600 font-medium">
+                            RM {rec.product.price.toFixed(2)}
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveRecommendation(rec.product.id)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
             {/* Placeholder for future tabs */}
-            {activeTab !== "history" && (
+            {!["history", "recommendations"].includes(activeTab) && (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <Settings className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium">Coming Soon</h3>

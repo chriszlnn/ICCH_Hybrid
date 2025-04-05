@@ -9,6 +9,7 @@ import { Search, Plus, Edit2, Trash2, X, Filter, ChevronDown, Check, Store } fro
 import { useUploadThing } from "@/lib/utils/uploadthing"
 import { useToast } from "../ui/toast/use-toast"
 import { categoryOptions } from "../product-ranking/mock-data"
+import { tagOptions, getApplicableTags, TagOption } from "./tag-options"
 
 interface Product {
   id: string
@@ -20,6 +21,7 @@ interface Product {
   description?: string
   createdAt?: string
   updatedAt?: string
+  tags?: string[]
 }
 
 export default function ManageProduct() {
@@ -31,12 +33,14 @@ export default function ManageProduct() {
     category: "skincare",
     subcategory: "cleansers",
     image: "/placeholder.svg?height=200&width=200",
+    tags: [],
   })
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("All")
   const [subcategoryFilter, setSubcategoryFilter] = useState("All")
+  const [tagFilter, setTagFilter] = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState<"name" | "price" | "category">("name")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
@@ -55,6 +59,7 @@ export default function ManageProduct() {
   const [isViewingProduct, setIsViewingProduct] = useState(false)
   const [isAddingProduct, setIsAddingProduct] = useState(false)
   const [isEditingProduct, setIsEditingProduct] = useState(false)
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
 
   // Get available subcategories based on selected category
   const availableSubcategories = useMemo(() => {
@@ -72,28 +77,88 @@ export default function ManageProduct() {
   // Get available subcategories for filtering
   const availableFilterSubcategories = useMemo(() => {
     if (categoryFilter === "All") return [];
+    
+    // Find the category by label
     const category = categoryOptions.find(cat => cat.label === categoryFilter);
-    return category ? category.subcategories : [];
+    if (category) return category.subcategories;
+    
+    // If not found by label, try to find by ID
+    const categoryById = categoryOptions.find(cat => cat.id === categoryFilter);
+    return categoryById ? categoryById.subcategories : [];
   }, [categoryFilter]);
 
   // Reset subcategory filter when category changes
   useEffect(() => {
     if (categoryFilter === "All") {
       setSubcategoryFilter("All");
-    } else if (availableFilterSubcategories.length > 0) {
-      // If the current subcategory is not in the new category's subcategories,
-      // reset it to the first available subcategory
-      const subcategoryExists = availableFilterSubcategories.some(
-        sub => sub.label === subcategoryFilter
-      );
-      
-      if (!subcategoryExists) {
-        setSubcategoryFilter(availableFilterSubcategories[0].label);
-      }
     } else {
+      // Always set subcategory filter to "All" when a category is selected
       setSubcategoryFilter("All");
     }
-  }, [categoryFilter, availableFilterSubcategories]);
+  }, [categoryFilter]);
+
+  // Get available tags based on product category
+  const availableTags = useMemo(() => {
+    return getApplicableTags(newProduct.category);
+  }, [newProduct.category]);
+
+  // Get available tags for editing
+  const availableEditTags = useMemo(() => {
+    if (!editingProduct) return [];
+    return getApplicableTags(editingProduct.category);
+  }, [editingProduct]);
+
+  // Handle tag selection for new product
+  const handleTagSelection = (tagId: string) => {
+    setNewProduct(prev => {
+      const currentTags = prev.tags || [];
+      const updatedTags = currentTags.includes(tagId)
+        ? currentTags.filter(tag => tag !== tagId)
+        : [...currentTags, tagId];
+      
+      return {
+        ...prev,
+        tags: updatedTags
+      };
+    });
+  };
+
+  // Handle tag selection for editing product
+  const handleEditTagSelection = (tagId: string) => {
+    if (!editingProduct) return;
+    
+    setEditingProduct(prev => {
+      if (!prev) return null;
+      
+      const currentTags = prev.tags || [];
+      const updatedTags = currentTags.includes(tagId)
+        ? currentTags.filter(tag => tag !== tagId)
+        : [...currentTags, tagId];
+      
+      return {
+        ...prev,
+        tags: updatedTags
+      };
+    });
+  };
+
+  // Check if a tag is selected for new product
+  const isTagSelected = (tagId: string) => {
+    return (newProduct.tags || []).includes(tagId);
+  };
+
+  // Check if a tag is selected for editing product
+  const isEditTagSelected = (tagId: string) => {
+    return (editingProduct?.tags || []).includes(tagId);
+  };
+
+  // Reset tags when category changes
+  useEffect(() => {
+    setNewProduct(prev => ({
+      ...prev,
+      tags: []
+    }));
+  }, [newProduct.category]);
 
   const { startUpload } = useUploadThing("imageUploader")
   const { toast } = useToast()
@@ -171,12 +236,12 @@ export default function ManageProduct() {
         // If we've exhausted all retries, set the error
         if (retries === 0 && lastError) {
           console.error("Failed to fetch products after multiple attempts:", lastError);
-          setError("Failed to load products. Please try again later.");
+          setError(lastError instanceof Error ? lastError.message : "Failed to load products. Please try again later.");
           setProducts([]);
         }
       } catch (error) {
         console.error("Failed to fetch products:", error)
-        setError("Failed to load products")
+        setError(error instanceof Error ? error.message : "Failed to load products")
         setProducts([])
       } finally {
         setIsLoading(false)
@@ -192,21 +257,47 @@ export default function ManageProduct() {
       const response = await fetch("/api/products")
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        console.error("Error fetching products:", errorData);
-        throw new Error(errorData.error || `Failed to fetch products: ${response.statusText}`);
+        // Try to parse error response, but handle cases where it might not be valid JSON
+        let errorMessage = `Failed to fetch products: ${response.status} ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+          
+          // Check for Prisma-specific errors
+          if (errorData && errorData.code === 'P2024') {
+            errorMessage = "Database connection error. Please try again later or contact support if the issue persists.";
+          }
+        } catch (parseError) {
+          console.warn("Could not parse error response as JSON:", parseError);
+        }
+        
+        console.error("Error fetching products:", errorMessage);
+        throw new Error(errorMessage);
       }
       
-      const data = await response.json()
+      // Only try to parse the response as JSON once
+      const data = await response.json();
       
       if (!Array.isArray(data)) {
         console.error("Invalid response format:", data);
-        throw new Error("Invalid response format: expected an array of products")
+        throw new Error("Invalid response format: expected an array of products");
       }
       
-      return data
+      return data;
     } catch (error) {
       console.error("Error in fetchProducts:", error);
+      
+      // Provide more user-friendly error messages for common issues
+      if (error instanceof Error) {
+        if (error.message.includes("Failed to fetch")) {
+          throw new Error("Network error. Please check your internet connection and try again.");
+        } else if (error.message.includes("Database connection error")) {
+          throw new Error("Database connection error. Please try again later or contact support if the issue persists.");
+        }
+      }
+      
       throw error;
     }
   }
@@ -410,6 +501,7 @@ export default function ManageProduct() {
         category: "skincare",
         subcategory: "cleansers",
         image: "/placeholder.svg?height=200&width=200",
+        tags: [],
       })
       setSelectedImageFile(null)
       setShowAddForm(false)
@@ -523,26 +615,85 @@ export default function ManageProduct() {
   const filteredProducts = useMemo(() => {
     if (!Array.isArray(products)) return [];
     
-    return products
+    // Debug: Log all products with their categories and subcategories
+    console.log("All products:", products.map(p => ({
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      subcategory: p.subcategory,
+      categoryLabel: categoryOptions.find(cat => cat.id === p.category)?.label,
+      subcategoryLabel: categoryOptions.find(cat => cat.id === p.category)?.subcategories.find(sub => sub.id === p.subcategory)?.label,
+      tags: p.tags
+    })));
+    
+    // Debug: Log current filters
+    console.log("Current filters:", {
+      categoryFilter,
+      subcategoryFilter,
+      tagFilter
+    });
+    
+    const filtered = products
       .filter(product => {
         // Search query filter - check if product name contains the search query (case insensitive)
         const matchesSearch = searchQuery 
           ? product.name.toLowerCase().includes(searchQuery.toLowerCase())
           : true;
         
+        // Get the category and subcategory labels for this product
+        const productCategory = categoryOptions.find(cat => cat.id === product.category);
+        const productCategoryLabel = productCategory?.label || product.category;
+        const productSubcategory = productCategory?.subcategories.find(sub => sub.id === product.subcategory);
+        const productSubcategoryLabel = productSubcategory?.label || product.subcategory;
+        
         // Category filter - check if product category matches the selected category
         const matchesCategory = categoryFilter === "All" 
           ? true 
-          : categoryOptions.find(cat => cat.id === product.category)?.label === categoryFilter;
+          : product.category === categoryFilter || 
+            productCategoryLabel === categoryFilter;
         
         // Subcategory filter - check if product subcategory matches the selected subcategory
+        // This is the key fix - we need to check both the ID and the label
         const matchesSubcategory = subcategoryFilter === "All" 
           ? true 
-          : categoryOptions
-              .find(cat => cat.id === product.category)
-              ?.subcategories.find(sub => sub.id === product.subcategory)?.label === subcategoryFilter;
+          : product.subcategory === subcategoryFilter || 
+            productSubcategoryLabel === subcategoryFilter ||
+            // Add case-insensitive comparison for subcategory labels
+            (productSubcategoryLabel && subcategoryFilter && 
+             productSubcategoryLabel.toLowerCase() === subcategoryFilter.toLowerCase());
         
-        return matchesSearch && matchesCategory && matchesSubcategory;
+        // Tag filter - check if product has all selected tags
+        const matchesTags = tagFilter.length === 0 
+          ? true 
+          : tagFilter.every(tagId => {
+              // Make sure product.tags exists and is an array
+              const productTags = product.tags || [];
+              // Check if the product has this tag
+              const hasTag = productTags.includes(tagId);
+              
+              // Debug: Log tag matching for this product
+              console.log(`Product ${product.name} (${product.id}) - Tag ${tagId}: ${hasTag ? 'matches' : 'does not match'}`);
+              
+              return hasTag;
+            });
+        
+        // Debug: Log products that don't match filters
+        if (!matchesCategory || !matchesSubcategory || !matchesTags) {
+          console.log("Product filtered out:", {
+            id: product.id,
+            name: product.name,
+            category: product.category,
+            subcategory: product.subcategory,
+            categoryLabel: productCategoryLabel,
+            subcategoryLabel: productSubcategoryLabel,
+            tags: product.tags,
+            matchesCategory,
+            matchesSubcategory,
+            matchesTags
+          });
+        }
+        
+        return matchesSearch && matchesCategory && matchesSubcategory && matchesTags;
       })
       .sort((a, b) => {
         if (sortBy === "name") {
@@ -562,7 +713,17 @@ export default function ManageProduct() {
         }
         return 0;
       });
-  }, [products, searchQuery, categoryFilter, subcategoryFilter, sortBy, sortOrder]);
+    
+    // Debug: Log filtered products
+    console.log("Filtered products:", filtered.map(p => ({
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      subcategory: p.subcategory
+    })));
+    
+    return filtered;
+  }, [products, searchQuery, categoryFilter, subcategoryFilter, tagFilter, sortBy, sortOrder]);
 
   const editProduct = (product: Product) => {
     setIsViewingProduct(true);
@@ -608,6 +769,7 @@ export default function ManageProduct() {
       category: "skincare",
       subcategory: "cleansers",
       image: "/placeholder.svg?height=200&width=200",
+      tags: [],
     })
     setSelectedImageFile(null)
   }
@@ -627,6 +789,27 @@ export default function ManageProduct() {
       productId: id,
     })
   }
+
+  // Handle tag filter selection
+  const handleTagFilterSelection = (tagId: string) => {
+    setTagFilter(prev => {
+      if (prev.includes(tagId)) {
+        return prev.filter(id => id !== tagId);
+      } else {
+        return [...prev, tagId];
+      }
+    });
+  };
+
+  // Check if a tag is selected in filter
+  const isTagFilterSelected = (tagId: string) => {
+    return tagFilter.includes(tagId);
+  };
+
+  // Helper function to capitalize first letter
+  const capitalizeFirstLetter = (string: string) => {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  };
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -679,11 +862,13 @@ export default function ManageProduct() {
                     <div className="p-3">
                       <h3 className="text-sm font-medium text-gray-700 mb-2">Category</h3>
                       <div className="space-y-1 max-h-40 overflow-y-auto">
-                        {["All", ...categoryOptions.map(cat => cat.label)].map((category) => (
+                        {["All", ...categoryOptions.map(cat => capitalizeFirstLetter(cat.label))].map((category) => (
                           <button
                             key={category}
                             onClick={() => {
                               setCategoryFilter(category);
+                              // Always set subcategory filter to "All" when a category is selected
+                              setSubcategoryFilter("All");
                               setShowFilters(false);
                             }}
                             className={`flex items-center w-full px-2 py-1 text-sm rounded-md ${
@@ -700,7 +885,7 @@ export default function ManageProduct() {
                         <>
                           <h3 className="text-sm font-medium text-gray-700 mt-3 mb-2">Subcategory</h3>
                           <div className="space-y-1 max-h-40 overflow-y-auto">
-                            {["All", ...availableFilterSubcategories.map(sub => sub.label)].map((subcategory) => (
+                            {["All", ...availableFilterSubcategories.map(sub => capitalizeFirstLetter(sub.label))].map((subcategory) => (
                               <button
                                 key={subcategory}
                                 onClick={() => {
@@ -718,6 +903,76 @@ export default function ManageProduct() {
                           </div>
                         </>
                       )}
+
+                      {/* Tag Filter Section */}
+                      <h3 className="text-sm font-medium text-gray-700 mt-3 mb-2">Tags</h3>
+                      <div className="space-y-3">
+                        {/* Skin Type Tags */}
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Type</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {tagOptions
+                              .filter(tag => tag.category === "skinType")
+                              .map(tag => (
+                                <button
+                                  key={tag.id}
+                                  onClick={() => handleTagFilterSelection(tag.id)}
+                                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                    isTagFilterSelected(tag.id)
+                                      ? "bg-purple-100 text-purple-800 border border-purple-300"
+                                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                  }`}
+                                >
+                                  {capitalizeFirstLetter(tag.label)}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                        
+                        {/* Skin Concern Tags */}
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Concerns</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {tagOptions
+                              .filter(tag => tag.category === "skinConcern")
+                              .map(tag => (
+                                <button
+                                  key={tag.id}
+                                  onClick={() => handleTagFilterSelection(tag.id)}
+                                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                    isTagFilterSelected(tag.id)
+                                      ? "bg-orange-100 text-orange-800 border border-orange-300"
+                                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                  }`}
+                                >
+                                  {capitalizeFirstLetter(tag.label)}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                        
+                        {/* Skin Tone Tags */}
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Tone</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {tagOptions
+                              .filter(tag => tag.category === "skinTone")
+                              .map(tag => (
+                                <button
+                                  key={tag.id}
+                                  onClick={() => handleTagFilterSelection(tag.id)}
+                                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                    isTagFilterSelected(tag.id)
+                                      ? "bg-pink-100 text-pink-800 border border-pink-300"
+                                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                  }`}
+                                >
+                                  {capitalizeFirstLetter(tag.label)}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
 
                       <h3 className="text-sm font-medium text-gray-700 mt-3 mb-2">Sort By</h3>
                       <div className="space-y-1">
@@ -750,6 +1005,7 @@ export default function ManageProduct() {
                             setSearchQuery("");
                             setCategoryFilter("All");
                             setSubcategoryFilter("All");
+                            setTagFilter([]);
                             setShowFilters(false);
                           }}
                           className="w-full px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-md transition-colors"
@@ -765,7 +1021,7 @@ export default function ManageProduct() {
           </div>
 
           {/* Active filters display */}
-          {(categoryFilter !== "All" || subcategoryFilter !== "All" || searchQuery) && (
+          {(categoryFilter !== "All" || subcategoryFilter !== "All" || searchQuery || tagFilter.length > 0) && (
             <div className="flex flex-wrap gap-2 mt-3">
               {categoryFilter !== "All" && (
                 <div className="flex items-center bg-green-50 text-green-800 text-xs rounded-full px-3 py-1">
@@ -808,6 +1064,38 @@ export default function ManageProduct() {
                   </button>
                 </div>
               )}
+              
+              {/* Tag Filters */}
+              {tagFilter.map(tagId => {
+                const tag = tagOptions.find(t => t.id === tagId);
+                if (!tag) return null;
+                
+                // Determine tag color based on category
+                let tagColor = "bg-blue-50 text-blue-800";
+                if (tag.category === "skinType") {
+                  tagColor = "bg-purple-50 text-purple-800";
+                } else if (tag.category === "skinConcern") {
+                  tagColor = "bg-orange-50 text-orange-800";
+                } else if (tag.category === "skinTone") {
+                  tagColor = "bg-pink-50 text-pink-800";
+                }
+                
+                return (
+                  <div 
+                    key={tagId} 
+                    className={`flex items-center ${tagColor} text-xs rounded-full px-3 py-1`}
+                  >
+                    <span>{capitalizeFirstLetter(tag.label)}</span>
+                    <button 
+                      onClick={() => handleTagFilterSelection(tagId)} 
+                      className="ml-1 text-current hover:opacity-80"
+                      aria-label={`Remove ${capitalizeFirstLetter(tag.label)} filter`}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                );
+              })}
               
               <div className="flex items-center bg-blue-50 text-blue-800 text-xs rounded-full px-3 py-1">
                 <span>Sort: {sortBy.charAt(0).toUpperCase() + sortBy.slice(1)} ({sortOrder === "asc" ? "A-Z" : "Z-A"})</span>
@@ -878,14 +1166,44 @@ export default function ManageProduct() {
                         <p className="text-green-600 font-medium mt-1">RM {product.price.toFixed(2)}</p>
                         <div className="flex flex-wrap gap-1 mt-1">
                           <span className="inline-block text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full">
-                            {categoryOptions.find(cat => cat.id === product.category)?.label || product.category}
+                            {categoryOptions.find(cat => cat.id === product.category)?.label || capitalizeFirstLetter(product.category)}
                           </span>
                           <span className="inline-block text-xs px-2 py-1 bg-green-50 text-green-800 rounded-full">
                             {categoryOptions
                               .find(cat => cat.id === product.category)
-                              ?.subcategories.find(sub => sub.id === product.subcategory)?.label || product.subcategory}
+                              ?.subcategories.find(sub => sub.id === product.subcategory)?.label || capitalizeFirstLetter(product.subcategory)}
                           </span>
                         </div>
+                        
+                        {/* Display Tags */}
+                        {product.tags && product.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {product.tags.map(tagId => {
+                              const tag = tagOptions.find(t => t.id === tagId);
+                              if (!tag) return null;
+                              
+                              // Determine tag color based on category
+                              let tagColor = "bg-blue-50 text-blue-800";
+                              if (tag.category === "skinType") {
+                                tagColor = "bg-purple-50 text-purple-800";
+                              } else if (tag.category === "skinConcern") {
+                                tagColor = "bg-orange-50 text-orange-800";
+                              } else if (tag.category === "skinTone") {
+                                tagColor = "bg-pink-50 text-pink-800";
+                              }
+                              
+                              return (
+                                <span 
+                                  key={tagId} 
+                                  className={`inline-block text-xs px-2 py-1 ${tagColor} rounded-full`}
+                                  title={`${tag.category.replace(/([A-Z])/g, ' $1').trim()}: ${capitalizeFirstLetter(tag.label)}`}
+                                >
+                                  {capitalizeFirstLetter(tag.label)}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -997,7 +1315,7 @@ export default function ManageProduct() {
                   >
                     {categoryOptions.map(category => (
                       <option key={category.id} value={category.id}>
-                        {category.label}
+                        {capitalizeFirstLetter(category.label)}
                       </option>
                     ))}
                   </select>
@@ -1014,10 +1332,143 @@ export default function ManageProduct() {
                   >
                     {availableSubcategories.map(subcategory => (
                       <option key={subcategory.id} value={subcategory.id}>
-                        {subcategory.label}
+                        {capitalizeFirstLetter(subcategory.label)}
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                  <div className="border border-gray-200 rounded-md p-3 bg-gray-50">
+                    <p className="text-xs text-gray-500 mb-2">
+                      Select tags to help with product recommendations. Tags will be used to filter products based on skin type, skin concerns, and skin tone (for makeup products).
+                    </p>
+                    
+                    {availableTags.length > 0 ? (
+                      <div className="space-y-3">
+                        {/* Skin Type Tags */}
+                        {(newProduct.category === "skincare" || newProduct.category === "makeup") && (
+                          <div>
+                            <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Type</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {availableTags
+                                .filter(tag => tag.category === "skinType")
+                                .map(tag => (
+                                  <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => handleTagSelection(tag.id)}
+                                    className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                      isTagSelected(tag.id)
+                                        ? "bg-green-100 text-green-800 border border-green-300"
+                                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                    }`}
+                                    disabled={isUploading || isAddingProduct}
+                                  >
+                                    {capitalizeFirstLetter(tag.label)}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Skin Concern Tags */}
+                        {(newProduct.category === "skincare" || newProduct.category === "makeup") && (
+                          <div>
+                            <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Concerns</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {availableTags
+                                .filter(tag => tag.category === "skinConcern")
+                                .map(tag => (
+                                  <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => handleTagSelection(tag.id)}
+                                    className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                      isTagSelected(tag.id)
+                                        ? "bg-green-100 text-green-800 border border-green-300"
+                                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                    }`}
+                                    disabled={isUploading || isAddingProduct}
+                                  >
+                                    {capitalizeFirstLetter(tag.label)}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Skin Tone Tags (for makeup products) */}
+                        {newProduct.category === "makeup" && (
+                          <div>
+                            <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Tone</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {availableTags
+                                .filter(tag => tag.category === "skinTone")
+                                .map(tag => (
+                                  <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => handleTagSelection(tag.id)}
+                                    className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                      isTagSelected(tag.id)
+                                        ? "bg-green-100 text-green-800 border border-green-300"
+                                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                    }`}
+                                    disabled={isUploading || isAddingProduct}
+                                  >
+                                    {capitalizeFirstLetter(tag.label)}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">No tags available for this category.</p>
+                    )}
+                    
+                    {/* Selected Tags Display */}
+                    {newProduct.tags && newProduct.tags.length > 0 && (
+                      <div className="mt-3 pt-2 border-t border-gray-200">
+                        <h4 className="text-xs font-medium text-gray-700 mb-1">Selected Tags</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {newProduct.tags.map(tagId => {
+                            const tag = availableTags.find(t => t.id === tagId);
+                            if (!tag) return null;
+                            
+                            // Determine tag color based on category
+                            let tagColor = "bg-blue-50 text-blue-800 border-blue-200";
+                            if (tag.category === "skinType") {
+                              tagColor = "bg-purple-50 text-purple-800 border-purple-200";
+                            } else if (tag.category === "skinConcern") {
+                              tagColor = "bg-orange-50 text-orange-800 border-orange-200";
+                            } else if (tag.category === "skinTone") {
+                              tagColor = "bg-pink-50 text-pink-800 border-pink-200";
+                            }
+                            
+                            return (
+                              <div 
+                                key={tagId}
+                                className={`flex items-center gap-1 px-2 py-1 text-xs ${tagColor} rounded-full border`}
+                              >
+                                <span>{capitalizeFirstLetter(tag.label)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleTagSelection(tagId)}
+                                  className="text-current hover:opacity-80"
+                                  disabled={isUploading || isAddingProduct}
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div>
@@ -1125,7 +1576,7 @@ export default function ManageProduct() {
                 >
                   {categoryOptions.map(category => (
                     <option key={category.id} value={category.id}>
-                      {category.label}
+                      {capitalizeFirstLetter(category.label)}
                     </option>
                   ))}
                 </select>
@@ -1142,10 +1593,143 @@ export default function ManageProduct() {
                 >
                   {availableEditSubcategories.map(subcategory => (
                     <option key={subcategory.id} value={subcategory.id}>
-                      {subcategory.label}
+                      {capitalizeFirstLetter(subcategory.label)}
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                <div className="border border-gray-200 rounded-md p-3 bg-gray-50">
+                  <p className="text-xs text-gray-500 mb-2">
+                    Select tags to help with product recommendations. Tags will be used to filter products based on skin type, skin concerns, and skin tone (for makeup products).
+                  </p>
+                  
+                  {availableEditTags.length > 0 ? (
+                    <div className="space-y-3">
+                      {/* Skin Type Tags */}
+                      {(editingProduct.category === "skincare" || editingProduct.category === "makeup") && (
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Type</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {availableEditTags
+                              .filter(tag => tag.category === "skinType")
+                              .map(tag => (
+                                <button
+                                  key={tag.id}
+                                  type="button"
+                                  onClick={() => handleEditTagSelection(tag.id)}
+                                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                    isEditTagSelected(tag.id)
+                                      ? "bg-green-100 text-green-800 border border-green-300"
+                                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                  }`}
+                                  disabled={isUploading || isEditingProduct}
+                                >
+                                  {capitalizeFirstLetter(tag.label)}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Skin Concern Tags */}
+                      {(editingProduct.category === "skincare" || editingProduct.category === "makeup") && (
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Concerns</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {availableEditTags
+                              .filter(tag => tag.category === "skinConcern")
+                              .map(tag => (
+                                <button
+                                  key={tag.id}
+                                  type="button"
+                                  onClick={() => handleEditTagSelection(tag.id)}
+                                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                    isEditTagSelected(tag.id)
+                                      ? "bg-green-100 text-green-800 border border-green-300"
+                                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                  }`}
+                                  disabled={isUploading || isEditingProduct}
+                                >
+                                  {capitalizeFirstLetter(tag.label)}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Skin Tone Tags (for makeup products) */}
+                      {editingProduct.category === "makeup" && (
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Tone</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {availableEditTags
+                              .filter(tag => tag.category === "skinTone")
+                              .map(tag => (
+                                <button
+                                  key={tag.id}
+                                  type="button"
+                                  onClick={() => handleEditTagSelection(tag.id)}
+                                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                    isEditTagSelected(tag.id)
+                                      ? "bg-green-100 text-green-800 border border-green-300"
+                                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                  }`}
+                                  disabled={isUploading || isEditingProduct}
+                                >
+                                  {capitalizeFirstLetter(tag.label)}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">No tags available for this category.</p>
+                  )}
+                  
+                  {/* Selected Tags Display */}
+                  {editingProduct.tags && editingProduct.tags.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <h4 className="text-xs font-medium text-gray-700 mb-1">Selected Tags</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {editingProduct.tags.map(tagId => {
+                          const tagInfo = tagOptions.find(t => t.id === tagId);
+                          if (!tagInfo) return null;
+                          
+                          // Determine tag color based on category
+                          let tagColor = "bg-blue-50 text-blue-800 border-blue-200";
+                          if (tagInfo.category === "skinType") {
+                            tagColor = "bg-purple-50 text-purple-800 border-purple-200";
+                          } else if (tagInfo.category === "skinConcern") {
+                            tagColor = "bg-orange-50 text-orange-800 border-orange-200";
+                          } else if (tagInfo.category === "skinTone") {
+                            tagColor = "bg-pink-50 text-pink-800 border-pink-200";
+                          }
+                          
+                          return (
+                            <div 
+                              key={tagId}
+                              className={`flex items-center gap-1 px-2 py-1 text-xs ${tagColor} rounded-full border`}
+                            >
+                              <span>{capitalizeFirstLetter(tagInfo.label)}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleEditTagSelection(tagId)}
+                                className="text-current hover:opacity-80"
+                                disabled={isUploading || isEditingProduct}
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>

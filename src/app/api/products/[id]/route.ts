@@ -11,6 +11,7 @@ const updateProductSchema = z.object({
   category: z.string().optional(),
   subcategory: z.string().optional().nullable(),
   image: z.string().optional(),
+  tags: z.array(z.string()).optional(),
 }).partial(); // Make all fields optional
 
 // GET a single product by ID
@@ -26,6 +27,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         category: true,
         subcategory: true,
         image: true,
+        tags: true,
       },
     });
 
@@ -91,6 +93,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         category: true,
         subcategory: true,
         image: true,
+        tags: true,
         updatedAt: true,
       },
     });
