@@ -3,81 +3,82 @@ import { prisma } from "@/lib/prisma";
 import { generateVerificationToken } from '@/lib/token';
 import { sendVerificationEmail } from '@/lib/mail';
 import { withRetry } from "@/lib/db-utils";
+import { auth } from "@/lib/auth";
+import { withDbConnection } from "@/lib/db-utils";
 
-export async function DELETE(request: Request, props: { params: Promise<{ id: string }> }) {
-  const params = await props.params;
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params;
-
-    // Log the ID for debugging
-    console.log("Deleting user with ID:", id);
-
-    // Validate the ID
-    if (!id) {
-      console.error("Invalid ID provided");
-      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Use the withRetry utility to handle connection pool issues
-    await withRetry(async () => {
-      // Check if the user exists
+    const resolvedParams = await context.params;
+    const userId = resolvedParams.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 });
+    }
+
+    const result = await withDbConnection(async () => {
+      // First, check if the user exists and get their role
       const user = await prisma.user.findUnique({
-        where: { id },
+        where: { id: userId },
         include: {
-          client: true,
           staff: true,
+          client: true,
         },
       });
 
       if (!user) {
-        console.error("User not found with ID:", id);
         throw new Error("User not found");
       }
 
-      // First, delete all related records to avoid foreign key constraint violations
-      // This is a cascading delete approach
-      
-      // 1. Delete product likes
-      await prisma.productLike.deleteMany({
-        where: { userEmail: user.email },
-      });
-      
-      // 2. Delete client or staff records if they exist
-      if (user.client) {
+      // Delete related records based on user role
+      if (user.role === "STAFF" && user.staff) {
+        // Delete staff-specific records first
+        await prisma.staff.delete({
+          where: { id: user.staff.id },
+        });
+      } else if (user.role === "CLIENT" && user.client) {
+        // Delete client-specific records first
         await prisma.client.delete({
           where: { id: user.client.id },
         });
       }
-      
-      if (user.staff) {
-        await prisma.staff.delete({
-          where: { id: user.staff.id },
-        });
-      }
-      
-      // 3. Delete any other related records that might exist
-      // Add more delete operations here as needed
-      
-      // Finally, delete the user
-      await prisma.user.delete({
-        where: { id },
+
+      // Delete common related records
+      await Promise.all([
+        prisma.userRecommendation.deleteMany({
+          where: { userEmail: user.email },
+        }),
+        prisma.productLike.deleteMany({
+          where: { userEmail: user.email },
+        }),
+        prisma.beautyInfoPostLike.deleteMany({
+          where: { userEmail: user.email },
+        }),
+      ]);
+
+      // Finally delete the user
+      const deletedUser = await prisma.user.delete({
+        where: { id: userId },
       });
 
-      console.log("User and all related records deleted successfully:", id);
+      return deletedUser;
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error deleting user:", errorMessage);
-    
-    // Return appropriate status code based on the error
-    if (errorMessage === "User not found") {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-    
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("Error deleting user:", error);
     return NextResponse.json(
-      { error: "Failed to delete user", details: errorMessage },
+      { 
+        error: "Failed to delete user",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

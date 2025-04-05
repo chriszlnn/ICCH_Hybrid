@@ -1,66 +1,84 @@
-import { prisma } from "@/lib/prisma";
+import { PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
-/**
- * Executes a database operation with proper connection management
- * This helps prevent connection pool timeouts by ensuring connections are properly released
- * 
- * @param operation The database operation to execute
- * @returns The result of the operation
- */
-export async function withDbConnection<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    // Execute the operation
-    return await operation();
-  } catch (error) {
-    // Log the error for debugging
-    console.error("Database operation error:", error);
-    throw error;
-  } finally {
-    // Ensure the connection is properly released
-    // This is a no-op in Prisma, but it's good practice to include it
-    // in case we switch to a different ORM in the future
-    await prisma.$disconnect();
+// PrismaClient is attached to the `global` object in development to prevent
+// exhausting your database connection limit.
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+// Add connection pool parameters to the DATABASE_URL
+const databaseUrl = process.env.DATABASE_URL;
+const connectionUrl = databaseUrl ? `${databaseUrl}?connection_limit=10&pool_timeout=30&statement_timeout=30000&idle_in_transaction_session_timeout=30000` : databaseUrl;
+
+const prisma = globalForPrisma.prisma || new PrismaClient({
+  log: ['query', 'error', 'warn'],
+  datasources: {
+    db: {
+      url: connectionUrl
+    }
   }
+});
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+
+interface ErrorWithCause extends Error {
+  cause?: {
+    code?: number;
+  };
 }
 
-/**
- * Executes a database operation with retry logic for connection pool timeouts
- * 
- * @param operation The database operation to execute
- * @param maxRetries Maximum number of retries (default: 3)
- * @param retryDelay Delay between retries in milliseconds (default: 1000)
- * @returns The result of the operation
- */
-export async function withRetry<T>(
+const isConnectionError = (error: Error | Prisma.PrismaClientKnownRequestError | Prisma.PrismaClientUnknownRequestError | Prisma.PrismaClientInitializationError): boolean => {
+  const errorWithCause = error as ErrorWithCause;
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError ||
+    error instanceof Prisma.PrismaClientUnknownRequestError ||
+    error instanceof Prisma.PrismaClientInitializationError ||
+    (errorWithCause?.cause?.code === 10054) || // Connection reset error
+    error?.message?.includes('connection') ||
+    error?.message?.includes('timeout')
+  );
+};
+
+export const withRetry = async <T>(
   operation: () => Promise<T>,
-  maxRetries = 3,
-  retryDelay = 1000
-): Promise<T> {
-  let lastError: unknown;
+  maxRetries: number = MAX_RETRIES,
+  initialDelay: number = INITIAL_RETRY_DELAY
+): Promise<T> => {
+  let lastError: Error | undefined;
   
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      return await withDbConnection(operation);
+      return await operation();
     } catch (error) {
-      lastError = error;
+      lastError = error as Error;
       
-      // Check if this is a connection pool timeout error
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const isConnectionPoolError = errorMessage.includes("connection pool") || 
-                                   errorMessage.includes("Timed out fetching a new connection");
-      
-      if (isConnectionPoolError && attempt < maxRetries) {
-        console.log(`Connection pool error, retrying (${attempt}/${maxRetries})...`);
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        continue;
+      if (!isConnectionError(error as Error) || attempt === maxRetries - 1) {
+        throw error;
       }
       
-      // If it's not a connection pool error or we've exhausted retries, throw the error
-      throw error;
+      const delay = initialDelay * Math.pow(2, attempt);
+      console.log(`Retrying operation after ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
   
-  // This should never be reached, but TypeScript needs it
   throw lastError;
-} 
+};
+
+export const withDbConnection = async <T>(
+  operation: () => Promise<T>,
+  maxRetries: number = MAX_RETRIES
+): Promise<T> => {
+  return withRetry(async () => {
+    try {
+      return await operation();
+    } catch (error) {
+      console.error('Database operation failed:', error);
+      throw error;
+    }
+  }, maxRetries);
+};
+
+export { prisma }; 

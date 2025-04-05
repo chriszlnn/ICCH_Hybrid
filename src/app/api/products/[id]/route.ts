@@ -2,6 +2,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { auth } from "@/lib/auth";
+import { withDbConnection } from "@/lib/db-utils";
 
 // Input validation schema for product updates
 const updateProductSchema = z.object({
@@ -116,26 +118,56 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE a product by ID
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    // Check if product exists before deleting
-    const existingProduct = await prisma.product.findUnique({
-      where: { id: params.id },
-    });
-
-    if (!existingProduct) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await prisma.product.delete({
-      where: { id: params.id },
+    const resolvedParams = await context.params;
+    const productId = resolvedParams.id;
+
+    if (!productId) {
+      return NextResponse.json({ error: "Product ID is required" }, { status: 400 });
+    }
+
+    const result = await withDbConnection(async () => {
+      // First, delete all related records
+      await Promise.all([
+        prisma.productLike.deleteMany({
+          where: { productId },
+        }),
+        prisma.review.deleteMany({
+          where: { productId },
+        }),
+        prisma.productVote.deleteMany({
+          where: { productId },
+        }),
+        prisma.userRecommendation.deleteMany({
+          where: { productId },
+        }),
+      ]);
+
+      // Then delete the product
+      const deletedProduct = await prisma.product.delete({
+        where: { id: productId },
+      });
+
+      return deletedProduct;
     });
 
-    return NextResponse.json({ message: 'Product deleted successfully' });
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Error deleting product:', error);
+    console.error("Error deleting product:", error);
     return NextResponse.json(
-      { error: 'Failed to delete product' },
+      { 
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

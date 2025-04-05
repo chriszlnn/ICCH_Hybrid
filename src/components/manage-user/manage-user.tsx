@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useEffect, useState, useRef } from "react";
-import { Edit, MoreHorizontal, Plus, Search, Trash, Users } from "lucide-react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { Edit, MoreHorizontal, Plus, Search, Trash, Users, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { generateVerificationToken } from "@/lib/token";
 import { sendVerificationEmail } from "@/lib/mail";
 import Link from "next/link";
 import { Button } from "../ui/general/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   CustomDialog,
   CustomDialogContent,
@@ -36,26 +37,28 @@ import { addStaffByAdmin } from "@/lib/actions/addStaff";
 export default function ManageUser() {
   const [activeTab, setActiveTab] = useState("clients");
   const [searchQuery, setSearchQuery] = useState("");
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [clients, setClients] = useState<any[]>([]);
+  const [staff, setStaff] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<any | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<any>(null);
-  const [showCard, setShowCard] = useState(false);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [clients, setClients] = useState<{ userId: number; username: string; email: string; emailVerified: string | null }[]>([]);
-  const [staff, setStaff] = useState<{ userId: number; username: string; email: string; name: string; department: string }[]>([]);
-  const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const editDialogRef = useRef<HTMLDivElement>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
+  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const [newStaff, setNewStaff] = useState({
     name: "",
     email: "",
     department: "",
     password: "",
-    confirmPassword: "",
+    confirmPassword: ""
   });
+  const [error, setError] = useState<string | null>(null);
+  const [alertType, setAlertType] = useState<"error" | "success" | null>(null);
 
   useEffect(() => {
     // Set mounted to true when component mounts
@@ -103,62 +106,124 @@ export default function ManageUser() {
     };
   }, []);
 
-  const handleAddStaff = async () => {
-    if (newStaff.password !== newStaff.confirmPassword) {
-      setPasswordError("Passwords do not match");
+  const validatePassword = (password: string, confirmPassword: string) => {
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      setAlertType("error");
+      return false;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setAlertType("error");
+      return false;
+    }
+    setError(null);
+    setAlertType(null);
+    return true;
+  };
+
+  const handleAddStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate password before submission
+    if (!validatePassword(newStaff.password, newStaff.confirmPassword)) {
       return;
     }
-  
-    // Create a FormData object
-    const formData = new FormData();
-    formData.append("name", newStaff.name);
-    formData.append("email", newStaff.email);
-    formData.append("department", newStaff.department);
-    formData.append("password", newStaff.password);
-  
+
+    setError(null);
+    setAlertType(null);
+    setLoading(true);
+
     try {
+      // Create a FormData object
+      const formData = new FormData();
+      formData.append("name", newStaff.name);
+      formData.append("email", newStaff.email);
+      formData.append("department", newStaff.department);
+      formData.append("password", newStaff.password);
+
       // Call the addStaffByAdmin function
       const result = await addStaffByAdmin(formData);
-  
+
       if (result.success) {
         // Refresh the staff list
         const staffRes = await fetch("/api/staff");
         const staffData = await staffRes.json();
         setStaff(staffData);
-  
-        // Close the dialog and reset the form
-        setIsOpen(false);
-        setNewStaff({ name: "", email: "", department: "", password: "", confirmPassword: "" });
-        setPasswordError(null);
+
+        // Show success message
+        setError("Staff member added successfully");
+        setAlertType("success");
+
+        // Close the dialog and reset the form after a short delay
+        setTimeout(() => {
+          setIsAddStaffOpen(false);
+          setNewStaff({ name: "", email: "", department: "", password: "", confirmPassword: "" });
+          setError(null);
+          setAlertType(null);
+        }, 2000);
       } else {
-        console.error("Failed to add staff:", result.error);
+        setError(result.error || "Failed to add staff");
+        setAlertType("error");
       }
-    } catch (error) {
-      console.error("Error adding staff:", error);
+    } catch (err: any) {
+      setError(err.message || "Error adding staff");
+      setAlertType("error");
+    } finally {
+      setLoading(false);
     }
   };
-  const filteredClients = clients.filter(
-    (client) =>
-      client.userId.toString().includes(searchQuery.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
-  const filteredStaff = staff.filter(
-    (staff) =>
-      staff.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      staff.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Memoize filtered clients
+  const filteredClients = useMemo(() => {
+    return clients.filter((client) => {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        (client.userId?.toString() || '').toLowerCase().includes(searchLower) ||
+        (client.email || '').toLowerCase().includes(searchLower) ||
+        (client.username || '').toLowerCase().includes(searchLower)
+      );
+    });
+  }, [clients, searchQuery]);
 
-  const handleEdit = (item: any) => {
+  // Memoize filtered staff
+  const filteredStaff = useMemo(() => {
+    return staff.filter((staffMember) => {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        (staffMember.userId?.toString() || '').toLowerCase().includes(searchLower) ||
+        (staffMember.email || '').toLowerCase().includes(searchLower) ||
+        (staffMember.name || '').toLowerCase().includes(searchLower)
+      );
+    });
+  }, [staff, searchQuery]);
+
+  // Memoize handlers
+  const handleEdit = useCallback((item: any) => {
     setEditingItem({ ...item });
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleDelete = (item: any) => {
+  const handleDelete = useCallback((item: any) => {
     setItemToDelete(item);
     setDeleteDialogOpen(true);
-  };
+  }, []);
+
+  const handleCloseEditDialog = useCallback(() => {
+    setIsEditDialogOpen(false);
+    // Use a timeout to reset the editing item after the dialog animation completes
+    setTimeout(() => {
+      setEditingItem(null);
+    }, 300);
+  }, []);
+
+  const handleCloseDeleteDialog = useCallback(() => {
+    setDeleteDialogOpen(false);
+    // Use a timeout to reset the item to delete after the dialog animation completes
+    setTimeout(() => {
+      setItemToDelete(null);
+    }, 300);
+  }, []);
 
   const confirmDelete = async () => {
     if (!itemToDelete) return;
@@ -277,22 +342,19 @@ export default function ManageUser() {
   }
 };
 
-  const handleCloseEditDialog = () => {
-    setIsEditDialogOpen(false);
-    // Use a timeout to reset the editing item after the dialog animation completes
-    setTimeout(() => {
-      setEditingItem(null);
-    }, 300);
+  const handleCloseAddStaffDialog = () => {
+    setIsAddStaffOpen(false);
+    setNewStaff({
+      name: "",
+      email: "",
+      department: "",
+      password: "",
+      confirmPassword: ""
+    });
+    setError(null);
+    setAlertType(null);
   };
 
-  const handleCloseDeleteDialog = () => {
-    setDeleteDialogOpen(false);
-    // Use a timeout to reset the item to delete after the dialog animation completes
-    setTimeout(() => {
-      setItemToDelete(null);
-    }, 300);
-  };
-  
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
@@ -302,7 +364,7 @@ export default function ManageUser() {
             <span className="flex md:inline-block">Users</span>
           </Link>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <form className="relative hidden md:block">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -313,6 +375,116 @@ export default function ManageUser() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </form>
+         
+            
+              <Button size="sm" onClick={() => setIsAddStaffOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Staff
+              </Button>
+           <CustomDialog open={isAddStaffOpen} onOpenChange={handleCloseAddStaffDialog}>
+            <CustomDialogContent className="max-w-[500px] p-6">
+              <CustomDialogHeader className="space-y-2">
+                <CustomDialogTitle>Add New Staff</CustomDialogTitle>
+                <CustomDialogDescription>
+                  Create a new staff account. The staff member will receive an email to set up their password.
+                </CustomDialogDescription>
+              </CustomDialogHeader>
+
+              {error && alertType && (
+                <Alert
+                  variant={alertType === "error" ? "destructive" : "default"}
+                  className="mt-4 mb-4"
+                >
+                  {alertType === "error" ? (
+                    <AlertCircle className="h-4 w-4 text-red-500" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  )}
+                  <AlertTitle>{alertType === "error" ? "Error" : "Success"}</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              <form onSubmit={handleAddStaff} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="Staff Name"
+                    value={newStaff.name}
+                    onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="staff@example.com"
+                    value={newStaff.email}
+                    onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department</Label>
+                  <Input
+                    id="department"
+                    type="text"
+                    placeholder="Department"
+                    value={newStaff.department}
+                    onChange={(e) => setNewStaff({ ...newStaff, department: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter password"
+                    value={newStaff.password}
+                    onChange={(e) => {
+                      setNewStaff({ ...newStaff, password: e.target.value });
+                      validatePassword(e.target.value, newStaff.confirmPassword);
+                    }}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Confirm password"
+                    value={newStaff.confirmPassword}
+                    onChange={(e) => {
+                      setNewStaff({ ...newStaff, confirmPassword: e.target.value });
+                      validatePassword(newStaff.password, e.target.value);
+                    }}
+                    required
+                  />
+                </div>
+                <CustomDialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsAddStaffOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      "Add Staff"
+                    )}
+                  </Button>
+                </CustomDialogFooter>
+              </form>
+            </CustomDialogContent>
+          </CustomDialog>
         </div>
       </header>
       <div className="flex flex-1">
@@ -328,98 +500,6 @@ export default function ManageUser() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </form>
-            <CustomDialog open={isOpen} onOpenChange={(open: boolean) => setIsOpen(open)}>
-              <CustomDialogTrigger asChild>
-                <div className="flex gap-2">
-                  <Button size="sm" className="ml-auto md:hidden">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Staff
-                  </Button>
-                  <Button size="sm" className="hidden md:flex">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Staff
-                  </Button>
-                </div>
-              </CustomDialogTrigger>
-              <CustomDialogContent className="w-full sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl">
-                <CustomDialogTitle>Add Staff</CustomDialogTitle>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Account</CardTitle>
-                    <CardDescription>Fill in the account details below.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="name">Name</Label>
-                    <Input
-                      id="name"
-                      placeholder="Enter name"
-                      value={newStaff.name}
-                      onChange={(e) => setNewStaff({ ...newStaff, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="department">Department</Label>
-                    <Input
-                      id="department"
-                      placeholder="Enter department"
-                      value={newStaff.department}
-                      onChange={(e) => setNewStaff({ ...newStaff, department: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      placeholder="Enter email"
-                      value={newStaff.email}
-                      onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="Enter password"
-                      value={newStaff.password}
-                      onChange={(e) => {
-                        setNewStaff({ ...newStaff, password: e.target.value });
-                        if (e.target.value !== newStaff.confirmPassword) {
-                          setPasswordError("Passwords do not match");
-                        } else {
-                          setPasswordError(null);
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      placeholder="Confirm password"
-                      value={newStaff.confirmPassword}
-                      onChange={(e) => {
-                        setNewStaff({ ...newStaff, confirmPassword: e.target.value });
-                        if (e.target.value !== newStaff.password) {
-                          setPasswordError("Passwords do not match");
-                        } else {
-                          setPasswordError(null);
-                        }
-                      }}
-                    />
-                  </div>
-                  {passwordError && (
-                    <p className="text-sm text-red-500">{passwordError}</p>
-                  )}
-                  </CardContent>
-                  <CardFooter>
-                    <Button onClick={handleAddStaff}>Save Staff</Button>
-                  </CardFooter>
-                </Card>
-              </CustomDialogContent>
-            </CustomDialog>
           </div>
           <Tabs defaultValue="clients" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="flex md:hidden">
@@ -551,165 +631,142 @@ export default function ManageUser() {
       </div>
 
       {/* Edit Dialog */}
-      {mounted && isEditDialogOpen && (
-        <CustomDialog 
-          open={isEditDialogOpen} 
-          onOpenChange={(open: boolean) => {
-            if (!open) {
-              handleCloseEditDialog();
-            }
-          }}
-        >
-          <CustomDialogContent className="sm:max-w-[425px]">
-            <CustomDialogHeader>
-              <CustomDialogTitle>Edit {activeTab === "clients" ? "Client" : "Staff"}</CustomDialogTitle>
-              <CustomDialogDescription>
-                Make changes to the {activeTab === "clients" ? "client" : "staff"} information here.
-              </CustomDialogDescription>
-            </CustomDialogHeader>
-            {editingItem && (
-              <div className="grid gap-4 py-4">
-                {activeTab === "clients" ? (
-                  <>
-                    {/* Client ID (non-editable) */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="clientId">Client ID</Label>
-                      <Input
-                        id="clientId"
-                        value={editingItem.userId}
-                        disabled
-                      />
-                    </div>
+      <CustomDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <CustomDialogContent className="max-w-[500px] p-6">
+          <CustomDialogHeader className="space-y-2">
+            <CustomDialogTitle>Edit {activeTab === "clients" ? "Client" : "Staff"}</CustomDialogTitle>
+            <CustomDialogDescription>
+              Make changes to the {activeTab === "clients" ? "client" : "staff"} information here.
+            </CustomDialogDescription>
+          </CustomDialogHeader>
+          {editingItem && (
+            <div className="space-y-4 mt-4">
+              {activeTab === "clients" ? (
+                <>
+                  {/* Client ID (non-editable) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="clientId">Client ID</Label>
+                    <Input
+                      id="clientId"
+                      value={editingItem.userId}
+                      disabled
+                    />
+                  </div>
 
-                    {/* Email (read-only) */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        value={editingItem.email}
-                        disabled
-                      />
-                    </div>
+                  {/* Email (read-only) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      value={editingItem.email}
+                      disabled
+                    />
+                  </div>
 
-                    {/* Status Dropdown (editable) */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="status">Status</Label>
-                      <select
-                        id="status"
-                        value={editingItem.emailVerified ? "Verified" : "Unverified"}
-                        onChange={(e) =>
-                          setEditingItem({
-                            ...editingItem,
-                            emailVerified: e.target.value === "Verified" ? new Date().toISOString() : null,
-                          })
-                        }
-                        className="p-2 border rounded"
+                  {/* Status Dropdown (editable) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <select
+                      id="status"
+                      value={editingItem.emailVerified ? "Verified" : "Unverified"}
+                      onChange={(e) =>
+                        setEditingItem({
+                          ...editingItem,
+                          emailVerified: e.target.value === "Verified" ? new Date().toISOString() : null,
+                        })
+                      }
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                    >
+                      <option value="Verified">Verified</option>
+                      <option value="Unverified">Unverified</option>
+                    </select>
+                  </div>
+
+                  {/* Resend Verification Email Button */}
+                  {!editingItem.emailVerified && (
+                    <div className="space-y-2">
+                      <Button
+                        onClick={handleResendVerificationEmail}
+                        disabled={!editingItem.email}
+                        className="w-full"
                       >
-                        <option value="Verified">Verified</option>
-                        <option value="Unverified">Unverified</option>
-                      </select>
+                        Resend Verification Email
+                      </Button>
                     </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Staff ID (non-editable) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="staffId">Staff ID</Label>
+                    <Input
+                      id="staffId"
+                      value={editingItem.userId}
+                      disabled
+                    />
+                  </div>
+          
+                  {/* Name (editable) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name</Label>
+                    <Input
+                      id="name"
+                      value={editingItem.name}
+                      onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                    />
+                  </div>
+          
+                  {/* Department (editable) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="department">Department</Label>
+                    <Input
+                      id="department"
+                      value={editingItem.department}
+                      onChange={(e) => setEditingItem({ ...editingItem, department: e.target.value })}
+                    />
+                  </div>
+          
+                  {/* Email (non-editable) */}
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      value={editingItem.email}
+                      disabled
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <CustomDialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit}>Save changes</Button>
+          </CustomDialogFooter>
+        </CustomDialogContent>
+      </CustomDialog>
 
-                    {/* Resend Verification Email Button */}
-                    {!editingItem.emailVerified && (
-                      <div className="grid gap-2">
-                        <Button
-                          onClick={handleResendVerificationEmail}
-                          disabled={!editingItem.email}
-                        >
-                          Resend Verification Email
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {/* Staff ID (non-editable) */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="staffId">Staff ID</Label>
-                      <Input
-                        id="staffId"
-                        value={editingItem.userId}
-                        disabled
-                      />
-                    </div>
-          
-                    {/* Name (editable) */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="name">Name</Label>
-                      <Input
-                        id="name"
-                        value={editingItem.name}
-                        onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                      />
-                    </div>
-          
-                    {/* Department (editable) */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="department">Department</Label>
-                      <Input
-                        id="department"
-                        value={editingItem.department}
-                        onChange={(e) => setEditingItem({ ...editingItem, department: e.target.value })}
-                      />
-                    </div>
-          
-                    {/* Email (non-editable) */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        value={editingItem.email}
-                        disabled
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-            <CustomDialogFooter>
-              <Button variant="outline" onClick={handleCloseEditDialog}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveEdit}>Save changes</Button>
-            </CustomDialogFooter>
-          </CustomDialogContent>
-        </CustomDialog>
-      )}
-
-      {/* Delete Dialog */}
-      {mounted && deleteDialogOpen && (
-        <CustomAlertDialog 
-          open={deleteDialogOpen} 
-          onOpenChange={(open: boolean) => {
-            if (!open) {
-              handleCloseDeleteDialog();
-            }
-          }}
-        >
-          <CustomAlertDialogContent>
-            <CustomAlertDialogHeader>
-              <CustomAlertDialogTitle>Are you sure?</CustomAlertDialogTitle>
-              <CustomAlertDialogDescription>
-                This action cannot be undone. This will permanently delete the
-                {activeTab === "clients" ? " client" : " staff member"} and remove their data from our servers.
-              </CustomAlertDialogDescription>
-            </CustomAlertDialogHeader>
-            <CustomAlertDialogFooter>
-              <CustomAlertDialogCancel onClick={handleCloseDeleteDialog}>Cancel</CustomAlertDialogCancel>
-              <CustomAlertDialogAction 
-                onClick={() => {
-                  confirmDelete();
-                  handleCloseDeleteDialog();
-                }} 
-                className="bg-destructive text-destructive-foreground"
-              >
-                Delete
-              </CustomAlertDialogAction>
-            </CustomAlertDialogFooter>
-          </CustomAlertDialogContent>
-        </CustomAlertDialog>
-      )}
+      {/* Delete Confirmation Dialog */}
+      <CustomAlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <CustomAlertDialogContent className="max-w-[500px] p-6">
+          <CustomAlertDialogHeader className="space-y-2">
+            <CustomAlertDialogTitle>Are you sure?</CustomAlertDialogTitle>
+            <CustomAlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              {activeTab === "clients" ? " client" : " staff member"} and remove their data from our servers.
+            </CustomAlertDialogDescription>
+          </CustomAlertDialogHeader>
+          <CustomAlertDialogFooter className="mt-6">
+            <CustomAlertDialogCancel>Cancel</CustomAlertDialogCancel>
+            <CustomAlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
+              Delete
+            </CustomAlertDialogAction>
+          </CustomAlertDialogFooter>
+        </CustomAlertDialogContent>
+      </CustomAlertDialog>
     </div>
   );
 }

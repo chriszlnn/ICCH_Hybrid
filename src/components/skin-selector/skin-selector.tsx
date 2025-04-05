@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Palette, X, Loader2 } from "lucide-react";
 import SkinConcerns from "./skin-concerns";
 import { toast } from "sonner";
 import { SaveAllRecommendationsButton } from "@/components/product/save-all-recommendations-button";
 import { SkinAnalysisCheck } from "./skin-analysis-check";
 
-type SkinType = "dry" | "normal" | "sensitive" | "combination" | "not-sure";
+type SkinType = "oily" | "dry" | "combination" | "normal" | "sensitive" | "analyzing";
 type SkinTone = "cool" | "warm" | "neutral";
 
 interface Product {
@@ -60,6 +60,13 @@ export default function SkinSelector() {
   const [showResults, setShowResults] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [showSkinAnalysisCheck, setShowSkinAnalysisCheck] = useState(false);
+
+  useEffect(() => {
+    if (selectedSkinType) {
+      setShowSkinAnalysisCheck(false);
+      setIsOpen(true);
+    }
+  }, [selectedSkinType]);
 
   const handleConcernsSelected = useCallback((concerns: string[]) => {
     setSelectedConcerns(concerns);
@@ -128,8 +135,7 @@ export default function SkinSelector() {
   };
 
   const handleProceedWithAnalysis = () => {
-    setShowSkinAnalysisCheck(false);
-    setIsOpen(true);
+    setSelectedSkinType("analyzing");
   };
 
   const handleCloseSkinAnalysisCheck = () => {

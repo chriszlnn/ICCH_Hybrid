@@ -3,7 +3,8 @@
 import { User, LogOut ,LayoutGrid, Gem, UsersRound, Sparkles, Vote} from "lucide-react";
 import Image from "next/image";
 import Logo from "../../assets/Innisfree-Logo.svg";
-import { useRouter, usePathname } from "next/navigation"; 
+import Link from "next/link";
+import { usePathname } from "next/navigation"; 
 import { signOut } from "next-auth/react";
 
 const items = [
@@ -16,14 +17,7 @@ const items = [
 ];
 
 export function AppSidebar() {
-  const router = useRouter();
   const pathname = usePathname();
-
-  const handleNavigation = (url: string) => {
-    if (pathname !== url) {
-      router.push(url);
-    }
-  };
 
   return (
     <>
@@ -37,21 +31,23 @@ export function AppSidebar() {
             width={150}
             height={128}
             className="mx-auto rounded-lg"
+            priority
           />
           <nav className="flex flex-col gap-2 mt-8">
             {items.map((item) => (
-              <button
+              <Link
                 key={item.title}
-                onClick={() => handleNavigation(item.url)}
+                href={item.url}
+                prefetch={true}
                 className={`flex items-center gap-4 p-3 rounded-lg transition-all duration-300 ${
-                  pathname === item.url
+                  pathname === item.url || (item.url !== "/admin" && pathname.startsWith(item.url))
                     ? "bg-[#12B560] text-white"
                     : "hover:bg-[#12B560] hover:text-white"
                 }`}
               >
                 <item.icon className="w-6 h-6" />
                 <span>{item.title}</span>
-              </button>
+              </Link>
             ))}
           </nav>
         </div>
@@ -69,19 +65,19 @@ export function AppSidebar() {
       {/* Mobile Bottom Navigation */}
 
       <nav className="fixed bottom-0 left-0 right-0 bg-teal-50 shadow-md flex justify-around items-center p-2 md:hidden z-50">
-
         {items.map((item) => (
-          <button
+          <Link
             key={item.title}
-            onClick={() => handleNavigation(item.url)}
+            href={item.url}
+            prefetch={true}
             className={`flex justify-center items-center w-full p-2 rounded-lg transition duration-300 ${
-              pathname === item.url
+              pathname === item.url || (item.url !== "/admin" && pathname.startsWith(item.url))
                 ? "bg-[#12B560] text-white"
                 : "hover:bg-[#12B560] hover:text-white"
             }`}
           >
             <item.icon className="w-6 h-6" />
-          </button>
+          </Link>
         ))}
       </nav>
     </>
