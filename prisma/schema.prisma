@@ -23,6 +23,7 @@ model User {
   reviews       Review[]
   productLikes  ProductLike[]
   postLikes     BeautyInfoPostLike[]
+  recommendations UserRecommendation[]
 
   // Relations to role-specific tables (only defined on one side)
   client        Client? @relation("UserClient")
@@ -200,6 +201,7 @@ model Product {
   reviews      Review[]
   productLikes ProductLike[]
   ProductVote ProductVote[]
+  recommendations UserRecommendation[]
 }
 
 model Review {
@@ -242,5 +244,17 @@ model ProductVote {
 
   @@unique([userEmail, productId, week, year]) // Prevent duplicate votes per week
   User User[]
+}
+
+model UserRecommendation {
+  id        String   @id @default(cuid())
+  userEmail String
+  user      User     @relation(fields: [userEmail], references: [email])
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  createdAt DateTime @default(now())
+
+  @@unique([userEmail, productId]) // Prevent duplicate recommendations
+  @@index([userEmail])
 }
 

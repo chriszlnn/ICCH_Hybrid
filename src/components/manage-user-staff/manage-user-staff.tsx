@@ -1,108 +1,192 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useEffect, useState } from "react";
-import { Edit, MoreHorizontal, Search, Trash, Users } from "lucide-react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { Edit, MoreHorizontal, Search, Trash, Users, Plus } from "lucide-react";
 import { generateVerificationToken } from "@/lib/token";
 import { sendVerificationEmail } from "@/lib/mail";
 import Link from "next/link";
 import { Button } from "../ui/general/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CustomDialog,
+  CustomDialogContent,
+  CustomDialogDescription,
+  CustomDialogFooter,
+  CustomDialogHeader,
+  CustomDialogTitle,
+} from "@/components/ui/custom-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "../ui/general/input";
 import { Label } from "../ui/form/label";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  CustomAlertDialog,
+  CustomAlertDialogAction,
+  CustomAlertDialogCancel,
+  CustomAlertDialogContent,
+  CustomAlertDialogDescription,
+  CustomAlertDialogFooter,
+  CustomAlertDialogHeader,
+  CustomAlertDialogTitle,
+} from "@/components/ui/custom-alert-dialog";
+import { Loader2 } from "lucide-react";
+
+interface Client {
+  id: string;
+  userId: string;
+  email: string;
+  username: string | null;
+  emailVerified: string | null;
+  imageUrl?: string;
+}
 
 export default function ManageUserStaff() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<Client | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<any>(null);
-  const [clients, setClients] = useState<{ userId: number; username: string; email: string; emailVerified: string | null }[]>([]);
+  const [itemToDelete, setItemToDelete] = useState<Client | null>(null);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const editDialogRef = useRef<HTMLDivElement>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
 
+  // Use useEffect for client-side initialization
   useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  // Fetch clients data
+  useEffect(() => {
+    let isMounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
+    const baseDelay = 1000;
+
     async function fetchData() {
       try {
         const clientRes = await fetch("/api/clients");
+
+        if (!clientRes.ok) {
+          throw new Error(`HTTP error! status: ${clientRes.status}`);
+        }
+
         const clientData = await clientRes.json();
-        setClients(clientData);
+
+        if (isMounted) {
+          setClients(clientData);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
+        
+        if (retryCount < maxRetries) {
+          const delay = baseDelay * Math.pow(2, retryCount);
+          retryCount++;
+          console.log(`Retrying fetch in ${delay}ms (attempt ${retryCount}/${maxRetries})`);
+          setTimeout(fetchData, delay);
+        } else if (isMounted) {
+          setLoading(false);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
+
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const filteredClients = clients.filter(
-    (client) =>
-      client.userId.toString().includes(searchQuery.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Memoize filtered clients
+  const filteredClients = useMemo(() => {
+    return clients.filter((client) => {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        (client.userId?.toString() || '').toLowerCase().includes(searchLower) ||
+        (client.email || '').toLowerCase().includes(searchLower) ||
+        (client.username || '').toLowerCase().includes(searchLower)
+      );
+    });
+  }, [clients, searchQuery]);
 
-  const handleEdit = (item: any) => {
-    setEditingItem({ ...item });
+  // Client handlers
+  const handleEditClient = useCallback((client: Client) => {
+    setEditingItem({ ...client });
     setIsEditDialogOpen(true);
-  };
+  }, []);
 
-  const handleDelete = (item: any) => {
-    setItemToDelete(item);
+  const handleDeleteClient = useCallback((client: Client) => {
+    setItemToDelete(client);
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const confirmDelete = async () => {
-    if (!itemToDelete) return;
+  const handleCloseEditDialog = useCallback(() => {
+    setIsEditDialogOpen(false);
+    setTimeout(() => {
+      setEditingItem(null);
+    }, 300);
+  }, []);
 
+  const handleCloseDeleteDialog = useCallback(() => {
+    setDeleteDialogOpen(false);
+    setTimeout(() => {
+      setItemToDelete(null);
+    }, 300);
+  }, []);
+
+  const handleConfirmDelete = async () => {
     try {
-      const id = String(itemToDelete.userId);
-      const response = await fetch(`/api/users/${id}`, {
+      setLoading(true);
+      const itemId = itemToDelete?.userId;
+      if (!itemId) return;
+
+      const endpoint = `/api/users/${itemId}`;
+      const response = await fetch(endpoint, {
         method: "DELETE",
       });
 
-      if (response.ok) {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to delete item:", errorData.error || response.statusText);
+        if (errorData.details) {
+          console.error("Error details:", errorData.details);
+        }
+      } else {
+        // Refresh data after successful deletion
         const clientRes = await fetch("/api/clients");
         const clientData = await clientRes.json();
         setClients(clientData);
-        setDeleteDialogOpen(false);
-        setItemToDelete(null);
-      } else {
-        console.error("Failed to delete item");
       }
     } catch (error) {
-      console.error("Error deleting item:", error);
+      console.error("Error during deletion:", error);
+    } finally {
+      setLoading(false);
+      setDeleteDialogOpen(false);
+      setItemToDelete(null);
     }
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingItem) return;
-
+  const handleConfirmEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
+      setLoading(true);
+      const itemToUpdate = editingItem;
+      if (!itemToUpdate) return;
+
+      const endpoint = `/api/users/${itemToUpdate.userId}`;
+
+      // Only send the emailVerified field for client updates
       const requestBody = {
-        emailVerified: editingItem.emailVerified ? "Verified" : "Unverified",
+        emailVerified: itemToUpdate.emailVerified ? "Verified" : "Unverified",
       };
 
-      const response = await fetch(`/api/users/${editingItem.userId}`, {
+      const response = await fetch(endpoint, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -110,21 +194,26 @@ export default function ManageUserStaff() {
         body: JSON.stringify(requestBody),
       });
 
-      if (response.ok) {
-        const clientRes = await fetch("/api/clients");
-        const clientData = await clientRes.json();
-        setClients(clientData);
-        setIsEditDialogOpen(false);
-        setEditingItem(null);
-      } else {
-        console.error("Failed to update item");
+      if (!response.ok) {
+        throw new Error("Failed to update item");
       }
+
+      // Refresh data after successful update
+      const clientRes = await fetch("/api/clients");
+      const clientData = await clientRes.json();
+      setClients(clientData);
+      setIsEditDialogOpen(false);
     } catch (error) {
       console.error("Error updating item:", error);
+    } finally {
+      setLoading(false);
+      setEditingItem(null);
     }
   };
 
   const handleResendVerificationEmail = async () => {
+    if (!editingItem) return;
+    
     try {
       const response = await fetch(`/api/users/${editingItem.userId}`, {
         method: "POST",
@@ -151,7 +240,7 @@ export default function ManageUserStaff() {
             <span className="flex md:inline-block">Users</span>
           </Link>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <form className="relative hidden md:block">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -221,11 +310,11 @@ export default function ManageUserStaff() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEdit(client)}>
+                              <DropdownMenuItem onClick={() => handleEditClient(client)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDelete(client)}>
+                              <DropdownMenuItem onClick={() => handleDeleteClient(client)}>
                                 <Trash className="mr-2 h-4 w-4" />
                                 Delete
                               </DropdownMenuItem>
@@ -243,18 +332,18 @@ export default function ManageUserStaff() {
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Client</DialogTitle>
-            <DialogDescription>
+      <CustomDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <CustomDialogContent className="max-w-[500px] p-6">
+          <CustomDialogHeader className="space-y-2">
+            <CustomDialogTitle>Edit Client Information</CustomDialogTitle>
+            <CustomDialogDescription>
               Make changes to the client information here.
-            </DialogDescription>
-          </DialogHeader>
+            </CustomDialogDescription>
+          </CustomDialogHeader>
           {editingItem && (
-            <div className="grid gap-4 py-4">
+            <div className="space-y-4 mt-4">
               {/* Client ID (non-editable) */}
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="clientId">Client ID</Label>
                 <Input
                   id="clientId"
@@ -264,7 +353,7 @@ export default function ManageUserStaff() {
               </div>
 
               {/* Email (read-only) */}
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
@@ -274,7 +363,7 @@ export default function ManageUserStaff() {
               </div>
 
               {/* Status Dropdown (editable) */}
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <select
                   id="status"
@@ -285,7 +374,7 @@ export default function ManageUserStaff() {
                       emailVerified: e.target.value === "Verified" ? new Date().toISOString() : null,
                     })
                   }
-                  className="p-2 border rounded"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                 >
                   <option value="Verified">Verified</option>
                   <option value="Unverified">Unverified</option>
@@ -294,10 +383,11 @@ export default function ManageUserStaff() {
 
               {/* Resend Verification Email Button */}
               {!editingItem.emailVerified && (
-                <div className="grid gap-2">
+                <div className="space-y-2">
                   <Button
                     onClick={handleResendVerificationEmail}
                     disabled={!editingItem.email}
+                    className="w-full"
                   >
                     Resend Verification Email
                   </Button>
@@ -305,32 +395,53 @@ export default function ManageUserStaff() {
               )}
             </div>
           )}
-          <DialogFooter>
+          <CustomDialogFooter className="mt-6">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit}>Save changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <Button onClick={handleConfirmEdit} disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </CustomDialogFooter>
+        </CustomDialogContent>
+      </CustomDialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the client and remove their data from our servers.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Delete Dialog */}
+      <CustomAlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <CustomAlertDialogContent className="max-w-[500px] p-6">
+          <CustomAlertDialogHeader className="space-y-2">
+            <CustomAlertDialogTitle>Are you sure?</CustomAlertDialogTitle>
+            <CustomAlertDialogDescription>
+              This action cannot be undone. This will permanently delete the client account
+              and remove their data from our servers.
+            </CustomAlertDialogDescription>
+          </CustomAlertDialogHeader>
+          <CustomAlertDialogFooter className="mt-6">
+            <CustomAlertDialogCancel>Cancel</CustomAlertDialogCancel>
+            <CustomAlertDialogAction 
+              onClick={handleConfirmDelete} 
+              className="bg-destructive text-destructive-foreground"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </CustomAlertDialogAction>
+          </CustomAlertDialogFooter>
+        </CustomAlertDialogContent>
+      </CustomAlertDialog>
     </div>
   );
 }

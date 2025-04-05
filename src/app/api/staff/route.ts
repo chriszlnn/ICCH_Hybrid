@@ -2,17 +2,48 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { auth } from "@/lib/auth";
+import { withDbConnection } from "@/lib/db-utils";
 
 export async function GET() {
   try {
-    const staff = await prisma.staff.findMany();
-    return NextResponse.json(staff);
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const result = await withDbConnection(async () => {
+      const staff = await prisma.staff.findMany({
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              emailVerified: true,
+            },
+          },
+        },
+      });
+
+      return staff.map((staffMember) => ({
+        id: staffMember.id,
+        userId: staffMember.userId,
+        email: staffMember.user.email,
+        name: staffMember.name,
+        department: staffMember.department,
+        emailVerified: staffMember.user.emailVerified,
+      }));
+    });
+
+    return NextResponse.json(result);
   } catch (error) {
-    return NextResponse.json({ error: "Failed to fetch staff" }, { status: 500 });
+    console.error("Error fetching staff:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch staff" },
+      { status: 500 }
+    );
   }
 }
-
-
 
 export async function POST(request: Request) {
   try {

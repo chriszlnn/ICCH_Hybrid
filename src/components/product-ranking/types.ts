@@ -44,6 +44,11 @@ export interface Review {
   author: {
     name?: string
     email: string
+    image?: string
+    client?: {
+      imageUrl?: string
+      username?: string
+    }
   }
   rating: number
   content?: string

@@ -30,7 +30,6 @@ export function ProductRanking() {
         if (selectedSubcategory) {
           url += `&subcategory=${selectedSubcategory}`
         }
-        url += `&limit=3`
 
         const response = await fetch(url)
         

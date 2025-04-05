@@ -4,12 +4,11 @@ import { useState, useEffect } from "react"
 import { ProductVotesTable } from "./product-votes-table"
 import { ProductStats } from "./product-stats"
 import { ProductReviews } from "./product-reviews"
-import { mockProducts } from "../product-ranking/mock-data"
-import { mockReviews } from "../product-ranking/review-data"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart3, MessageSquare, Filter, Vote } from "lucide-react"
 import type { Product, Category } from "../product-ranking/types"
 import { categoryOptions } from "../product-ranking/mock-data"
+import { toast } from "sonner"
 
 export function ProductVotes() {
   const [products, setProducts] = useState<Product[]>([])
@@ -18,50 +17,38 @@ export function ProductVotes() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch products - will be replaced with API call
+  // Fetch products with votes
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setIsLoading(true)
-        // BACKEND INTEGRATION POINT:
-        // Replace with actual API call
-        // const response = await fetch('/api/admin/products')
-        // const data = await response.json()
-        // setProducts(data)
-
-        // Using mock data for now
-        setProducts(mockProducts)
+        const params = new URLSearchParams()
+        if (selectedCategory !== "all") {
+          params.append("category", selectedCategory)
+        }
+        if (selectedSubcategory) {
+          params.append("subcategory", selectedSubcategory)
+        }
+        const response = await fetch(`/api/votes/top?${params.toString()}`)
+        const data = await response.json()
+        if (data.error) {
+          throw new Error(data.error)
+        }
+        setProducts(data.products)
       } catch (error) {
         console.error("Failed to fetch products", error)
+        toast.error("Failed to fetch products")
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchProducts()
-  }, [])
+  }, [selectedCategory, selectedSubcategory])
 
   // Get the current category data
   const currentCategoryData =
     selectedCategory !== "all" ? categoryOptions.find((cat) => cat.id === selectedCategory) : null
-
-  // Filter products by category and subcategory
-  const filteredProducts = products.filter((product) => {
-    // First filter by category if not "all"
-    if (selectedCategory !== "all" && product.category !== selectedCategory) {
-      return false
-    }
-
-    // Then filter by subcategory if one is selected
-    if (selectedSubcategory && product.subcategory.toLowerCase() !== selectedSubcategory.toLowerCase()) {
-      return false
-    }
-
-    return true
-  })
-
-  // Sort products by votes (reviewCount is used as votes in the mock data)
-  const sortedProducts = [...filteredProducts].sort((a, b) => b.reviewCount - a.reviewCount)
 
   const handleCategoryChange = (category: Category | "all") => {
     setSelectedCategory(category)
@@ -80,8 +67,11 @@ export function ProductVotes() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+      <div className="min-h-screen w-full flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+          <p className="text-sm text-gray-500">Loading products...</p>
+        </div>
       </div>
     )
   }
@@ -152,7 +142,7 @@ export function ProductVotes() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <ProductVotesTable
-            products={sortedProducts}
+            products={products}
             onSelectProduct={handleProductSelect}
             selectedProductId={selectedProduct?.id}
           />
@@ -175,20 +165,14 @@ export function ProductVotes() {
                 <ProductStats product={selectedProduct} />
               </TabsContent>
               <TabsContent value="reviews" className="mt-4">
-                <ProductReviews productId={selectedProduct.id} reviews={mockReviews[selectedProduct.id] || []} />
+                <ProductReviews productId={selectedProduct.id} />
               </TabsContent>
             </Tabs>
           ) : (
-            <div className="bg-white rounded-lg shadow-md border border-gray-100 p-8 text-center">
-              <div className="flex flex-col items-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                  <BarChart3 className="h-8 w-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-700 mb-2">No Product Selected</h3>
-                <p className="text-gray-500 max-w-xs mx-auto">
-                  Select a product from the table to view detailed statistics and customer reviews
-                </p>
-              </div>
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100 text-center">
+              <Vote className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Product</h3>
+              <p className="text-gray-500">Choose a product from the list to view its statistics and reviews</p>
             </div>
           )}
         </div>

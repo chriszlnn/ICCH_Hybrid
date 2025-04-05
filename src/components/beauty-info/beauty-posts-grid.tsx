@@ -1,97 +1,94 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
 import BeautyPostPreview from "./beauty-post-preview";
 import { useSession } from "next-auth/react";
 import BeautyPostPreviewSkeleton from "./BeautyPostPreviewSkeleton";
+import useSWR from "swr";
+import { useCallback } from "react";
+
+interface BeautyPost {
+  id: number;
+  title: string;
+  images: string[];
+  file: string;
+  likes: number;
+  userLiked: boolean;
+  userId?: string;
+  email?: string;
+  username?: string;
+}
+
+// Fetcher function for SWR
+const fetcher = async (url: string): Promise<BeautyPost[]> => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch posts");
+  return res.json();
+};
 
 export default function BeautyPostsGrid() {
-  const [posts, setPosts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const { data: session } = useSession();
-
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        const response = await fetch("/api/beauty-info");
-        if (!response.ok) throw new Error("Failed to fetch posts");
-
-        const data = await response.json();
-        console.log("API Response:", data); // Log the API response
-        setPosts(data);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (session) {
-      fetchPosts();
+  
+  // Use SWR for data fetching with caching
+  const { data: posts, error, mutate } = useSWR<BeautyPost[]>(
+    session ? "/api/beauty-info" : null,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      refreshInterval: 30000, // Refresh every 30 seconds
+      dedupingInterval: 5000, // Dedupe requests within 5 seconds
     }
-  }, [session]);
+  );
 
-  const handleLike = async (postId: number) => {
-    const post = posts.find((post) => post.id === postId);
+  // Memoize the like handler
+  const handleLike = useCallback(async (postId: number) => {
+    if (!session?.user?.email || !posts) return;
+
+    const post = posts.find((p: BeautyPost) => p.id === postId);
     if (!post) return;
-  
-    // Calculate the new liked status and likes count
-    const newLikedStatus = !post.userLiked; // Use userLiked instead of liked
+
+    const newLikedStatus = !post.userLiked;
     const newLikesCount = newLikedStatus ? post.likes + 1 : post.likes - 1;
-  
-    // Optimistically update the local state
-    setPosts((prevPosts) =>
-      prevPosts.map((post) =>
-        post.id === postId
-          ? { ...post, likes: newLikesCount, userLiked: newLikedStatus }
-          : post
-      )
+
+    // Optimistically update the UI
+    const updatedPosts = posts.map((p: BeautyPost) =>
+      p.id === postId
+        ? { ...p, likes: newLikesCount, userLiked: newLikedStatus }
+        : p
     );
-  
-    // Sync with the backend
+    mutate(updatedPosts, false); // Update UI immediately without revalidation
+
     try {
       const response = await fetch(`/api/beauty-info/${postId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ liked: newLikedStatus, userEmail: session?.user?.email }),
+        body: JSON.stringify({ liked: newLikedStatus, userEmail: session.user.email }),
       });
-  
+
       if (!response.ok) throw new Error("Failed to update like");
-  
-      // Optionally, refetch posts to ensure the backend and frontend are in sync
-      const updatedResponse = await fetch("/api/beauty-info");
-      if (!updatedResponse.ok) throw new Error("Failed to fetch updated posts");
-      const updatedData = await updatedResponse.json();
-      setPosts(updatedData);
+
+      // Revalidate the data to ensure consistency
+      mutate();
     } catch (error) {
       console.error("Error updating like:", error);
-  
-      // Revert the local state if the API call fails
-      setPosts((prevPosts) =>
-        prevPosts.map((post) =>
-          post.id === postId
-            ? { ...post, likes: post.likes, userLiked: post.userLiked }
-            : post
-        )
-      );
+      // Revert the optimistic update on error
+      mutate();
     }
-  };
+  }, [posts, session, mutate]);
 
-  
-  if (error) return <p className="text-red-500">Error: {error}</p>;
+  if (error) return <p className="text-red-500">Error: {error.message}</p>;
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-    {loading && <BeautyPostPreviewSkeleton />}
-    {!loading && posts.map((post) => (
-      <BeautyPostPreview
-        key={post.id}
-        post={post}
-        onLike={() => handleLike(post.id)}
-      />
-    ))}
+      {!posts && <BeautyPostPreviewSkeleton />}
+      {posts?.map((post: BeautyPost) => (
+        <BeautyPostPreview
+          key={post.id}
+          post={post}
+          onLike={() => handleLike(post.id)}
+        />
+      ))}
     </div>
   );
 }

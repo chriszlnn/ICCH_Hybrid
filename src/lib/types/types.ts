@@ -10,6 +10,8 @@ export interface BeautyPost {
     images: string[];
     file: string;      // Added to match Prisma schema
     likes: number;
+    userLiked: boolean;
+    body?: string;
     createdAt?: Date;  // Optional since you might not always need these
     updatedAt?: Date;  // Optional since you might not always need these
     liked?: boolean;   // Client-side state

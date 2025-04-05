@@ -22,7 +22,7 @@ export async function GET(request: Request) {
       const { searchParams } = new URL(request.url)
       const category = searchParams.get('category')
       const subcategory = searchParams.get('subcategory')
-      const limit = searchParams.get('limit') || '3'
+      const limit = searchParams.get('limit') // Keep this for backward compatibility
   
       if (!category) {
         return NextResponse.json(
@@ -33,14 +33,15 @@ export async function GET(request: Request) {
   
       const products = await prisma.product.findMany({
         where: {
-            category: { equals: category, mode: 'insensitive' }, // This fixes it
+            category: { equals: category, mode: 'insensitive' },
             subcategory: { equals: subcategory, mode: 'insensitive' }
           },
         orderBy: [
-          { rank: 'asc' }, // Sort by rank if exists
-          { createdAt: 'desc' } // Fallback to creation date
+          { votes: 'desc' }, // First by votes
+          { reviewCount: 'desc' }, // Then by review count
+          { createdAt: 'desc' } // Finally by creation date
         ],
-        take: parseInt(limit),
+        ...(limit ? { take: parseInt(limit) } : {}),
         include: {
           reviews: true,
           productLikes: true,
@@ -48,9 +49,10 @@ export async function GET(request: Request) {
         }
       })
   
-      const productsWithStats = products.map(product => ({
+      // Assign ranks based on the sorted order within this subcategory
+      const productsWithStats = products.map((product, index) => ({
         ...product,
-        rank: product.rank || 999, // Default rank for unranked products
+        rank: index + 1, // Assign rank based on position in sorted array
         rating: product.reviews.length > 0 
           ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length 
           : 0,

@@ -1,15 +1,35 @@
 "use client"
+import { useState, useEffect } from "react"
 import { Trophy, Heart, Star, TrendingUp, BarChart3, Users, Calendar, Tag, Vote } from "lucide-react"
 import type { Product } from "../product-ranking/types"
+import { AddToRecommendationsButton } from "@/components/product/add-to-recommendations-button"
 
 interface ProductStatsProps {
   product: Product
 }
 
 export function ProductStats({ product }: ProductStatsProps) {
-  // Calculate percentage for likes bar (assuming 5000 is max likes for visualization)
-  const maxLikes = 5000
-  const likesPercentage = Math.min((product.likes / maxLikes) * 100, 100)
+  const [totalUsers, setTotalUsers] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchTotalUsers = async () => {
+      try {
+        const response = await fetch("/api/users")
+        const users = await response.json()
+        setTotalUsers(users.length)
+      } catch (error) {
+        console.error("Error fetching total users:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTotalUsers()
+  }, [])
+
+  // Calculate likes percentage based on total users
+  const likesPercentage = totalUsers > 0 ? Math.min((product.likes / totalUsers) * 100, 100) : 0
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-100">
@@ -35,8 +55,13 @@ export function ProductStats({ product }: ProductStatsProps) {
             )}
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
-            <p className="text-sm text-gray-500">{product.brand}</p>
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
+                <p className="text-sm text-gray-500">{product.brand}</p>
+              </div>
+              <AddToRecommendationsButton productId={product.id} variant="icon" />
+            </div>
             <div className="flex items-center gap-2 mt-1">
               <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium">
                 {product.category}
@@ -50,7 +75,13 @@ export function ProductStats({ product }: ProductStatsProps) {
               <Calendar className="h-3 w-3 mr-1" />
               Added on {product.date}
             </div>
-            <p className="text-sm mt-2 text-gray-700">{product.description.substring(0, 100)}...</p>
+            {product.description && (
+              <p className="text-sm mt-2 text-gray-700">
+                {product.description.length > 100 
+                  ? `${product.description.substring(0, 100)}...` 
+                  : product.description}
+              </p>
+            )}
           </div>
         </div>
 
@@ -90,15 +121,20 @@ export function ProductStats({ product }: ProductStatsProps) {
                 <span className="text-2xl font-bold text-gray-900">{product.likes}</span>
               </div>
               <div className="mt-2">
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-red-400 to-red-500 rounded-full"
-                    style={{ width: `${likesPercentage}%` }}
-                  ></div>
+                <div className="flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-red-500" />
+                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-red-500 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${likesPercentage}%` 
+                      }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">{product.likes}</span>
                 </div>
-                <div className="flex justify-between mt-1 text-xs text-gray-500">
-                  <span>0</span>
-                  <span>{maxLikes}</span>
+                <div className="text-xs text-gray-500 mt-1">
+                  {loading ? "Loading..." : `${likesPercentage.toFixed(1)}% of total users`}
                 </div>
               </div>
             </div>

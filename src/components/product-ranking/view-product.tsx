@@ -7,6 +7,7 @@ import { Star, ArrowLeft, MessageSquare } from "lucide-react"
 import { ReviewSection } from "./review-section"
 import { WriteReviewModal } from "./write-review-modal"
 import { AnimatedHeart } from "../ui/animated-heart"
+import { AddToRecommendationsButton } from "../product/add-to-recommendations-button"
 import {
   Dialog,
   DialogContent,
@@ -260,26 +261,37 @@ export function ViewProduct() {
 
               <div className="text-3xl font-bold text-gray-900 mb-6">RM{product.price ? product.price.toFixed(2) : '0.00'}</div>
 
-              <div className="flex space-x-4 mb-6">
-                <button
-                  onClick={openVoteDialog}
-                  disabled={hasVoted}
-                  className={`flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-md transition-colors ${
-                    hasVoted ? "opacity-70 cursor-not-allowed" : ""
-                  }`}
-                >
-                  {hasVoted ? "Voted" : "Vote"}
-                </button>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                  <Button
+                    onClick={openVoteDialog}
+                    disabled={hasVoted}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {hasVoted ? 'Already Voted' : 'Vote for Product'}
+                  </Button>
+                  <AnimatedHeart 
+                    isLiked={isLiked} 
+                    onClick={toggleLike}
+                    className={isLiked ? 'text-red-500' : ''}
+                  />
+                  <AddToRecommendationsButton productId={productId} />
+                </div>
                 {hasVoted && nextVoteDate && (
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-sm text-gray-500">
                     You can vote again on {nextVoteDate.toLocaleDateString()}
                   </div>
                 )}
-                <AnimatedHeart
-                  isLiked={isLiked}
-                  onClick={toggleLike}
-                  size={24}
-                />
+              </div>
+
+              <div className="mt-6">
+                <button
+                  onClick={() => setIsReviewModalOpen(true)}
+                  className="flex items-center text-gray-700 hover:text-green-600"
+                >
+                  <MessageSquare className="h-5 w-5 mr-2" />
+                  <span>Write a Review</span>
+                </button>
               </div>
             </div>
 

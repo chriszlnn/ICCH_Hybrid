@@ -1,16 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-
-// Singleton pattern for PrismaClient
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+import { auth } from "@/lib/auth";
+import { withDbConnection } from "@/lib/db-utils";
 
 // Input validation schema for product updates
 const updateProductSchema = z.object({
@@ -20,6 +13,7 @@ const updateProductSchema = z.object({
   category: z.string().optional(),
   subcategory: z.string().optional().nullable(),
   image: z.string().optional(),
+  tags: z.array(z.string()).optional(),
 }).partial(); // Make all fields optional
 
 // GET a single product by ID
@@ -35,6 +29,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         category: true,
         subcategory: true,
         image: true,
+        tags: true,
       },
     });
 
@@ -59,8 +54,9 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     console.log('Received update request body:', JSON.stringify(body, null, 2));
     
     // Validate input
+    let validatedData;
     try {
-      const validatedData = updateProductSchema.parse(body);
+      validatedData = updateProductSchema.parse(body);
       console.log('Validated data:', JSON.stringify(validatedData, null, 2));
     } catch (validationError) {
       console.error('Validation error:', validationError);
@@ -82,16 +78,25 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
+    // Prepare update data
+    const updateData = {
+      ...validatedData,
+      updatedAt: new Date(),
+    };
+
     const updatedProduct = await prisma.product.update({
       where: { id: params.id },
-      data: body, // Use the raw body since we've already validated it
+      data: updateData,
       select: {
         id: true,
         name: true,
+        description: true,
         price: true,
         category: true,
         subcategory: true,
         image: true,
+        tags: true,
+        updatedAt: true,
       },
     });
 
@@ -113,26 +118,56 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE a product by ID
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    // Check if product exists before deleting
-    const existingProduct = await prisma.product.findUnique({
-      where: { id: params.id },
-    });
-
-    if (!existingProduct) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await prisma.product.delete({
-      where: { id: params.id },
+    const resolvedParams = await context.params;
+    const productId = resolvedParams.id;
+
+    if (!productId) {
+      return NextResponse.json({ error: "Product ID is required" }, { status: 400 });
+    }
+
+    const result = await withDbConnection(async () => {
+      // First, delete all related records
+      await Promise.all([
+        prisma.productLike.deleteMany({
+          where: { productId },
+        }),
+        prisma.review.deleteMany({
+          where: { productId },
+        }),
+        prisma.productVote.deleteMany({
+          where: { productId },
+        }),
+        prisma.userRecommendation.deleteMany({
+          where: { productId },
+        }),
+      ]);
+
+      // Then delete the product
+      const deletedProduct = await prisma.product.delete({
+        where: { id: productId },
+      });
+
+      return deletedProduct;
     });
 
-    return NextResponse.json({ message: 'Product deleted successfully' });
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Error deleting product:', error);
+    console.error("Error deleting product:", error);
     return NextResponse.json(
-      { error: 'Failed to delete product' },
+      { 
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
