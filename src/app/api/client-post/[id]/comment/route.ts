@@ -19,9 +19,10 @@ export async function GET(
         where: { postId: id },
         include: {
           user: {
-            select: {
-              email: true,
-              image: true
+            include: {
+              client: true,
+              admin: true,
+              staff: true
             }
           }
         },
@@ -31,7 +32,22 @@ export async function GET(
       });
     });
 
-    return NextResponse.json(comments);
+    // Transform the comments to include the profile image and username
+    const transformedComments = comments.map(comment => {
+      const roleData = comment.user.client || comment.user.admin || comment.user.staff;
+      return {
+        id: comment.id,
+        content: comment.content,
+        createdAt: comment.createdAt,
+        user: {
+          email: comment.user.email,
+          image: roleData?.imageUrl || comment.user.image || "/blank-profile.svg",
+          username: roleData?.username || comment.user.email.split('@')[0]
+        }
+      };
+    });
+
+    return NextResponse.json(transformedComments);
   } catch (error) {
     console.error("Error fetching comments:", error);
     return NextResponse.json(
@@ -64,7 +80,11 @@ export async function POST(
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true }
+      include: {
+        client: true,
+        admin: true,
+        staff: true
+      }
     });
 
     if (!user) {
@@ -80,16 +100,30 @@ export async function POST(
         },
         include: {
           user: {
-            select: {
-              email: true,
-              image: true
+            include: {
+              client: true,
+              admin: true,
+              staff: true
             }
           }
         }
       });
     });
 
-    return NextResponse.json(comment);
+    // Transform the comment to include the profile image and username
+    const roleData = comment.user.client || comment.user.admin || comment.user.staff;
+    const transformedComment = {
+      id: comment.id,
+      content: comment.content,
+      createdAt: comment.createdAt,
+      user: {
+        email: comment.user.email,
+        image: roleData?.imageUrl || comment.user.image || "/blank-profile.svg",
+        username: roleData?.username || comment.user.email.split('@')[0]
+      }
+    };
+
+    return NextResponse.json(transformedComment);
   } catch (error) {
     console.error("Error creating comment:", error);
     return NextResponse.json(

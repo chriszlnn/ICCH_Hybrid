@@ -2,8 +2,10 @@
 
 import type React from "react";
 import { useState } from "react";
-import { Star } from "lucide-react";
-import { useSession } from "next-auth/react"; // Import useSession from next-auth
+import { Star, MessageSquarePlus } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 const ISSUE_TAGS = [
   "Application bugs",
@@ -15,23 +17,22 @@ const ISSUE_TAGS = [
 ];
 
 export default function GiveFeedback() {
-  const { data: session } = useSession(); // Get the user session
+  const { data: session } = useSession();
   const [rating, setRating] = useState<number>(0);
   const [hoveredRating, setHoveredRating] = useState<number>(0);
   const [selectedIssues, setSelectedIssues] = useState<string[]>([]);
   const [comment, setComment] = useState<string>("");
   const [submitted, setSubmitted] = useState<boolean>(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate the input (Only rating is required now)
     if (rating === 0) {
       alert("Please select a rating before submitting.");
       return;
     }
 
-    // Get the email from the session
     const email = session?.user?.email;
     if (!email) {
       alert("You must be logged in to submit feedback.");
@@ -39,7 +40,6 @@ export default function GiveFeedback() {
     }
 
     try {
-      // Send the feedback data to the API
       const response = await fetch("/api/feedback", {
         method: "POST",
         headers: {
@@ -47,20 +47,22 @@ export default function GiveFeedback() {
         },
         body: JSON.stringify({
           rating,
-          issues: selectedIssues, // Optional now
+          issues: selectedIssues,
           comment,
           email,
         }),
       });
 
-      // Log the response for debugging
       const responseText = await response.text();
       console.log("Response Text:", responseText);
 
       if (response.ok) {
         setSubmitted(true);
+        setTimeout(() => {
+          setIsOpen(false);
+          handleReset();
+        }, 2000);
       } else {
-        // Parse the response as JSON
         const errorData = JSON.parse(responseText);
         alert(`Failed to submit feedback: ${errorData.error}`);
       }
@@ -84,115 +86,122 @@ export default function GiveFeedback() {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-4 bg-white rounded-lg shadow-md mb-10">
-      <h1 className="text-xl font-bold text-gray-900 mb-3 text-center">Give Feedback</h1>
-      {!submitted ? (
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Rating Section */}
-          <div className="text-center">
-            <h2 className="text-md font-semibold text-gray-900">How was your overall experience?</h2>
-            <p className="text-gray-500 text-sm">It will help us to serve you better.</p>
-            <div className="flex justify-center gap-1 mt-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => setRating(star)}
-                  onMouseEnter={() => setHoveredRating(star)}
-                  onMouseLeave={() => setHoveredRating(0)}
-                  className="p-1 focus:outline-none"
-                  aria-label={`Rate ${star} stars`}
-                >
-                  <Star
-                    size={24}
-                    className={`${
-                      hoveredRating >= star || rating >= star
-                        ? "fill-yellow-400 text-yellow-400"
-                        : "text-gray-300"
-                    }`}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          variant="outline" 
+          className="bg-white hover:bg-gray-50 shadow-md hover:shadow-lg transition-all duration-200 group"
+        >
+          <MessageSquarePlus className="w-4 h-4 sm:mr-2" />
+          <span className="hidden sm:inline group-hover:inline sm:group-hover:inline">Give Feedback</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogTitle className="text-xl font-bold text-gray-900 text-center">Give Feedback</DialogTitle>
+        <div className="w-full p-4">
+          {!submitted ? (
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Rating Section */}
+              <div className="text-center">
+                <h2 className="text-md font-semibold text-gray-900">How was your overall experience?</h2>
+                <p className="text-gray-500 text-sm">It will help us to serve you better.</p>
+                <div className="flex justify-center gap-1 mt-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      onMouseEnter={() => setHoveredRating(star)}
+                      onMouseLeave={() => setHoveredRating(0)}
+                      className="p-1 focus:outline-none"
+                      aria-label={`Rate ${star} stars`}
+                    >
+                      <Star
+                        size={24}
+                        className={`${
+                          hoveredRating >= star || rating >= star
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-gray-300"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Issue Selection (Optional) */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              What is wrong? <span className="text-gray-400">(Optional)</span>
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {ISSUE_TAGS.map((issue) => (
-                <button
-                  key={issue}
-                  type="button"
-                  onClick={() => toggleIssue(issue)}
-                  className={`px-3 py-2 text-sm rounded-lg font-medium transition-colors text-center
-                    ${
-                      selectedIssues.includes(issue)
-                        ? "bg-green-100 text-green-700 border-green-300"
-                        : "bg-gray-100 text-gray-700 border-gray-300"
-                    } border`}
-                >
-                  {issue}
-                </button>
-              ))}
-            </div>
-          </div>
+              {/* Issue Selection (Optional) */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  What is wrong? <span className="text-gray-400">(Optional)</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {ISSUE_TAGS.map((issue) => (
+                    <button
+                      key={issue}
+                      type="button"
+                      onClick={() => toggleIssue(issue)}
+                      className={`px-3 py-2 text-sm rounded-lg font-medium transition-colors text-center
+                        ${
+                          selectedIssues.includes(issue)
+                            ? "bg-green-100 text-green-700 border-green-300"
+                            : "bg-gray-100 text-gray-700 border-gray-300"
+                        } border`}
+                    >
+                      {issue}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Notes Section (Optional) */}
-          <div className="space-y-2">
-            <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-              Notes <span className="text-gray-400">(Optional)</span>
-            </label>
-            <textarea
-              id="notes"
-              placeholder="Please provide any additional feedback..."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              className="w-full min-h-[80px] p-2 text-sm border border-gray-300 rounded-md focus:border-green-500 focus:ring-green-500"
-            />
-          </div>
+              {/* Notes Section (Optional) */}
+              <div className="space-y-2">
+                <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+                  Notes <span className="text-gray-400">(Optional)</span>
+                </label>
+                <textarea
+                  id="notes"
+                  placeholder="Please provide any additional feedback..."
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="w-full min-h-[80px] p-2 text-sm border border-gray-300 rounded-md focus:border-green-500 focus:ring-green-500"
+                />
+              </div>
 
-          {/* Submit Button (Now enabled when rating is selected) */}
-          <button
-            type="submit"
-            className={`w-full py-2 px-4 text-sm font-semibold rounded-md transition duration-200 ${
-              rating === 0
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "bg-green-600 hover:bg-green-700 text-white"
-            }`}
-            disabled={rating === 0}
-          >
-            Submit Feedback
-          </button>
-        </form>
-      ) : (
-        /* Thank You Message */
-        <div className="text-center space-y-3 py-4">
-          <div className="flex justify-center">
-            <div className="rounded-full bg-green-100 p-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-green-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+              {/* Submit Button */}
+              <button
+                type="submit"
+                className={`w-full py-2 px-4 text-sm font-semibold rounded-md transition duration-200 ${
+                  rating === 0
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-green-600 hover:bg-green-700 text-white"
+                }`}
+                disabled={rating === 0}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+                Submit Feedback
+              </button>
+            </form>
+          ) : (
+            /* Thank You Message */
+            <div className="text-center space-y-3 py-4">
+              <div className="flex justify-center">
+                <div className="rounded-full bg-green-100 p-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6 text-green-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="text-md font-semibold text-gray-900">Thank you for your feedback!</h3>
+              <p className="text-gray-500 text-sm">Your input helps us improve our services.</p>
             </div>
-          </div>
-          <h3 className="text-md font-semibold text-gray-900">Thank you for your feedback!</h3>
-          <p className="text-gray-500 text-sm">Your input helps us improve our services.</p>
-          <button
-            onClick={handleReset}
-            className="mt-3 py-2 px-4 text-sm bg-gray-100 text-gray-800 hover:bg-gray-200 font-semibold rounded-md transition duration-200"
-          >
-            Submit another response
-          </button>
+          )}
         </div>
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Heart, MessageCircle, X, ArrowLeft, MoreVertical, Trash2 } from "lucide-react";
+import { Heart, MessageCircle, X, ArrowLeft, MoreVertical, Trash2, Tag } from "lucide-react";
 import { Suspense, useState, useEffect } from "react";
 import { CommentSection } from "@/components/comments/comment-section";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,12 +15,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import Image from "next/image";
+import Link from "next/link";
 
 interface PostLike {
   id: string;
   userId: string;
   postId: string;
   createdAt: Date;
+}
+
+interface TaggedProduct {
+  id: string;
+  productId: string;
+  product: {
+    id: string;
+    name: string;
+    image: string;
+  };
 }
 
 interface Post {
@@ -32,6 +44,9 @@ interface Post {
   likes: PostLike[];
   clientAvatar: string;
   displayName: string;
+  client: {
+    email: string;
+  };
   comments: {
     id: string;
     content: string;
@@ -41,6 +56,7 @@ interface Post {
       image?: string;
     };
   }[];
+  taggedProducts?: TaggedProduct[];
 }
 
 interface PostContentProps {
@@ -55,6 +71,8 @@ export function PostContent({ post }: PostContentProps) {
   const router = useRouter();
   const { data: session } = useSession();
   const { toast } = useToast();
+
+  const isPostOwner = session?.user?.email === post.client.email;
 
   // Check if the current user has already liked the post
   useEffect(() => {
@@ -117,12 +135,7 @@ export function PostContent({ post }: PostContentProps) {
         }),
       });
       
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: newLikedState ? "Post liked" : "Post unliked",
-        });
-      } else {
+      if (!response.ok) {
         // Revert optimistic update if the request failed
         setIsLiked(!newLikedState);
         setLikesCount(newLikedState ? likesCount - 1 : likesCount + 1);
@@ -195,7 +208,7 @@ export function PostContent({ post }: PostContentProps) {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen py-8 bg-gray-50">
+    <div className="flex flex-col p-4 justify-start items-center min-h-screen py-8 pb-24 bg-white overflow-y-auto">
       <div className="w-full max-w-2xl">
         {/* Back Button */}
         <div className="mb-4">
@@ -214,28 +227,35 @@ export function PostContent({ post }: PostContentProps) {
           {/* Post Header */}
           <div className="flex items-center p-4 border-b">
             <Avatar className="h-10 w-10 mr-3">
-              <AvatarImage src={post.clientAvatar} alt="User" />
-              <AvatarFallback>U</AvatarFallback>
+              <AvatarImage 
+                src={post.clientAvatar || "/blank-profile.svg"} 
+                alt={post.displayName} 
+              />
+              <AvatarFallback className="bg-green-100 text-green-800">
+                {post.displayName[0].toUpperCase()}
+              </AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <h2 className="font-semibold">{post.displayName}</h2>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="hover:bg-gray-100">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem 
-                  className="flex items-center cursor-pointer text-red-600 hover:text-red-700"
-                  onClick={handleDelete}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Post
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {isPostOwner && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="hover:bg-gray-100">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem 
+                    className="flex items-center cursor-pointer text-red-600 hover:text-red-700"
+                    onClick={handleDelete}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Post
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
           {/* Post Image */}
@@ -246,6 +266,35 @@ export function PostContent({ post }: PostContentProps) {
               className="object-cover w-full h-full"
             />
           </div>
+
+          {/* Tagged Products */}
+          {post.taggedProducts && post.taggedProducts.length > 0 && (
+            <div className="p-4 border-b">
+              <div className="flex items-center mb-2">
+                <Tag className="h-4 w-4 mr-1 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">Tagged Products</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {post.taggedProducts.map((taggedProduct) => (
+                  <Link 
+                    key={taggedProduct.id}
+                    href={`/client/rank/product/${taggedProduct.productId}`}
+                    className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 rounded-full pl-2 pr-1 py-1 transition-colors"
+                  >
+                    <div className="relative w-6 h-6 rounded-full overflow-hidden">
+                      <Image
+                        src={taggedProduct.product.image || "/placeholder.svg"}
+                        alt={taggedProduct.product.name}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <span className="text-sm truncate max-w-[150px]">{taggedProduct.product.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Post Actions */}
           <div className="p-4 border-b">

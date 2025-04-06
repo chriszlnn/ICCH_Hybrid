@@ -298,7 +298,16 @@ export function PostClient() {
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
-  // Validate inputs...
+  // Validate inputs
+  if (!images || images.length === 0) {
+    toast.error("Please upload at least one image");
+    return;
+  }
+
+  if (!selectedProducts || selectedProducts.length === 0) {
+    toast.error("Please select at least one product to tag");
+    return;
+  }
 
   setIsSubmitting(true);
 
@@ -309,9 +318,9 @@ const handleSubmit = async (e: React.FormEvent) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        title: "New Post", // or get from input if you have a title field
+        title: "New Post",
         images: images,
-        content: caption, // renamed from 'file' to 'content'
+        content: caption.trim() || "", // Make caption optional by providing empty string if not set
         productIds: selectedProducts,
       }),
     });

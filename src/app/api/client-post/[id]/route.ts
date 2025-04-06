@@ -98,35 +98,51 @@ export async function DELETE(
       );
     }
 
-    // Get the post and check ownership
-    const post = await prisma.clientPost.findUnique({
-      where: { id: params.id },
-      include: { client: { include: { user: true } } }
-    });
+    const userEmail = session.user.email;
 
-    if (!post) {
-      return NextResponse.json(
-        { error: "Post not found" },
-        { status: 404 }
-      );
-    }
+    // Use withDbConnection for better connection handling
+    await withDbConnection(async () => {
+      // Get the post and check ownership
+      const post = await prisma.clientPost.findUnique({
+        where: { id: params.id },
+        include: { client: { include: { user: true } } }
+      });
 
-    // Check if the current user owns the post
-    if (post.client.user.email !== session.user.email) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 403 }
-      );
-    }
+      if (!post) {
+        throw new Error("Post not found");
+      }
 
-    // Delete the post
-    await prisma.clientPost.delete({
-      where: { id: params.id }
+      // Check if the current user owns the post
+      if (post.client.user.email !== userEmail) {
+        throw new Error("Unauthorized");
+      }
+
+      // Delete the post
+      await prisma.clientPost.delete({
+        where: { id: params.id }
+      });
     });
 
     return NextResponse.json({ message: "Post deleted successfully" });
   } catch (error) {
     console.error("Error deleting post:", error);
+    
+    // Handle specific error types
+    if (error instanceof Error) {
+      if (error.message === "Post not found") {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 404 }
+        );
+      }
+      if (error.message === "Unauthorized") {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 403 }
+        );
+      }
+    }
+    
     return NextResponse.json(
       { error: "Failed to delete post" },
       { status: 500 }
@@ -148,52 +164,71 @@ export async function PATCH(
       );
     }
 
-    // Get the post and check ownership
-    const post = await prisma.clientPost.findUnique({
-      where: { id: params.id },
-      include: { client: { include: { user: true } } }
-    });
+    const userEmail = session.user.email;
 
-    if (!post) {
-      return NextResponse.json(
-        { error: "Post not found" },
-        { status: 404 }
-      );
-    }
+    // Use withDbConnection for better connection handling
+    const updatedPost = await withDbConnection(async () => {
+      // Get the post and check ownership
+      const post = await prisma.clientPost.findUnique({
+        where: { id: params.id },
+        include: { client: { include: { user: true } } }
+      });
 
-    // Check if the current user owns the post
-    if (post.client.user.email !== session.user.email) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 403 }
-      );
-    }
+      if (!post) {
+        throw new Error("Post not found");
+      }
 
-    // Get the request body
-    const body = await request.json();
-    const { title, content, images } = body;
+      // Check if the current user owns the post
+      if (post.client.user.email !== userEmail) {
+        throw new Error("Unauthorized");
+      }
 
-    // Validate the request body
-    if (!title || !content || !images || !Array.isArray(images) || images.length === 0) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
+      // Get the request body
+      const body = await request.json();
+      const { title, content, images } = body;
 
-    // Update the post
-    const updatedPost = await prisma.clientPost.update({
-      where: { id: params.id },
-      data: {
-        title,
-        content,
-        images,
-      },
+      // Validate the request body
+      if (!title || !content || !images || !Array.isArray(images) || images.length === 0) {
+        throw new Error("Missing required fields");
+      }
+
+      // Update the post
+      return prisma.clientPost.update({
+        where: { id: params.id },
+        data: {
+          title,
+          content,
+          images,
+        },
+      });
     });
 
     return NextResponse.json(updatedPost);
   } catch (error) {
     console.error("Error updating post:", error);
+    
+    // Handle specific error types
+    if (error instanceof Error) {
+      if (error.message === "Post not found") {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 404 }
+        );
+      }
+      if (error.message === "Unauthorized") {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 403 }
+        );
+      }
+      if (error.message === "Missing required fields") {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 400 }
+        );
+      }
+    }
+    
     return NextResponse.json(
       { error: "Failed to update post" },
       { status: 500 }
