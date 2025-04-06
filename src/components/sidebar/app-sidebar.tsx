@@ -10,7 +10,7 @@ import { signOut } from "next-auth/react";
 const items = [
   { title: "Home", url: "/client", icon: Home },
   { title: "Information", url: "/client/information", icon: Info },
-  { title: "Post", url: "#", icon: PenSquare },
+  { title: "Post", url: "/client/post", icon: PenSquare },
   { title: "Rank", url: "/client/rank", icon: Trophy },
   { title: "Profile", url: "/client/profile", icon: User },
 ];

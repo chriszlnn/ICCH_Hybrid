@@ -10,7 +10,7 @@ export const ourFileRouter = {
   imageUploader: f({
     image: {
       maxFileSize: "4MB",
-      maxFileCount: 3,
+      maxFileCount: 5,
     },
   })
     .middleware(async () => {
@@ -18,30 +18,17 @@ export const ourFileRouter = {
         const session = await auth();
         console.log("Session in UploadThing middleware:", JSON.stringify(session, null, 2));
         
-        if (!session?.user?.email) {
-          console.log("Unauthorized: No user email in session");
-          throw new UploadThingError("Unauthorized");
-        }
+        if (!session?.user) throw new Error("Unauthorized");
         
-        // Find the user by email
-        const user = await prisma.user.findUnique({
-          where: { email: session.user.email }
-        });
-        
-        if (!user) {
-          console.log("Unauthorized: User not found in database");
-          throw new UploadThingError("Unauthorized");
-        }
-        
-        return { userId: user.id };
+        return { userId: session.user.id };
       } catch (error) {
         console.error("Auth error in UploadThing middleware:", error);
         throw new UploadThingError("Unauthorized");
       }
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      console.log("Image uploaded by userId:", metadata.userId);
-      console.log("File URL:", file.url);
+      console.log("Upload complete for userId:", metadata.userId);
+      console.log("file url", file.url);
       return { uploadedBy: metadata.userId, fileUrl: file.url };
     }),
 

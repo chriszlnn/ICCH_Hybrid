@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { UploadButton } from "@/lib/utils/uploadthing";
 import { useSession } from "next-auth/react";
+import { useToast } from "@/components/ui/toast/use-toast";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export function UploadModal({ isOpen, onClose, onUpload }: UploadModalProps) {
   const [imageUrl, setImageUrl] = useState<string>("");
   const { data: session } = useSession();
   const userEmail = session?.user?.email;
+  const { toast } = useToast();
 
   // ✅ Fetch user data when the modal opens
   useEffect(() => {
@@ -73,7 +75,52 @@ export function UploadModal({ isOpen, onClose, onUpload }: UploadModalProps) {
           }}
           
           onUploadError={(error: Error) => {
-            alert(`ERROR! ${error.message}`);
+            // Show toast notification for upload errors
+            toast({
+              title: "Upload Error",
+              description: error.message,
+              variant: "destructive",
+              duration: 5000, // 5 seconds
+            });
+          }}
+          
+          onUploadProgress={(progress) => {
+            // Optional: You can add a progress toast if needed
+            if (progress === 100) {
+              toast({
+                title: "Upload Complete",
+                description: "Your image has been uploaded successfully.",
+                duration: 3000, // 3 seconds
+              });
+            }
+          }}
+          
+          onBeforeUploadBegin={(files) => {
+            // Check file size (limit to 5MB)
+            const file = files[0];
+            if (file && file.size > 5 * 1024 * 1024) {
+              toast({
+                title: "File Too Large",
+                description: "Please upload an image smaller than 5MB.",
+                variant: "destructive",
+                duration: 5000, // 5 seconds
+              });
+              return [];
+            }
+            
+            // Check file type
+            const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+            if (file && !allowedTypes.includes(file.type)) {
+              toast({
+                title: "Unsupported File Type",
+                description: "Please upload a JPEG, PNG, GIF, or WebP image.",
+                variant: "destructive",
+                duration: 5000, // 5 seconds
+              });
+              return [];
+            }
+            
+            return files;
           }}
         />
 

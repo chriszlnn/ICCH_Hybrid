@@ -6,10 +6,10 @@ import { withDbConnection } from "@/lib/db-utils";
 // GET function
 export async function GET(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ): Promise<Response> {
   try {
-    const { id } = context.params;
+    const id = params.id;
     
     if (!id) {
       return NextResponse.json({ error: "Missing post ID" }, { status: 400 });
@@ -62,10 +62,10 @@ export async function GET(
 // POST function
 export async function POST(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ): Promise<Response> {
   try {
-    const { id } = context.params;
+    const id = params.id;
     
     if (!id) {
       return NextResponse.json({ error: "Missing post ID" }, { status: 400 });

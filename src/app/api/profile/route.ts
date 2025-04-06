@@ -24,8 +24,42 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // Determine the role-specific data
-    const roleData = user.client || user.admin || user.staff || {};
+    // Check if role-specific record exists, if not create it
+    let roleData;
+    if (user.role === "CLIENT" && !user.client) {
+      roleData = await prisma.client.create({
+        data: {
+          userId: user.id,
+          email: user.email,
+          username: "New User",
+          bio: "No bio yet.",
+          imageUrl: user.image || "/blank-profile.svg",
+        },
+      });
+    } else if (user.role === "ADMIN" && !user.admin) {
+      roleData = await prisma.admin.create({
+        data: {
+          userId: user.id,
+          email: user.email,
+          username: "New Admin",
+          bio: "No bio yet.",
+          imageUrl: user.image || "/blank-profile.svg",
+        },
+      });
+    } else if (user.role === "STAFF" && !user.staff) {
+      roleData = await prisma.staff.create({
+        data: {
+          userId: user.id,
+          email: user.email,
+          username: "New Staff",
+          bio: "No bio yet.",
+          imageUrl: user.image || "/blank-profile.svg",
+        },
+      });
+    } else {
+      roleData = user.client || user.admin || user.staff || {};
+    }
+
     return NextResponse.json({ ...user, ...roleData }, { status: 200 });
   } catch (error) {
     console.error("Error fetching user:", error);

@@ -12,13 +12,15 @@ import axios from "axios";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+interface Profile {
+  email: string;
+  username: string;
+  bio: string;
+  imageUrl: string;
+}
+
 interface EditProfileProps {
-  currentProfile: {
-    email: string;
-    username: string;
-    bio: string;
-    posts: string[];
-  };
+  currentProfile: Profile;
   onSaveAction: (username: string, bio: string) => Promise<void>;
 }
 
