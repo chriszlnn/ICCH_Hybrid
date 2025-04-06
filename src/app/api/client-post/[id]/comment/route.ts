@@ -42,7 +42,7 @@ export async function GET(
         user: {
           email: comment.user.email,
           image: roleData?.imageUrl || comment.user.image || "/blank-profile.svg",
-          username: roleData?.username || comment.user.email.split('@')[0]
+          name: roleData?.username || comment.user.email.split('@')[0]
         }
       };
     });
@@ -119,7 +119,7 @@ export async function POST(
       user: {
         email: comment.user.email,
         image: roleData?.imageUrl || comment.user.image || "/blank-profile.svg",
-        username: roleData?.username || comment.user.email.split('@')[0]
+        name: roleData?.username || comment.user.email.split('@')[0]
       }
     };
 

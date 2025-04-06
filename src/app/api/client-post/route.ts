@@ -101,8 +101,14 @@ export async function GET(request: Request) {
         },
         include: {
           taggedProducts: {
-            select: {
-              productId: true
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true
+                }
+              }
             }
           },
           likes: {

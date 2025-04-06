@@ -1,6 +1,6 @@
 "use client";
 
-import { User, LogOut ,LayoutGrid, Gem, UsersRound, Sparkles, Vote} from "lucide-react";
+import { User, LogOut ,LayoutGrid, Gem, UsersRound, Sparkles, Vote, PenSquare} from "lucide-react";
 import Image from "next/image";
 import Logo from "../../assets/Innisfree-Logo.svg";
 import Link from "next/link";
@@ -13,6 +13,7 @@ const items = [
   { title: "Products", url: "/staff/product", icon: Sparkles },
   { title: "Votes", url: "/staff/votes", icon:  Vote },
   { title: "User", url: "/staff/user", icon: UsersRound },
+  { title: "Posts", url: "/staff/posts", icon: PenSquare },
   { title: "Profile", url: "/staff/profile", icon: User },
 ];
 

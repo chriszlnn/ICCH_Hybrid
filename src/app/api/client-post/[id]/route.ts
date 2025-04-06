@@ -102,6 +102,12 @@ export async function DELETE(
 
     // Use withDbConnection for better connection handling
     await withDbConnection(async () => {
+      // Get the current user to check their role
+      const currentUser = await prisma.user.findUnique({
+        where: { email: userEmail },
+        select: { role: true }
+      });
+
       // Get the post and check ownership
       const post = await prisma.clientPost.findUnique({
         where: { id: params.id },
@@ -112,8 +118,8 @@ export async function DELETE(
         throw new Error("Post not found");
       }
 
-      // Check if the current user owns the post
-      if (post.client.user.email !== userEmail) {
+      // Allow deletion if user is admin or if they own the post
+      if (currentUser?.role !== "ADMIN" && post.client.user.email !== userEmail) {
         throw new Error("Unauthorized");
       }
 
