@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { EditableAvatar } from "@/components/avatar/editable-avatar";
 import { EditProfile } from "@/components/edit-profile/edit-profile";
@@ -8,9 +7,45 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "../ui/general/button";
 import { Skeleton } from "../ui/skeleton";
 import { ReviewHistoryModal } from "./review-history-modal";
+import Image from "next/image";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Prisma } from '@prisma/client';
+import Link from "next/link";
+import { Heart, MessageCircle } from "lucide-react";
+
+// Define your types using Prisma's generated types
+type ClientPostWithRelations = Prisma.ClientPostGetPayload<{
+  include: {
+    taggedProducts: {
+      select: {
+        productId: true
+      }
+    },
+    likes: {
+      select: {
+        id: true
+      }
+    },
+    comments: {
+      select: {
+        id: true
+      }
+    }
+  }
+}>;
 
 interface ProfileContentProps {
   userEmail: string;
+}
+
+interface Post {
+  id: string;
+  images: string[];
+  caption: string;
+  createdAt: Date;
+  productIds: string[];
+  likes: number;
+  comments?: { id: string }[];
 }
 
 export function ProfileContent({ userEmail }: ProfileContentProps) {
@@ -19,14 +54,11 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
     username: "",
     bio: "",
     imageUrl: "",
-    posts: [
-      "/placeholder.svg?height=300&width=300",
-      "/placeholder.svg?height=300&width=300",
-      "/placeholder.svg?height=300&width=300",
-    ],
   });
 
+  const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [postsError, setPostsError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -54,7 +86,41 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
       }
     };
 
+    const fetchPosts = async () => {
+      try {
+        setPostsError(null);
+        const res = await fetch(`/api/client-post?email=${encodeURIComponent(userEmail)}`);
+        
+        if (res.ok) {
+          const data: ClientPostWithRelations[] = await res.json();
+          
+          if (data && Array.isArray(data)) {
+            setPosts(data.map(post => ({
+              id: post.id,
+              images: post.images,
+              caption: post.content,
+              createdAt: post.createdAt,
+              productIds: post.taggedProducts.map(tp => tp.productId),
+              likes: post.likes?.length || 0,
+              comments: post.comments || []
+            })));
+          } else {
+            setPosts([]);
+            setPostsError("No posts found");
+          }
+        } else {
+          setPosts([]);
+          setPostsError("Failed to fetch posts");
+        }
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+        setPosts([]);
+        setPostsError("Error loading posts");
+      }
+    };
+
     fetchProfile();
+    fetchPosts();
   }, [userEmail]);
 
   // Handle avatar update
@@ -110,6 +176,11 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
             <Skeleton className="h-4 w-96" />
           </div>
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, index) => (
+            <Skeleton key={index} className="aspect-square rounded-md" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -152,6 +223,52 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
           </div>
         </div>
       </div>
+
+      <div className="w-full border-t border-gray-200 my-8" />
+
+      <Tabs defaultValue="posts" className="w-full">
+        <TabsContent value="posts">
+          {postsError ? (
+            <div className="text-center py-8 text-gray-500">
+              <p>{postsError}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {posts.map((post) => (
+                <Link
+                  key={post.id}
+                  href={`/client/profile/posts/${post.id}`}
+                  className="relative aspect-square group cursor-pointer"
+                >
+                  <Image
+                    src={post.images[0]}
+                    alt={post.caption}
+                    fill
+                    className="object-cover rounded-md"
+                  />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="text-white text-center flex gap-4">
+                      <div className="flex items-center">
+                        <Heart className="w-4 h-4 mr-1" />
+                        <span>{post.likes}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <MessageCircle className="w-4 h-4 mr-1" />
+                        <span>{post.comments?.length || 0}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+          {!postsError && posts.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <p>No posts yet</p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

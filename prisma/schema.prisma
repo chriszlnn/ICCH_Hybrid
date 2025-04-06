@@ -31,6 +31,10 @@ model User {
   staff         Staff?  @relation("UserStaff")
 
   ProductVote ProductVote[]
+
+  PostLike PostLike[]
+
+  Comment Comment[]
 }
 
 
@@ -44,6 +48,8 @@ model Client {
   user          User   @relation("UserClient", fields: [userId], references: [id], onDelete: Cascade) 
   bio           String?
   imageUrl      String?
+
+  ClientPost ClientPost[]
 }
 
 model Admin {
@@ -202,6 +208,7 @@ model Product {
   productLikes ProductLike[]
   ProductVote ProductVote[]
   recommendations UserRecommendation[]
+  PostTaggedProduct PostTaggedProduct[]
 }
 
 model Review {
@@ -258,3 +265,48 @@ model UserRecommendation {
   @@index([userEmail])
 }
 
+model ClientPost {
+  id          String     @id @default(cuid())
+  title       String
+  content     String
+  images      String[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  clientId    String
+  client      Client     @relation(fields: [clientId], references: [id])
+  likes       PostLike[]
+  comments    Comment[]
+  taggedProducts PostTaggedProduct[]
+}
+
+model PostTaggedProduct {
+  id        String    @id @default(cuid())
+  postId    String
+  productId String
+  post      ClientPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, productId])
+}
+
+model PostLike {
+  id        String    @id @default(cuid())
+  postId    String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      ClientPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([postId, userId])
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  content   String
+  postId    String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      ClientPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}

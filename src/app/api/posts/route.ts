@@ -37,9 +37,7 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
-
-export async function GET() {
+}export async function GET() {
   try {
     const posts = await prisma.beautyInfoPost.findMany({
       orderBy: { createdAt: "desc" }, // Sort by newest posts first
@@ -51,3 +49,4 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 });
   }
 }
+

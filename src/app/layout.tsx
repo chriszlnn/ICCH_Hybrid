@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import "@/app/globals.css";
 import { SessionProvider } from "next-auth/react";
 import { ReactNode } from "react";
+import { Toaster } from "@/components/ui/toast/toaster";
 
 //import Head from "next/head";
 
@@ -52,7 +53,7 @@ export default async function RootLayout({ children }: LayoutProps) {
             </SessionProvider>
           </div>
         </main>
-        
+        <Toaster />
       </body>
       </html>
    
