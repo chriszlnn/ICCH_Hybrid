@@ -26,9 +26,10 @@ export default function ViewFeedback() {
       try {
         const response = await fetch("/api/feedback");
         const data = await response.json();
-        setFeedbackData(data);
+        setFeedbackData(data || []); // Ensure we always set an array
       } catch (error) {
         console.error("Error fetching feedback:", error);
+        setFeedbackData([]); // Set empty array on error
       } finally {
         setLoading(false);
       }
@@ -38,9 +39,9 @@ export default function ViewFeedback() {
   }, []);
 
   // Calculate average rating
-  const averageRating = (
-    feedbackData.reduce((acc, feedback) => acc + feedback.rating, 0) / feedbackData.length
-  ).toFixed(1);
+  const averageRating = feedbackData.length > 0
+    ? (feedbackData.reduce((acc, feedback) => acc + feedback.rating, 0) / feedbackData.length).toFixed(1)
+    : "0.0";
 
   // Calculate rating distribution
   const ratingCounts = [5, 4, 3, 2, 1].map(
@@ -126,7 +127,7 @@ export default function ViewFeedback() {
           <div className="flex items-center gap-4 mb-6">
             <label htmlFor="issueFilter" className="font-medium text-gray-700">Filter by:</label>
             {loading ? (
-              <Skeleton className="h-10 w-32" /> // Skeleton for filter dropdown
+              <Skeleton className="h-10 w-32" />
             ) : (
               <select
                 id="issueFilter"
@@ -145,29 +146,28 @@ export default function ViewFeedback() {
           </div>
 
           {/* Feedback List */}
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             {loading ? (
               // Skeleton for feedback list
               Array.from({ length: 3 }).map((_, index) => (
                 <div key={index} className="p-4 border rounded-lg shadow-sm bg-gray-50">
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-4">
-                      <Skeleton className="h-10 w-10 rounded-full" /> {/* Avatar */}
                       <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" /> {/* Name */}
-                        <Skeleton className="h-3 w-24" /> {/* Date */}
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-24" />
                       </div>
                     </div>
-                    <Skeleton className="h-5 w-20" /> {/* Rating */}
+                    <Skeleton className="h-5 w-20" />
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <Skeleton className="h-6 w-16" /> {/* Issue Tag */}
-                    <Skeleton className="h-6 w-20" /> {/* Issue Tag */}
+                    <Skeleton className="h-6 w-16" />
+                    <Skeleton className="h-6 w-20" />
                   </div>
-                  <Skeleton className="h-4 w-full mt-2" /> {/* Comment */}
+                  <Skeleton className="h-4 w-full mt-2" />
                 </div>
               ))
-            ) : (
+            ) : filteredFeedback.length > 0 ? (
               filteredFeedback.map((feedback) => (
                 <div key={feedback.id} className="p-4 border rounded-lg shadow-sm bg-gray-50">
                   {/* User Info and Rating */}
@@ -194,7 +194,7 @@ export default function ViewFeedback() {
                   </div>
 
                   {/* Issue Tags */}
-                  {feedback.issues.length > 0 && (
+                  {feedback.issues && feedback.issues.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {feedback.issues.map((issue: string) => (
                         <span
@@ -208,13 +208,12 @@ export default function ViewFeedback() {
                   )}
 
                   {/* Comment */}
-                  <p className="mt-2 text-gray-400">{feedback.comment}</p>
+                  {feedback.comment && (
+                    <p className="mt-2 text-gray-400">{feedback.comment}</p>
+                  )}
                 </div>
               ))
-            )}
-
-            {/* No Feedback Message */}
-            {!loading && filteredFeedback.length === 0 && (
+            ) : (
               <p className="text-gray-500 text-center">
                 No feedback available for this category.
               </p>

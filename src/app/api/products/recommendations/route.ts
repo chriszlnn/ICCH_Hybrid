@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { tagOptions, TagOption } from "@/components/manage-product/tag-options";
 
 // Helper function to retry database operations
 async function retryOperation<T>(
@@ -63,6 +64,14 @@ export async function POST(request: Request) {
           OR: [
             // Match if product has the selected skin tone
             skinTone ? { tags: { has: skinTone.toLowerCase() } } : {},
+            // Match if product has any skin color tags that match the selected tone
+            skinTone ? {
+              tags: {
+                hasSome: tagOptions
+                  .filter((tag: TagOption) => tag.category === "skinColor" && tag.tone === skinTone.toLowerCase())
+                  .map((tag: TagOption) => tag.id)
+              }
+            } : {},
             // Match if product has any of the selected concerns
             concerns.length > 0 ? { tags: { hasSome: concerns.map((c: string) => c.toLowerCase()) } } : {},
             // Match if product has the universal tag

@@ -30,7 +30,6 @@ const skinTypes: { value: SkinType; label: string; description: string }[] = [
   { value: "normal", label: "Normal", description: "Balanced skin with minimal concerns" },
   { value: "sensitive", label: "Sensitive", description: "Skin that easily reacts to products" },
   { value: "combination", label: "Combination", description: "Mix of oily and dry areas" },
-  { value: "not-sure", label: "Not Sure", description: "Unsure about your skin type" },
 ];
 
 // Cool, Warm, and Neutral tone colors

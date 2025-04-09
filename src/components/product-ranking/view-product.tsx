@@ -37,6 +37,12 @@ export function ViewProduct() {
   const [reviewCallbacks, setReviewCallbacks] = useState<((review: Review) => void)[]>([])
   const reviewSectionRef = useRef<HTMLDivElement>(null)
 
+  // Utility function to capitalize the first letter of a string
+  const capitalizeFirstLetter = (string: string) => {
+    if (!string) return '';
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  };
+
   useEffect(() => {
     const fetchProductData = async () => {
       try {
@@ -243,7 +249,11 @@ export function ViewProduct() {
           <div className="space-y-6">
             {/* Product Info */}
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <div className="text-sm text-green-600 font-medium mb-1">{product.subcategory || 'Uncategorized'}</div>
+              <div className="text-sm text-green-600 font-medium mb-1">
+                {product.subcategory 
+                  ? capitalizeFirstLetter(product.subcategory)
+                  : 'Uncategorized'}
+              </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name || 'Product Name Not Available'}</h1>
 
               <div className="flex items-center mb-3">
