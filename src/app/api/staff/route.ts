@@ -9,39 +9,24 @@ export async function GET() {
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const result = await withDbConnection(async () => {
-      const staff = await prisma.staff.findMany({
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              emailVerified: true,
-            },
-          },
-        },
-      });
-
-      return staff.map((staffMember) => ({
-        id: staffMember.id,
-        userId: staffMember.userId,
-        email: staffMember.user.email,
-        name: staffMember.name,
-        department: staffMember.department,
-        emailVerified: staffMember.user.emailVerified,
-      }));
+    const staff = await prisma.staff.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(staff);
   } catch (error) {
-    console.error("Error fetching staff:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch staff" },
-      { status: 500 }
-    );
+    console.log("[STAFF_GET]", error);
+    return new NextResponse("Internal Error", { status: 500 });
   }
 }
 

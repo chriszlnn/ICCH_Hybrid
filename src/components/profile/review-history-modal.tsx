@@ -108,7 +108,14 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
 
   const fetchRecommendations = async () => {
     try {
-      const res = await fetch("/api/recommendations");
+      const res = await fetch("/api/recommendations", {
+        // Add cache control headers to prevent caching
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       
       if (res.ok) {
         const data = await res.json();
@@ -123,21 +130,32 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
     }
   };
 
-  const handleRemoveRecommendation = async (productId: string) => {
+  const handleRemoveRecommendation = async (recommendationId: string) => {
     try {
-      const res = await fetch(`/api/recommendations/${productId}`, {
+      const res = await fetch(`/api/recommendations/${recommendationId}`, {
         method: "DELETE",
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
 
       if (res.ok) {
-        setRecommendations((prev) => prev.filter((rec) => rec.product.id !== productId));
-        toast.success("Removed from recommendations");
+        // Update local state immediately
+        setRecommendations(prev => prev.filter(rec => rec.id !== recommendationId));
+        
+        // Then fetch fresh data from server
+        await fetchRecommendations();
+        
+        toast.success("Recommendation removed successfully");
       } else {
-        toast.error("Failed to remove recommendation");
+        const data = await res.json();
+        throw new Error(data.error || "Failed to remove recommendation");
       }
     } catch (error) {
       console.error("Error removing recommendation:", error);
-      toast.error("An error occurred while removing the recommendation");
+      toast.error(error instanceof Error ? error.message : "Failed to remove recommendation");
     }
   };
 
@@ -196,6 +214,12 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
     } catch {
       return "Unknown date";
     }
+  };
+
+  // Utility function to capitalize the first letter of a string
+  const capitalizeFirstLetter = (string: string) => {
+    if (!string) return '';
+    return string.charAt(0).toUpperCase() + string.slice(1);
   };
 
   return (
@@ -474,11 +498,11 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
                         <div className="flex flex-col gap-1 mt-2 mb-3">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-700">Category:</span>
-                            <span className="text-sm text-gray-600">{rec.product.category}</span>
+                            <span className="text-sm text-gray-600">{capitalizeFirstLetter(rec.product.category)}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-700">Subcategory:</span>
-                            <span className="text-sm text-gray-600">{rec.product.subcategory}</span>
+                            <span className="text-sm text-gray-600">{capitalizeFirstLetter(rec.product.subcategory)}</span>
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
@@ -488,7 +512,7 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleRemoveRecommendation(rec.product.id)}
+                            onClick={() => handleRemoveRecommendation(rec.id)}
                           >
                             Remove
                           </Button>

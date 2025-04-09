@@ -15,6 +15,7 @@ interface Recommendation {
     image: string;
     price: number;
     category: string;
+    subcategory: string;
   };
 }
 

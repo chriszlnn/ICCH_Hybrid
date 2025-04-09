@@ -15,6 +15,7 @@ interface Recommendation {
     image: string;
     price: number;
     category: string;
+    subcategory: string;
   };
 }
 
@@ -116,8 +117,18 @@ export function AddToRecommendationsButton({
       setIsLoading(true);
       
       if (isSaved) {
+        // Find the recommendation by product ID
+        const recommendations = await fetchRecommendations();
+        const recommendation = recommendations.find((rec: Recommendation) => rec.productId === productId);
+        
+        if (!recommendation) {
+          toast.error("Recommendation not found");
+          setIsLoading(false);
+          return;
+        }
+        
         // Remove from recommendations
-        const response = await fetch(`/api/recommendations/${productId}`, {
+        const response = await fetch(`/api/recommendations/${recommendation.id}`, {
           method: "DELETE",
         });
 

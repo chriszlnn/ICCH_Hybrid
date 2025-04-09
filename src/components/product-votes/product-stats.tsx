@@ -12,6 +12,12 @@ export function ProductStats({ product }: ProductStatsProps) {
   const [totalUsers, setTotalUsers] = useState(0)
   const [loading, setLoading] = useState(true)
 
+  // Utility function to capitalize the first letter of a string
+  const capitalizeFirstLetter = (string: string) => {
+    if (!string) return '';
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  };
+
   useEffect(() => {
     const fetchTotalUsers = async () => {
       try {
@@ -64,11 +70,11 @@ export function ProductStats({ product }: ProductStatsProps) {
             </div>
             <div className="flex items-center gap-2 mt-1">
               <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium">
-                {product.category}
+                {capitalizeFirstLetter(product.category)}
               </span>
               <span className="text-gray-300">•</span>
               <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs font-medium">
-                {product.subcategory}
+                {capitalizeFirstLetter(product.subcategory)}
               </span>
             </div>
             <div className="flex items-center mt-2 text-xs text-gray-500">
