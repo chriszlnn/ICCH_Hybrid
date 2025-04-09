@@ -17,6 +17,8 @@ interface Profile {
   username: string;
   bio: string;
   imageUrl: string;
+  department?: string;
+  name?: string;
 }
 
 interface EditProfileProps {

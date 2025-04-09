@@ -7,6 +7,7 @@ import { signOut } from "next-auth/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "../ui/general/button";
 import { Skeleton } from "../ui/skeleton";
+import AdminTask from "@/components/admin-task/admin-task";
 
 interface ProfileContentProps {
   userEmail: string;
@@ -115,39 +116,44 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="absolute top-4 right-4">
+    <div className="container mx-auto px-4 py-4 md:py-8">
+      <div className="absolute top-2 right-2 md:top-4 md:right-4">
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline">Account</Button>
+            <Button variant="outline" className="text-sm md:text-base">Account</Button>
           </PopoverTrigger>
           <PopoverContent className="w-32">
             <Button
               variant="destructive"
               onClick={() => signOut({ callbackUrl: "/sign-in" })}
-              className="w-full"
+              className="w-full text-sm md:text-base"
             >
               Sign Out
             </Button>
           </PopoverContent>
         </Popover>
       </div>
-      <div className="flex flex-col md:flex-row items-center md:items-start mb-8">
+      <div className="flex flex-col md:flex-row items-center md:items-start mb-6 md:mb-8">
         <EditableAvatar
           alt="Profile"
-          fallback="?" // This is now unused because of the conditional rendering
-          className="w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36"
+          fallback="?"
+          className="w-24 h-24 md:w-32 md:h-32 lg:w-36 lg:h-36"
           onAvatarUpdate={handleAvatarUpdate}
         />
-        <div className="pl-9">
-          <h1 className="text-2xl font-bold mb-2">{profile.username}</h1>
-          <h2 className="font-semibold mb-1">{profile.email}</h2>
-          <p className="text-gray-600 pb-4">{profile.bio}</p>
+        <div className="mt-4 md:mt-0 md:pl-9 text-center md:text-left">
+          <h1 className="text-xl md:text-2xl font-bold mb-1 md:mb-2">{profile.username}</h1>
+          <h2 className="text-sm md:text-base font-semibold mb-1">{profile.email}</h2>
+          <p className="text-sm md:text-base text-gray-600 pb-2 md:pb-4">{profile.bio}</p>
           <EditProfile
-            currentProfile={profile} // Pass the complete profile object
-            onSaveAction={handleSave} // Renamed to indicate it's a Server Action
+            currentProfile={profile}
+            onSaveAction={handleSave}
           />
         </div>
+      </div>
+
+      {/* Admin Tasks Section */}
+      <div className="mt-16 md:mt-20 pb-12">
+        <AdminTask />
       </div>
     </div>
   );

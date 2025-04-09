@@ -31,8 +31,14 @@ export function UserAnalytics() {
   useEffect(() => {
     const fetchUserStats = async () => {
       try {
-        const response = await fetch("/api/users");
-        const users: User[] = await response.json();
+        const response = await fetch('/api/users');
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        const data = await response.json();
+        
+        // Ensure data is an array
+        const users = Array.isArray(data) ? data : [];
         
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -42,19 +48,18 @@ export function UserAnalytics() {
           return userDate >= today;
         }).length;
 
-        // For demo purposes, consider users active if they have liked or reviewed products
-        const activeUsers = users.filter((user: User) => 
-          (user.productLikes?.length > 0 || user.reviews?.length > 0)
-        ).length;
-
         setStats({
           totalUsers: users.length,
-          activeUsers,
+          activeUsers: users.filter((user: User) => 
+            (user.productLikes?.length > 0 || user.reviews?.length > 0)
+          ).length,
           newUsersToday,
-          inactiveUsers: users.length - activeUsers,
+          inactiveUsers: users.length - users.filter((user: User) => 
+            (user.productLikes?.length > 0 || user.reviews?.length > 0)
+          ).length,
         });
       } catch (error) {
-        console.error("Error fetching user stats:", error);
+        console.error('Error fetching user stats:', error);
       } finally {
         setLoading(false);
       }

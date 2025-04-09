@@ -3,7 +3,7 @@ import { useEditor, EditorContent, Extension } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import TextStyle from "@tiptap/extension-text-style";
-import { Bold, Italic, Heading1, Heading2, Heading3, List, ListOrdered, LinkIcon, Save } from "lucide-react";
+import { Bold, Italic, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/utils";
 import { useEffect, useState } from "react";
@@ -163,25 +163,7 @@ export default function WysiwygEditor({ value, onChange, onSave, onUpload }: Wys
   }
 
   // Apply heading style to selected text only
-  const applyInlineHeading = (level: 1 | 2 | 3) => {
-    const isActive = editor.isActive("textStyle", { headingLevel: level.toString() });
-
-    if (isActive) {
-      // Remove the heading style
-      editor.chain().focus().unsetMark("textStyle").run();
-    } else {
-      // First clear any existing heading styles
-      editor.chain().focus().unsetMark("textStyle").run();
-
-      // Then apply the new heading style to the selected text
-      editor.chain().focus().setMark("textStyle", { headingLevel: level.toString() }).run();
-    }
-
-    // Force editor to update
-    setTimeout(() => {
-      editor.commands.focus();
-    }, 0);
-  };
+  
 
   const formatters = [
     {
