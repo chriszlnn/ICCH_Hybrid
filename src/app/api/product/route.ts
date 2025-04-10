@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import { auth } from '@/lib/auth'
 
-const prisma = new PrismaClient()
+import { getCachedProductsByCategory } from '@/lib/product-cache'
+
+const prismaClient = new PrismaClient()
 
 // Helper function to get current week and year
 function getCurrentWeekAndYear() {
@@ -16,60 +18,42 @@ function getCurrentWeekAndYear() {
 }
 
 // GET /api/product - Get ranked products by category/subcategory
-// GET /api/product - Updated to handle empty ranks
 export async function GET(request: Request) {
-    try {
-      const { searchParams } = new URL(request.url)
-      const category = searchParams.get('category')
-      const subcategory = searchParams.get('subcategory')
-      const limit = searchParams.get('limit') // Keep this for backward compatibility
-  
-      if (!category) {
-        return NextResponse.json(
-          { error: 'Category is required' },
-          { status: 400 }
-        )
-      }
-  
-      const products = await prisma.product.findMany({
-        where: {
-            category: { equals: category, mode: 'insensitive' },
-            subcategory: { equals: subcategory, mode: 'insensitive' }
-          },
-        orderBy: [
-          { votes: 'desc' }, // First by votes
-          { reviewCount: 'desc' }, // Then by review count
-          { createdAt: 'desc' } // Finally by creation date
-        ],
-        ...(limit ? { take: parseInt(limit) } : {}),
-        include: {
-          reviews: true,
-          productLikes: true,
-          ProductVote: true
-        }
-      })
-  
-      // Assign ranks based on the sorted order within this subcategory
-      const productsWithStats = products.map((product, index) => ({
-        ...product,
-        rank: index + 1, // Assign rank based on position in sorted array
-        rating: product.reviews.length > 0 
-          ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length 
-          : 0,
-        reviewCount: product.reviews.length,
-        likes: product.productLikes.length
-      }))
+  try {
+    const { searchParams } = new URL(request.url)
+    const category = searchParams.get('category')
+    const subcategory = searchParams.get('subcategory')
+    const limit = searchParams.get('limit') // Keep this for backward compatibility
 
-  
-      return NextResponse.json(productsWithStats)
-    } catch (error) {
-      console.error('Error fetching products:', error)
+    if (!category) {
+      return NextResponse.json(
+        { error: 'Category is required' },
+        { status: 400 }
+      )
+    }
+
+    const products = await getCachedProductsByCategory(
+      category,
+      subcategory || undefined,
+      limit ? parseInt(limit) : undefined
+    )
+
+    if (!products) {
       return NextResponse.json(
         { error: 'Failed to fetch products' },
         { status: 500 }
       )
     }
+
+    return NextResponse.json(products)
+  } catch (error) {
+    console.error('Error fetching products:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch products' },
+      { status: 500 }
+    )
   }
+}
 
 // POST /api/product/vote - Submit a vote for a product
 export async function POST(request: Request) {
@@ -93,7 +77,7 @@ export async function POST(request: Request) {
     const { week, year } = getCurrentWeekAndYear()
 
     // Check if user already voted for this product this week
-    const existingVote = await prisma.productVote.findFirst({
+    const existingVote = await prismaClient.productVote.findFirst({
       where: {
         userEmail: session.user.email,
         productId,
@@ -110,7 +94,7 @@ export async function POST(request: Request) {
     }
 
     // Create new vote
-    const vote = await prisma.productVote.create({
+    const vote = await prismaClient.productVote.create({
       data: {
         userEmail: session.user.email,
         productId,
@@ -120,7 +104,7 @@ export async function POST(request: Request) {
     })
 
     // Update product's vote count (you might want to do this in a transaction)
-    await prisma.product.update({
+    await prismaClient.product.update({
       where: { id: productId },
       data: {
         reviewCount: {

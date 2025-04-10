@@ -24,6 +24,7 @@ export default function GiveFeedback() {
   const [comment, setComment] = useState<string>("");
   const [submitted, setSubmitted] = useState<boolean>(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +41,7 @@ export default function GiveFeedback() {
     }
 
     try {
+      setIsSubmitting(true);
       const response = await fetch("/api/feedback", {
         method: "POST",
         headers: {
@@ -69,6 +71,8 @@ export default function GiveFeedback() {
     } catch (error) {
       console.error("Error submitting feedback:", error);
       alert("Failed to submit feedback. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -171,13 +175,13 @@ export default function GiveFeedback() {
               <button
                 type="submit"
                 className={`w-full py-2 px-4 text-sm font-semibold rounded-md transition duration-200 ${
-                  rating === 0
+                  rating === 0 || isSubmitting
                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                     : "bg-green-600 hover:bg-green-700 text-white"
                 }`}
-                disabled={rating === 0}
+                disabled={rating === 0 || isSubmitting}
               >
-                Submit Feedback
+                {isSubmitting ? "Submitting..." : "Submit Feedback"}
               </button>
             </form>
           ) : (

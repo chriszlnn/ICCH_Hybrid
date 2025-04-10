@@ -4,18 +4,21 @@ export type SignInResponse = {
     success?: boolean;
 };
 
-export interface BeautyPost {
-    id?: number;
+// Base type that matches Prisma schema exactly
+export interface BeautyPostBase {
+    id: number;
     title: string;
     images: string[];
-    file: string;      // Added to match Prisma schema
+    file: string;
     likes: number;
-    userLiked: boolean;
-    body?: string;
-    createdAt?: Date;  // Optional since you might not always need these
-    updatedAt?: Date;  // Optional since you might not always need these
-    liked?: boolean;   // Client-side state
+    createdAt: Date;
+    updatedAt: Date;
 }
 
-// Optional: Add a type for creating new posts
-export type CreateBeautyPost = Omit<BeautyPost, 'id' | 'likes' | 'createdAt' | 'updatedAt'>;
+// Extended type for client-side use with additional fields
+export interface BeautyPost extends BeautyPostBase {
+    userLiked: boolean;  // Client-side state for like status
+}
+
+// Type for creating new posts
+export type CreateBeautyPost = Omit<BeautyPostBase, 'id' | 'likes' | 'createdAt' | 'updatedAt'>;

@@ -57,7 +57,6 @@ export default function SkinSelector() {
   const [isLoading, setIsLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<Recommendations>({ skincare: [], makeup: [] });
   const [showResults, setShowResults] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
   const [showSkinAnalysisCheck, setShowSkinAnalysisCheck] = useState(false);
 
   useEffect(() => {
@@ -171,7 +170,7 @@ export default function SkinSelector() {
       {/* Floating Button */}
       <button
         onClick={handleFloatingButtonClick}
-        className="fixed bottom-6 right-6 bg-green-600 text-white p-4 rounded-full shadow-lg hover:bg-green-700 transition-colors"
+        className="fixed bottom-20 md:bottom-6 right-6 bg-green-600 text-white p-4 rounded-full shadow-lg hover:bg-green-700 transition-colors z-40"
         aria-label="Skin Analysis"
       >
         <Palette className="w-6 h-6" />
@@ -304,30 +303,6 @@ export default function SkinSelector() {
                   </div>
                 ) : (
                   <div className="space-y-8">
-                    {/* Debug Toggle */}
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => setShowDebug(!showDebug)}
-                        className="text-xs text-gray-500 hover:text-gray-700"
-                      >
-                        {showDebug ? "Hide Debug Info" : "Show Debug Info"}
-                      </button>
-                    </div>
-                    
-                    {/* Debug Information */}
-                    {showDebug && (
-                      <div className="bg-gray-100 p-4 rounded-lg mb-4 text-xs overflow-auto max-h-40">
-                        <h4 className="font-medium mb-2">Debug Information:</h4>
-                        <p>Selected Skin Type: {selectedSkinType || "None"}</p>
-                        <p>Selected Skin Tone: {selectedTone || "None"}</p>
-                        <p>Selected Concerns: {selectedConcerns.length > 0 ? selectedConcerns.join(", ") : "None"}</p>
-                        <p>Raw Recommendations Data:</p>
-                        <pre className="whitespace-pre-wrap">
-                          {JSON.stringify(recommendations, null, 2)}
-                        </pre>
-                      </div>
-                    )}
-                    
                     {/* Skincare Recommendations */}
                     <div>
                       <div className="flex justify-between items-center mb-4">

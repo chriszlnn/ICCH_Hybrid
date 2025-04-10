@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
 import Link from "next/link";
+import ImageCarousel from "@/components/beauty-info/image-carousel";
 
 interface PostLike {
   id: string;
@@ -66,13 +67,34 @@ interface PostContentProps {
 export function PostContent({ post }: PostContentProps) {
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes.length);
+  const [commentsCount, setCommentsCount] = useState(post.comments.length);
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [comments, setComments] = useState(post.comments);
   const router = useRouter();
   const { data: session } = useSession();
   const { toast } = useToast();
 
   const isPostOwner = session?.user?.email === post.client.email;
+
+  // Function to fetch updated comments
+  const fetchComments = async () => {
+    try {
+      const response = await fetch(`/api/client-post/${post.id}/comment`);
+      if (response.ok) {
+        const updatedComments = await response.json();
+        setComments(updatedComments);
+        setCommentsCount(updatedComments.length);
+      }
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+    }
+  };
+
+  // Handle comment changes
+  const handleCommentChange = async () => {
+    await fetchComments();
+  };
 
   // Check if the current user has already liked the post
   useEffect(() => {
@@ -260,11 +282,7 @@ export function PostContent({ post }: PostContentProps) {
 
           {/* Post Image */}
           <div className="relative aspect-square">
-            <img
-              src={post.images[0]}
-              alt={post.title || "Post image"}
-              className="object-cover w-full h-full"
-            />
+            <ImageCarousel images={post.images} aspectRatio="square" />
           </div>
 
           {/* Tagged Products */}
@@ -320,7 +338,7 @@ export function PostContent({ post }: PostContentProps) {
                   >
                     <MessageCircle className="h-6 w-6" />
                   </Button>
-                  <span className="ml-1 font-medium">{post.comments.length}</span>
+                  <span className="ml-1 font-medium">{commentsCount}</span>
                 </div>
               </div>
             </div>
@@ -362,7 +380,13 @@ export function PostContent({ post }: PostContentProps) {
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-4">
                 <Suspense fallback={<CommentSectionSkeleton />}>
-                  <CommentSection postId={post.id} initialComments={post.comments} />
+                  <CommentSection 
+                    postId={post.id} 
+                    initialComments={comments} 
+                    onCommentDeleted={() => handleCommentChange()}
+                    onCommentAdded={() => handleCommentChange()}
+                    postOwnerEmail={post.client.email}
+                  />
                 </Suspense>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import BeautyPostsGrid from "@/components/beauty-info/beauty-posts-grid";
+import SkinSelector from "@/components/skin-selector/skin-selector";
 export default function BeautyInfoPage() {
     return (
       <div>
@@ -7,6 +8,7 @@ export default function BeautyInfoPage() {
         <p>Learn about beauty tips and skincare routines.</p>
         </div>
         <BeautyPostsGrid />
+        <SkinSelector />
       </div>
     );
   }

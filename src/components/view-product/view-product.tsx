@@ -82,6 +82,21 @@ type CategoryOption = {
   }>;
 };
 
+// Product Skeleton Component
+const ProductSkeleton = () => (
+  <div className="flex flex-col animate-pulse">
+    <div className="bg-gray-200 rounded-lg p-2 mb-2 h-48"></div>
+    <div className="space-y-2">
+      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+      <div className="flex gap-1">
+        <div className="h-3 bg-gray-200 rounded w-16"></div>
+        <div className="h-3 bg-gray-200 rounded w-20"></div>
+      </div>
+      <div className="h-3 bg-gray-200 rounded w-12"></div>
+    </div>
+  </div>
+);
+
 export default function ViewProductPage() {
   const [products, setProducts] = useState<Product[]>([]); // State for fetched products
   const [activeCategory, setActiveCategory] = useState<Category>("All");
@@ -94,6 +109,7 @@ export default function ViewProductPage() {
   const [tempMaxPrice, setTempMaxPrice] = useState<string>("");
   const [isPriceFilterActive, setIsPriceFilterActive] = useState<boolean>(false);
   const [tempSortOption, setTempSortOption] = useState<SortOption>(sortOption);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Get available subcategories based on selected category
   const availableSubcategories = useMemo(() => {
@@ -115,6 +131,7 @@ export default function ViewProductPage() {
   // Fetch products from the API on component mount
   useEffect(() => {
     const fetchProducts = async () => {
+      setIsLoading(true);
       try {
         const response = await fetch("/api/products");
         if (!response.ok) throw new Error("Failed to fetch products");
@@ -122,6 +139,8 @@ export default function ViewProductPage() {
         setProducts(data);
       } catch (error) {
         console.error("Error fetching products:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -426,49 +445,55 @@ export default function ViewProductPage() {
 
       {/* Product Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
-        {filteredProducts.map((product) => (
-          <div key={product.id} className="flex flex-col group">
-            <div className="bg-gray-100 rounded-lg p-2 mb-2 overflow-hidden">
-              <div className="relative overflow-hidden">
-                <Image
-                  src={product.image || "/placeholder.svg"}
-                  alt={product.name}
-                  width={200}
-                  height={200}
-                  className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-5 transition-opacity duration-300"></div>
+        {isLoading ? (
+          // Show skeleton loading state
+          Array.from({ length: 8 }).map((_, index) => (
+            <ProductSkeleton key={index} />
+          ))
+        ) : filteredProducts.length > 0 ? (
+          // Show actual products
+          filteredProducts.map((product) => (
+            <div key={product.id} className="flex flex-col group">
+              <div className="bg-gray-100 rounded-lg p-2 mb-2 overflow-hidden">
+                <div className="relative overflow-hidden">
+                  <Image
+                    src={product.image || "/placeholder.svg"}
+                    alt={product.name}
+                    width={200}
+                    height={200}
+                    className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-5 transition-opacity duration-300"></div>
+                </div>
+              </div>
+              <div className="space-y-1">
+              <h3 className="text-xs font-medium line-clamp-2 group-hover:text-green-700 transition-colors">
+                {product.name}
+              </h3>
+                <div className="flex flex-wrap gap-1">
+                  <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-800 rounded-full">
+                    {categoryOptions.find(cat => cat.id === product.category)?.label || product.category}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 bg-green-50 text-green-800 rounded-full">
+                    {categoryOptions
+                      .find(cat => cat.id === product.category)
+                      ?.subcategories.find(sub => sub.id === product.subcategory)?.label || product.subcategory}
+                  </span>
+                </div>
+              <p className="text-xs mt-1 text-gray-600">RM {product.price.toFixed(2)}</p>
               </div>
             </div>
-            <div className="space-y-1">
-            <h3 className="text-xs font-medium line-clamp-2 group-hover:text-green-700 transition-colors">
-              {product.name}
-            </h3>
-              <div className="flex flex-wrap gap-1">
-                <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-800 rounded-full">
-                  {categoryOptions.find(cat => cat.id === product.category)?.label || product.category}
-                </span>
-                <span className="text-xs px-2 py-0.5 bg-green-50 text-green-800 rounded-full">
-                  {categoryOptions
-                    .find(cat => cat.id === product.category)
-                    ?.subcategories.find(sub => sub.id === product.subcategory)?.label || product.subcategory}
-                </span>
-              </div>
-            <p className="text-xs mt-1 text-gray-600">RM {product.price.toFixed(2)}</p>
-            </div>
+          ))
+        ) : (
+          // Show empty state
+          <div className="col-span-full text-center py-8">
+            <p className="text-gray-500">No products found with the selected filters.</p>
+            <button className="mt-2 text-green-600 hover:text-green-800 text-sm" onClick={resetFilters}>
+              Reset Filters
+            </button>
           </div>
-        ))}
+        )}
       </div>
-
-      {/* Empty State */}
-      {filteredProducts.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-gray-500">No products found with the selected filters.</p>
-          <button className="mt-2 text-green-600 hover:text-green-800 text-sm" onClick={resetFilters}>
-            Reset Filters
-          </button>
-        </div>
-      )}
     </div>
   )
 }

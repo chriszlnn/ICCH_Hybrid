@@ -33,6 +33,7 @@ export function ViewProduct() {
   const [isVoteDialogOpen, setIsVoteDialogOpen] = useState(false)
   const [hasVoted, setHasVoted] = useState(false)
   const [nextVoteDate, setNextVoteDate] = useState<Date | null>(null)
+  const [isVoting, setIsVoting] = useState(false)
   const [reviews, setReviews] = useState<Review[]>([])
   const [reviewCallbacks, setReviewCallbacks] = useState<((review: Review) => void)[]>([])
   const reviewSectionRef = useRef<HTMLDivElement>(null)
@@ -164,44 +165,49 @@ export function ViewProduct() {
   }
 
   const handleVote = async () => {
+    if (!product) return;
+    
+    setIsVoting(true);
     try {
       const response = await fetch(`/api/product/${productId}/vote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         }
-      })
+      });
   
       if (response.ok) {
-        const { product: updatedProduct, nextVoteDate } = await response.json()
+        const { product: updatedProduct, nextVoteDate } = await response.json();
         
-        setHasVoted(true)
-        setIsVoteDialogOpen(false)
-        setNextVoteDate(new Date(nextVoteDate))
+        setHasVoted(true);
+        setIsVoteDialogOpen(false);
+        setNextVoteDate(new Date(nextVoteDate));
         
         if (updatedProduct) {
-          setProduct(updatedProduct)
+          setProduct(updatedProduct);
         }
         
         toast({
           title: "Vote Submitted",
           description: "Thank you for your vote! You can vote again in 7 days.",
-        })
+        });
       } else {
-        const errorData = await response.json()
+        const errorData = await response.json();
         if (errorData.nextVoteDate) {
-          setNextVoteDate(new Date(errorData.nextVoteDate))
+          setNextVoteDate(new Date(errorData.nextVoteDate));
         }
-        throw new Error(errorData.error || 'Failed to submit vote')
+        throw new Error(errorData.error || 'Failed to submit vote');
       }
     } catch (error) {
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to submit vote",
         variant: "destructive",
-      })
+      });
+    } finally {
+      setIsVoting(false);
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -223,7 +229,7 @@ export function ViewProduct() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-white pb-24">
       {/* Header */}
       <header className="bg-white p-4 sticky top-0 z-10 shadow-sm">
         <button onClick={handleGoBack} className="flex items-center text-gray-700 hover:text-green-600">
@@ -362,8 +368,12 @@ export function ViewProduct() {
             <Button variant="outline" onClick={() => setIsVoteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleVote} className="bg-green-600 hover:bg-green-700 text-white">
-              Confirm Vote
+            <Button 
+              onClick={handleVote} 
+              className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={isVoting}
+            >
+              {isVoting ? "Submitting..." : "Confirm Vote"}
             </Button>
           </DialogFooter>
         </DialogContent>

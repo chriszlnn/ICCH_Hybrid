@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { History, Trash2, Settings, User, Star, ChevronLeft, BookmarkIcon } from "lucide-react";
+import { History, Trash2, Settings, Star, ChevronLeft, BookmarkIcon } from "lucide-react";
 import { Button } from "@/components/ui/general/button";
 import {
   Dialog,
@@ -67,15 +67,15 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingRecommendationId, setDeletingRecommendationId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("history");
 
   // Sidebar items including recommendations
   const sidebarItems: SidebarItem[] = [
     { icon: <History className="h-5 w-5" />, label: "Review History", id: "history" },
     { icon: <BookmarkIcon className="h-5 w-5" />, label: "Recommendations", id: "recommendations" },
-    { icon: <Star className="h-5 w-5" />, label: "Favorites", id: "favorites" },
-    { icon: <User className="h-5 w-5" />, label: "Profile", id: "profile" },
-    { icon: <Settings className="h-5 w-5" />, label: "Settings", id: "settings" },
+   
+    
   ];
 
   // Fetch data when the modal is opened
@@ -132,6 +132,7 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
 
   const handleRemoveRecommendation = async (recommendationId: string) => {
     try {
+      setDeletingRecommendationId(recommendationId);
       const res = await fetch(`/api/recommendations/${recommendationId}`, {
         method: "DELETE",
         headers: {
@@ -156,6 +157,8 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
     } catch (error) {
       console.error("Error removing recommendation:", error);
       toast.error(error instanceof Error ? error.message : "Failed to remove recommendation");
+    } finally {
+      setDeletingRecommendationId(null);
     }
   };
 
@@ -513,8 +516,9 @@ export function ReviewHistoryModal({ userEmail }: ReviewHistoryModalProps) {
                             variant="outline"
                             size="sm"
                             onClick={() => handleRemoveRecommendation(rec.id)}
+                            disabled={deletingRecommendationId === rec.id}
                           >
-                            Remove
+                            {deletingRecommendationId === rec.id ? "Removing..." : "Remove"}
                           </Button>
                         </div>
                       </div>
