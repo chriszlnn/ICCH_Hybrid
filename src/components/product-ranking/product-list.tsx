@@ -208,7 +208,7 @@ const getRankBadge = (rank?: number) => {
               >
                 <Heart className={`h-5 w-5 ${likedProducts.includes(product.id) ? "fill-red-500 text-red-500" : ""}`} />
               </button>
-              <div className="absolute top-3 right-12 z-10">
+              <div className="absolute bottom-3 right-3 z-10">
                 <AddToRecommendationsButton productId={product.id} variant="icon" />
               </div>
             </div>
@@ -278,8 +278,12 @@ const getRankBadge = (rank?: number) => {
             <Button variant="outline" onClick={() => setIsVoteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleVote} className="bg-green-600 hover:bg-green-700 text-white">
-              Confirm Vote
+            <Button 
+              onClick={handleVote} 
+              className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={isVoting}
+            >
+              {isVoting ? "Submitting..." : "Confirm Vote"}
             </Button>
           </DialogFooter>
         </DialogContent>

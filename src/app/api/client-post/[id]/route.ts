@@ -86,9 +86,18 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing post ID" },
+        { status: 400 }
+      );
+    }
+
     const session = await auth();
     
     if (!session?.user?.email) {
@@ -110,7 +119,7 @@ export async function DELETE(
 
       // Get the post and check ownership
       const post = await prisma.clientPost.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: { client: { include: { user: true } } }
       });
 
@@ -125,7 +134,7 @@ export async function DELETE(
 
       // Delete the post
       await prisma.clientPost.delete({
-        where: { id: params.id }
+        where: { id }
       });
     });
 
@@ -158,9 +167,18 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: "Missing post ID" },
+        { status: 400 }
+      );
+    }
+
     const session = await auth();
     
     if (!session?.user?.email) {
@@ -176,7 +194,7 @@ export async function PATCH(
     const updatedPost = await withDbConnection(async () => {
       // Get the post and check ownership
       const post = await prisma.clientPost.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: { client: { include: { user: true } } }
       });
 
@@ -200,7 +218,7 @@ export async function PATCH(
 
       // Update the post
       return prisma.clientPost.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           title,
           content,

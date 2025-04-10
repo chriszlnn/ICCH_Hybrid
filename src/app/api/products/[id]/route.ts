@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { auth } from "@/lib/auth";
 import { withDbConnection } from "@/lib/db-utils";
+import { getCachedProductById } from '@/lib/product-cache';
 
 // Input validation schema for product updates
 const updateProductSchema = z.object({
@@ -19,19 +20,7 @@ const updateProductSchema = z.object({
 // GET a single product by ID
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
-    const product = await prisma.product.findUnique({
-      where: { id: params.id },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        price: true,
-        category: true,
-        subcategory: true,
-        image: true,
-        tags: true,
-      },
-    });
+    const product = await getCachedProductById(params.id);
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });

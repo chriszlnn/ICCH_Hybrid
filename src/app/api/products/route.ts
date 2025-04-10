@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { getCachedProducts } from '@/lib/product-cache';
 
 // Input validation schema for product creation
 const createProductSchema = z.object({
@@ -17,30 +18,13 @@ const createProductSchema = z.object({
 // GET all products
 export async function GET(req: Request) {
   try {
-    const products = await prisma.product.findMany({
-      include: {
-        reviews: {
-          select: {
-            rating: true,
-          },
-        },
-        productLikes: true,
-        ProductVote: true
-      },
-    });
+    const products = await getCachedProducts();
+    
+    if (!products) {
+      return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
+    }
 
-    // Transform the products to include calculated fields
-    const transformedProducts = products.map(product => ({
-      ...product,
-      rating: product.reviews.length > 0 
-        ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length 
-        : 0,
-      reviewCount: product.reviews.length,
-      likes: product.productLikes.length,
-      votes: product.ProductVote.length
-    }));
-
-    return NextResponse.json(transformedProducts);
+    return NextResponse.json(products);
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });

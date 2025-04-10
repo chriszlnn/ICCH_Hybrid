@@ -58,6 +58,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPostsLoading, setIsPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -72,9 +73,9 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
           setProfile((prevProfile) => ({
             ...prevProfile,
             email: userEmail,
-            username: data.username || "New User",
-            bio: data.bio || "No bio yet.",
-            imageUrl: data.imageUrl || "/blank-profile.svg",
+            username: data.client?.username || "New User",
+            bio: data.client?.bio || "",
+            imageUrl: data.client?.imageUrl || "/blank-profile.svg",
           }));
         } else {
           console.error("Failed to fetch profile");
@@ -88,6 +89,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
 
     const fetchPosts = async () => {
       try {
+        setIsPostsLoading(true);
         setPostsError(null);
         const res = await fetch(`/api/client-post?email=${encodeURIComponent(userEmail)}`);
         
@@ -116,6 +118,8 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
         console.error("Error fetching posts:", error);
         setPosts([]);
         setPostsError("Error loading posts");
+      } finally {
+        setIsPostsLoading(false);
       }
     };
 
@@ -186,7 +190,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pb-16">
       <div className="absolute top-4 right-4">
         <Popover>
           <PopoverTrigger asChild>
@@ -213,7 +217,9 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
         <div className="pl-9">
           <h1 className="text-2xl font-bold mb-2">{profile.username}</h1>
           <h2 className="font-semibold mb-1">{profile.email}</h2>
-          <p className="text-gray-600 pb-4">{profile.bio}</p>
+          <div className="pb-4">
+            {profile.bio && <p className="text-gray-600">{profile.bio}</p>}
+          </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <EditProfile
               currentProfile={profile}
@@ -228,7 +234,15 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
 
       <Tabs defaultValue="posts" className="w-full">
         <TabsContent value="posts">
-          {postsError ? (
+          {isPostsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, index) => (
+                <div key={index} className="relative aspect-square">
+                  <Skeleton className="w-full h-full rounded-md" />
+                </div>
+              ))}
+            </div>
+          ) : postsError ? (
             <div className="text-center py-8 text-gray-500">
               <p>{postsError}</p>
             </div>
@@ -262,7 +276,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
               ))}
             </div>
           )}
-          {!postsError && posts.length === 0 && (
+          {!isPostsLoading && !postsError && posts.length === 0 && (
             <div className="text-center py-8 text-gray-500">
               <p>No posts yet</p>
             </div>

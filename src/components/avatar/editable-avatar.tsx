@@ -14,36 +14,67 @@ interface EditableAvatarProps {
   onAvatarUpdate?: (newSrc: string) => void; // Callback to notify parent of updates
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function EditableAvatar({ alt, fallback, className, onAvatarUpdate }: EditableAvatarProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState<string>("/blank-profile.svg"); // Default image
-  const { data: session } = useSession();
+  const [isLoading, setIsLoading] = useState(true);
+  const { data: session, status } = useSession();
   const userEmail = session?.user?.email;
 
   // Fetch user's profile image on component mount or when userEmail changes
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!userEmail) return; // Exit if no email is available
+      // Only proceed if we have a user email and the session is authenticated
+      if (!userEmail || status !== "authenticated") {
+        setIsLoading(false);
+        return;
+      }
 
+      setIsLoading(true);
+      
       try {
+        console.log("Fetching profile for:", userEmail);
         const response = await fetch(`/api/profile?email=${userEmail}`);
+        
         if (response.ok) {
           const userData = await response.json();
-          setAvatarSrc(userData.imageUrl || "/blank-profile.svg"); // Set to default if no imageUrl is found
+          console.log("Profile data received:", userData);
+          
+          // Check for imageUrl in different possible locations
+          const imageUrl = userData.imageUrl || 
+                          (userData.client && userData.client.imageUrl) || 
+                          (userData.admin && userData.admin.imageUrl) || 
+                          (userData.staff && userData.staff.imageUrl);
+          
+          if (imageUrl) {
+            console.log("Setting avatar to:", imageUrl);
+            setAvatarSrc(imageUrl);
+          } else {
+            console.log("No imageUrl found in profile data, using default");
+            setAvatarSrc("/blank-profile.svg");
+          }
+        } else {
+          console.error("Failed to fetch profile:", response.status, response.statusText);
+          setAvatarSrc("/blank-profile.svg");
         }
       } catch (error) {
         console.error("Error fetching user profile:", error);
+        setAvatarSrc("/blank-profile.svg");
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchProfile();
-  }, [userEmail]);
+  }, [userEmail, status]);
 
   // Handle avatar update after a new image is uploaded
   const handleAvatarUpdate = async (newSrc: string) => {
+    if (!userEmail) return;
+    
     try {
+      console.log("Updating avatar with:", newSrc);
       const res = await fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,16 +82,30 @@ export function EditableAvatar({ alt, fallback, className, onAvatarUpdate }: Edi
       });
 
       if (res.ok) {
-        setAvatarSrc(newSrc);
-        if (onAvatarUpdate) onAvatarUpdate(newSrc); // Notify parent about the update
+        const updatedProfile = await res.json();
+        console.log("Avatar updated successfully, profile data:", updatedProfile);
+        
+        // Use the imageUrl from the response
+        const imageUrl = updatedProfile.imageUrl || newSrc;
+        setAvatarSrc(imageUrl);
+        
+        if (onAvatarUpdate) onAvatarUpdate(imageUrl); // Notify parent about the update
       } else {
-        console.error("Failed to update avatar");
+        console.error("Failed to update avatar:", res.status, res.statusText);
+        setAvatarSrc("/blank-profile.svg");
       }
     } catch (error) {
       console.error("Error updating avatar:", error);
+      setAvatarSrc("/blank-profile.svg");
     } finally {
       setIsModalOpen(false); // Close the modal after update
     }
+  };
+
+  // Generate fallback initials from the alt text
+  const getFallbackInitials = () => {
+    if (!fallback) return "";
+    return fallback.split(" ").map(word => word[0]).join("").toUpperCase();
   };
 
   return (
@@ -70,14 +115,14 @@ export function EditableAvatar({ alt, fallback, className, onAvatarUpdate }: Edi
       onMouseLeave={() => setIsHovered(false)}
     >
       <Avatar className={className}>
-        {/* Always show AvatarImage with the current avatarSrc */}
         <AvatarImage
-          src={avatarSrc}
+          src={isLoading || !avatarSrc ? "/blank-profile.svg" : avatarSrc}
           alt={alt}
-          style={{ transition: "none", opacity: 1 }} // Disable transition and ensure full visibility
+          style={{ transition: "none", opacity: isLoading ? 0.5 : 1 }} // Show loading state
         />
-        {/* Fallback is hidden because we always have a default image */}
-        <AvatarFallback className="bg-transparent">{""}</AvatarFallback>
+        <AvatarFallback className="bg-muted">
+          {getFallbackInitials()}
+        </AvatarFallback>
       </Avatar>
       {isHovered && (
         <Button

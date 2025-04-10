@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { withRetry } from "@/lib/db-utils";
+import { withRetry } from "@/lib/db";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
-    
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "Unauthorized" },
@@ -17,50 +16,52 @@ export async function DELETE(
       );
     }
 
-    const reviewId = params.id;
+    const { id } = await params;
     const userEmail = session.user.email;
 
     // Use the withRetry utility to handle connection pool issues
-    await withRetry(async () => {
-      // First check if the review exists and belongs to the user
-      const review = await prisma.review.findUnique({
-        where: {
-          id: reviewId,
-          author: {
-            email: userEmail
-          }
-        },
-        include: {
-          product: true
+    const review = await withRetry(async () => {
+      return await prisma.review.findUnique({
+        where: { id },
+        include: { 
+          author: true,
+          product: true 
         }
       });
-
-      if (!review) {
-        throw new Error("Review not found or you don't have permission to delete it");
-      }
-
-      const productId = review.productId;
-
-      // Delete the review
-      await prisma.review.delete({
-        where: {
-          id: reviewId
-        }
-      });
-
-      // Update product review count and rating
-      await updateProductReviewStats(productId);
-
-      console.log(`Deleted review: ${reviewId} for user: ${userEmail}`);
     });
 
-    return NextResponse.json({ success: true, message: "Review deleted successfully" });
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error deleting review:", errorMessage);
-    
+    if (!review) {
+      return NextResponse.json(
+        { error: "Review not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if the user is authorized to delete the review
+    if (review.author.email !== userEmail && session.user.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Unauthorized to delete this review" },
+        { status: 403 }
+      );
+    }
+
+    const productId = review.productId;
+
+    // Delete the review with retry logic
+    await withRetry(async () => {
+      await prisma.review.delete({
+        where: { id }
+      });
+    });
+
+    // Update product review stats after deletion
+    await updateProductReviewStats(productId);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting review:", error);
     return NextResponse.json(
-      { error: "Failed to delete review", details: errorMessage },
+      { error: "Failed to delete review" },
       { status: 500 }
     );
   }
