@@ -4,10 +4,12 @@ import { withDbConnection } from "@/lib/db-utils";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const postId = params.id;
+    // Await the params object
+    const resolvedParams = await params;
+    const postId = resolvedParams.id;
     
     if (!postId) {
       return NextResponse.json(
