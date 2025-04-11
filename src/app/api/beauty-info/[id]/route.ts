@@ -8,7 +8,7 @@ import type { BeautyPost } from "@/lib/types/types";
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
-): Promise<NextResponse> {
+) {
   try {
     const { id } = params;
     
@@ -26,7 +26,6 @@ export async function GET(
 
     const result = await withDbConnection(async () => {
       try {
-        // First fetch the post without waiting for like status
         const post = await prisma.beautyInfoPost.findUnique({
           where: { id: postId },
           select: {
@@ -44,7 +43,6 @@ export async function GET(
           return { post: null, userLiked: false };
         }
 
-        // Then fetch the user liked status separately
         let userLiked = false;
         if (userEmail) {
           try {
@@ -60,7 +58,6 @@ export async function GET(
             userLiked = !!likeRecord;
           } catch (likeError) {
             console.error("Error fetching like status:", likeError);
-            // Continue with userLiked as false if there's an error
           }
         }
 
@@ -74,22 +71,19 @@ export async function GET(
         console.error("Error in post fetch operation:", error);
         throw error;
       }
-    }, 10); // Increase retries for this critical endpoint
+    }, 10);
 
     if (!result.post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
     const response = NextResponse.json(result.post);
-    
-    // Add caching headers with optimized settings for individual posts
     response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
-    response.headers.set('Vary', 'Authorization'); // Vary cache by auth status
+    response.headers.set('Vary', 'Authorization');
     return response;
   } catch (error) {
     console.error("Error fetching post:", error);
     
-    // Provide more specific error messages
     if (error instanceof Error) {
       if (error.message.includes("connection pool")) {
         return NextResponse.json(
@@ -110,7 +104,7 @@ export async function GET(
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
-): Promise<NextResponse> {
+) {
   try {
     const { id } = params;
     
@@ -128,9 +122,7 @@ export async function POST(
       return NextResponse.json({ error: "Missing user email" }, { status: 400 });
     }
 
-    // Use a transaction to ensure data consistency
     const result = await withDbConnection(async () => {
-      // First check if the post exists
       const postExists = await prisma.beautyInfoPost.findUnique({
         where: { id: postId },
         select: { id: true },
@@ -140,7 +132,6 @@ export async function POST(
         throw new Error("Post not found");
       }
 
-      // Use a transaction to ensure all operations succeed or fail together
       return await prisma.$transaction(async (tx) => {
         const existingLike = await tx.beautyInfoPostLike.findUnique({
           where: { postId_userEmail: { postId, userEmail } },
@@ -150,7 +141,6 @@ export async function POST(
         let updatedLikes;
 
         if (liked && !existingLike) {
-          // Add like
           await tx.beautyInfoPostLike.create({
             data: { postId, userEmail },
           });
@@ -161,7 +151,6 @@ export async function POST(
             select: { likes: true },
           });
         } else if (!liked && existingLike) {
-          // Remove like
           await tx.beautyInfoPostLike.delete({
             where: { postId_userEmail: { postId, userEmail } },
           });
@@ -172,26 +161,15 @@ export async function POST(
             select: { likes: true },
           });
         } else {
-          // No changes needed, fetch current likes
           updatedLikes = await tx.beautyInfoPost.findUnique({
             where: { id: postId },
             select: { likes: true },
           });
         }
 
-        // Verify the like status after the operation
         const finalLikeStatus = await tx.beautyInfoPostLike.findUnique({
           where: { postId_userEmail: { postId, userEmail } },
           select: { id: true },
-        });
-
-        // Log the result for debugging
-        console.log('Like operation result:', {
-          postId,
-          userEmail,
-          requestedLike: liked,
-          finalLikeStatus: !!finalLikeStatus,
-          likes: updatedLikes?.likes
         });
 
         return {
@@ -202,15 +180,12 @@ export async function POST(
     });
 
     const response = NextResponse.json(result);
-    
-    // Remove caching headers for like operations to ensure fresh data
     response.headers.set('Cache-Control', 'no-store, must-revalidate');
     response.headers.set('Pragma', 'no-cache');
     return response;
   } catch (error) {
     console.error("Error updating like:", error);
     
-    // Provide more specific error messages
     if (error instanceof Error) {
       if (error.message === "Post not found") {
         return NextResponse.json(
