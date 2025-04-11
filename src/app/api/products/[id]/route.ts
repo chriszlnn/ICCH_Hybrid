@@ -18,9 +18,11 @@ const updateProductSchema = z.object({
 }).partial(); // Make all fields optional
 
 // GET a single product by ID
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const product = await getCachedProductById(params.id);
+    // Await the params object
+    const resolvedParams = await params;
+    const product = await getCachedProductById(resolvedParams.id);
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
@@ -36,9 +38,12 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-// PUT update a product by ID
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+// PUT (update) a product
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Await the params object
+    const resolvedParams = await params;
+    const productId = resolvedParams.id;
     const body = await request.json();
     console.log('Received update request body:', JSON.stringify(body, null, 2));
     
@@ -60,7 +65,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     // Check if product exists before updating
     const existingProduct = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id: productId },
     });
 
     if (!existingProduct) {
@@ -74,7 +79,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     };
 
     const updatedProduct = await prisma.product.update({
-      where: { id: params.id },
+      where: { id: productId },
       data: updateData,
       select: {
         id: true,
