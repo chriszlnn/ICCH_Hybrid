@@ -7,10 +7,12 @@ import type { BeautyPost } from "@/lib/types/types";
 // GET function
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const { id } = context.params;
+    // Await the params object
+    const resolvedParams = await params;
+    const { id } = resolvedParams;
     
     if (!id) {
       return NextResponse.json({ error: "Missing post ID" }, { status: 400 });
@@ -103,10 +105,12 @@ export async function GET(
 // POST function
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const { id } = context.params;
+    // Await the params object
+    const resolvedParams = await params;
+    const { id } = resolvedParams;
     
     if (!id) {
       return NextResponse.json({ error: "Missing post ID" }, { status: 400 });
