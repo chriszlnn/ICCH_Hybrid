@@ -6,10 +6,9 @@ const prisma = new PrismaClient()
 
 export async function GET(
     request: Request,
-    context: { params: { id: string } }
+    { params }: { params: { id: string } }
   ) {
     try {
-      const params = await context.params;
       const { id } = params;
       const reviews = await prisma.review.findMany({
         where: {
@@ -41,7 +40,7 @@ export async function GET(
 
   export async function POST(
     request: Request,
-    context: { params: { id: string } }
+    { params }: { params: { id: string } }
   ) {
     const session = await auth()
     console.log("Session in reviews API:", JSON.stringify(session, null, 2))
@@ -56,7 +55,6 @@ export async function GET(
     }
   
     try {
-      const params = await context.params;
       const { id } = params;
       
       // Parse JSON data from request body

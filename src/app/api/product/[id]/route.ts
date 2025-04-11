@@ -6,10 +6,10 @@ const prisma = new PrismaClient()
 
 export async function GET(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   const session = await auth()
-  const { id } = await context.params
+  const { id } = params
   console.log('GET /api/product/[id] - Params:', { id })
   
   try {
@@ -93,10 +93,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   const session = await auth()
-  const { id } = await context.params
+  const { id } = params
   if (!session?.user?.email) {
     return NextResponse.json(
       { error: 'Unauthorized' },

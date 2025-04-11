@@ -5,7 +5,7 @@ import { withDbConnection } from "@/lib/db-utils";
 
 export async function PATCH(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -13,8 +13,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const resolvedParams = await context.params;
-    const staffId = resolvedParams.id;
+    const staffId = params.id;
     const data = await request.json();
 
     const result = await withDbConnection(async () => {
@@ -62,7 +61,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await auth();
@@ -70,8 +69,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const resolvedParams = await context.params;
-    const staffId = resolvedParams.id;
+    const staffId = params.id;
 
     const result = await withDbConnection(async () => {
       // First get the staff member to get their user ID
