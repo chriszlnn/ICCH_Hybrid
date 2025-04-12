@@ -7,10 +7,10 @@ import { withDbConnection } from "@/lib/db-utils"
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
   try {
-    const { id } = params;
+    const id = (await params).id;
     
     if (!id) {
       return NextResponse.json({ error: "Missing post ID" }, { status: 400 });
@@ -68,10 +68,10 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const id = (await params).id;
     
     if (!id) {
       return NextResponse.json({ error: "ID missing" }, { status: 400 });
@@ -97,10 +97,10 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const id = (await params).id;
     
     if (!id) {
       return NextResponse.json({ error: "ID missing" }, { status: 400 });

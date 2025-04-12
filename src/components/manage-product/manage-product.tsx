@@ -812,7 +812,7 @@ export default function ManageProduct() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6 pb-16">
       {/* Header Section */}
       <div className="top-0 z-10 bg-white shadow-md rounded-lg p-6 mb-8">
         <div className="flex justify-between items-center mb-6">
@@ -1192,7 +1192,7 @@ export default function ManageProduct() {
               {filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                  className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col"
                 >
                   <div className="aspect-square bg-gray-100 relative overflow-hidden">
                     <Image
@@ -1204,77 +1204,68 @@ export default function ManageProduct() {
                     />
                   </div>
 
-                  <div className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium text-gray-900 line-clamp-2">{product.name}</h3>
-                        <p className="text-green-600 font-medium mt-1">RM {product.price.toFixed(2)}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          <span className="inline-block text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full">
-                            {categoryOptions.find(cat => cat.id === product.category)?.label || capitalizeFirstLetter(product.category)}
-                          </span>
-                          <span className="inline-block text-xs px-2 py-1 bg-green-50 text-green-800 rounded-full">
-                            {categoryOptions
-                              .find(cat => cat.id === product.category)
-                              ?.subcategories.find(sub => sub.id === product.subcategory)?.label || capitalizeFirstLetter(product.subcategory)}
-                          </span>
-                        </div>
-                        
-                        {/* Display Tags */}
-                        {product.tags && product.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {product.tags.map(tagId => {
-                              const tag = tagOptions.find(t => t.id === tagId);
-                              if (!tag) return null;
-                              
-                              // Determine tag color based on category
-                              let tagColor = "bg-blue-50 text-blue-800";
-                              if (tag.category === "skinType") {
-                                tagColor = "bg-purple-50 text-purple-800";
-                              } else if (tag.category === "skinConcern") {
-                                tagColor = "bg-orange-50 text-orange-800";
-                              } else if (tag.category === "skinTone") {
-                                tagColor = "bg-pink-50 text-pink-800";
-                              } else if (tag.category === "skinColor") {
-                                // For skin color tags, use a custom style with the actual color
-                                return (
-                                  <div 
-                                    key={tagId} 
-                                    className="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-green-50 text-green-800 border border-green-200"
-                                    title={`${tag.tone} tone: ${tag.label}`}
-                                  >
-                                    <div 
-                                      className="w-3 h-3 rounded-full" 
-                                      style={{ backgroundColor: tag.hexValue }}
-                                    />
-                                    <span>{tag.label}</span>
-                                    <button 
-                                      onClick={() => handleTagFilterSelection(tagId)} 
-                                      className="ml-1 text-green-600 hover:text-green-800"
-                                      aria-label={`Remove ${tag.label} filter`}
-                                    >
-                                      <X size={12} />
-                                    </button>
-                                  </div>
-                                );
-                              }
-                              
-                              return (
-                                <span 
-                                  key={tagId} 
-                                  className={`inline-block text-xs px-2 py-1 ${tagColor} rounded-full`}
-                                  title={`${tag.category.replace(/([A-Z])/g, ' $1').trim()}: ${capitalizeFirstLetter(tag.label)}`}
-                                >
-                                  {capitalizeFirstLetter(tag.label)}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
+                  <div className="p-4 flex flex-col flex-grow">
+                    <div>
+                      <h3 className="font-medium text-gray-900 line-clamp-2">{product.name}</h3>
+                      <p className="text-green-600 font-medium mt-1">RM {product.price.toFixed(2)}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <span className="inline-block text-xs px-2 py-1 bg-gray-100 text-gray-800 rounded-full">
+                          {categoryOptions.find(cat => cat.id === product.category)?.label || capitalizeFirstLetter(product.category)}
+                        </span>
+                        <span className="inline-block text-xs px-2 py-1 bg-green-50 text-green-800 rounded-full">
+                          {categoryOptions
+                            .find(cat => cat.id === product.category)
+                            ?.subcategories.find(sub => sub.id === product.subcategory)?.label || capitalizeFirstLetter(product.subcategory)}
+                        </span>
                       </div>
+                      
+                      {/* Display Tags */}
+                      {product.tags && product.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {product.tags.map(tagId => {
+                            const tag = tagOptions.find(t => t.id === tagId);
+                            if (!tag) return null;
+                            
+                            // Determine tag color based on category
+                            let tagColor = "bg-blue-50 text-blue-800";
+                            if (tag.category === "skinType") {
+                              tagColor = "bg-purple-50 text-purple-800";
+                            } else if (tag.category === "skinConcern") {
+                              tagColor = "bg-orange-50 text-orange-800";
+                            } else if (tag.category === "skinTone") {
+                              tagColor = "bg-pink-50 text-pink-800";
+                            } else if (tag.category === "skinColor") {
+                              // For skin color tags, use a custom style with the actual color
+                              return (
+                                <div 
+                                  key={tagId} 
+                                  className="flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-green-50 text-green-800 border border-green-200"
+                                  title={`${tag.tone} tone: ${tag.label}`}
+                                >
+                                  <div 
+                                    className="w-3 h-3 rounded-full" 
+                                    style={{ backgroundColor: tag.hexValue }}
+                                  />
+                                  <span>{tag.label}</span>
+                                </div>
+                              );
+                            }
+                            
+                            return (
+                              <span 
+                                key={tagId} 
+                                className={`inline-block text-xs px-2 py-1 ${tagColor} rounded-full`}
+                                title={`${tag.category.replace(/([A-Z])/g, ' $1').trim()}: ${capitalizeFirstLetter(tag.label)}`}
+                              >
+                                {capitalizeFirstLetter(tag.label)}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex justify-end mt-4 gap-2">
+                    <div className="flex justify-end mt-auto pt-4 gap-2">
                       <button
                         onClick={() => editProduct(product)}
                         className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
@@ -1467,28 +1458,30 @@ export default function ManageProduct() {
                         )}
                         
                         {/* Skin Tone Tags */}
-                        <div>
-                          <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Tone</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {availableTags
-                              .filter(tag => tag.category === "skinTone")
-                              .map(tag => (
-                                <button
-                                  key={tag.id}
-                                  type="button"
-                                  onClick={() => handleTagSelection(tag.id)}
-                                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                                    isTagSelected(tag.id)
-                                      ? "bg-green-100 text-green-800 border border-green-300"
-                                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
-                                  }`}
-                                  disabled={isUploading || isAddingProduct}
-                                >
-                                  {capitalizeFirstLetter(tag.label)}
-                                </button>
-                              ))}
+                        {(newProduct.category === "makeup") && (
+                          <div>
+                            <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Tone</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {availableTags
+                                .filter(tag => tag.category === "skinTone")
+                                .map(tag => (
+                                  <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => handleTagSelection(tag.id)}
+                                    className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                      isTagSelected(tag.id)
+                                        ? "bg-green-100 text-green-800 border border-green-300"
+                                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                    }`}
+                                    disabled={isUploading || isAddingProduct}
+                                  >
+                                    {capitalizeFirstLetter(tag.label)}
+                                  </button>
+                                ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         {/* Skin Color Tags */}
                         {newProduct.category === "makeup" && (
@@ -1627,13 +1620,6 @@ export default function ManageProduct() {
                                     style={{ backgroundColor: tag.hexValue }}
                                   />
                                   <span>{tag.label}</span>
-                                  <button 
-                                    onClick={() => handleTagFilterSelection(tagId)} 
-                                    className="ml-1 text-green-600 hover:text-green-800"
-                                    aria-label={`Remove ${tag.label} filter`}
-                                  >
-                                    <X size={12} />
-                                  </button>
                                 </div>
                               );
                             }
@@ -1641,7 +1627,7 @@ export default function ManageProduct() {
                             return (
                               <span 
                                 key={tagId} 
-                                className={`inline-block text-xs px-2 py-1 ${tagColor} rounded-full border`}
+                                className={`inline-block text-xs px-2 py-1 ${tagColor} rounded-full`}
                                 title={`${tag.category.replace(/([A-Z])/g, ' $1').trim()}: ${capitalizeFirstLetter(tag.label)}`}
                               >
                                 {capitalizeFirstLetter(tag.label)}
@@ -1844,28 +1830,30 @@ export default function ManageProduct() {
                       )}
                       
                       {/* Skin Tone Tags */}
-                      <div>
-                        <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Tone</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {availableEditTags
-                            .filter(tag => tag.category === "skinTone")
-                            .map(tag => (
-                              <button
-                                key={tag.id}
-                                type="button"
-                                onClick={() => handleEditTagSelection(tag.id)}
-                                className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                                  isEditTagSelected(tag.id)
-                                    ? "bg-green-100 text-green-800 border border-green-300"
-                                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
-                                }`}
-                                disabled={isUploading || isEditingProduct}
-                              >
-                                {capitalizeFirstLetter(tag.label)}
-                              </button>
-                            ))}
+                      {(editingProduct.category === "makeup") && (
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-700 mb-1">Skin Tone</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {availableEditTags
+                              .filter(tag => tag.category === "skinTone")
+                              .map(tag => (
+                                <button
+                                  key={tag.id}
+                                  type="button"
+                                  onClick={() => handleEditTagSelection(tag.id)}
+                                  className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                                    isEditTagSelected(tag.id)
+                                      ? "bg-green-100 text-green-800 border border-green-300"
+                                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-100"
+                                  }`}
+                                  disabled={isUploading || isEditingProduct}
+                                >
+                                  {capitalizeFirstLetter(tag.label)}
+                                </button>
+                              ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Skin Color Tags */}
                       {editingProduct.category === "makeup" && (
@@ -2004,13 +1992,6 @@ export default function ManageProduct() {
                                   style={{ backgroundColor: tagInfo.hexValue }}
                                 />
                                 <span>{tagInfo.label}</span>
-                                <button 
-                                  onClick={() => handleTagFilterSelection(tagId)} 
-                                  className="ml-1 text-green-600 hover:text-green-800"
-                                  aria-label={`Remove ${tagInfo.label} filter`}
-                                >
-                                  <X size={12} />
-                                </button>
                               </div>
                             );
                           }

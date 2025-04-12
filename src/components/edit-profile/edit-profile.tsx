@@ -80,12 +80,18 @@ export function EditProfile({ currentProfile, onSaveAction }: EditProfileProps) 
     resetAlerts();
 
     try {
-      await axios.post("/api/change-password", { 
+      // Add cache-busting query parameter to prevent stale responses
+      const timestamp = new Date().getTime();
+      await axios.post(`/api/change-password?_t=${timestamp}`, { 
         currentPassword,
         newPassword,
         email: currentProfile.email,
       });
 
+      // Clear password fields after successful update
+      setCurrentPassword("");
+      setNewPassword("");
+      
       setAlertType("success");
       setAlertMessage("Password updated successfully!");
       setTimeout(() => setIsOpen(false), 2000);

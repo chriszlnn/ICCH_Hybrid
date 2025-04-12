@@ -1,3 +1,4 @@
+"use client";
 
 //import { Button } from "@/components/ui/button";
 //import { Input } from "@/components/ui/input";
@@ -6,17 +7,15 @@
 //import Link from "next/link";
 
 import ResetPasswordForm from "@/components/auth/reset-password-form";
+import { Suspense } from "react";
 
-const Page = async () => {
-  
-  
+export default function ForgotPasswordPage() {
   return (
     <div>
-      <ResetPasswordForm />
+      <Suspense fallback={<div>Loading...</div>}>
+        <ResetPasswordForm />
+      </Suspense>
     </div>
   );
-};
-
-
-export default Page;
+}
 

@@ -128,7 +128,7 @@ export async function DELETE(
       }
 
       // Allow deletion if user is admin or if they own the post
-      if (currentUser?.role !== "ADMIN" && post.client.user.email !== userEmail) {
+      if (currentUser?.role !== "ADMIN" && currentUser?.role !== "STAFF" && post.client.user.email !== userEmail) {
         throw new Error("Unauthorized");
       }
 

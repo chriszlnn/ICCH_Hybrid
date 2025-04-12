@@ -20,6 +20,9 @@ export default function NewPostPage() {
     images: [],
     file: "",
     likes: 0,
+    userLiked: false,
+    createdAt: new Date(),
+    updatedAt: new Date()
   };
 
   // Define the `onSave` function

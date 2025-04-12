@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { validateUserPassword, changeUserPassword } from "@/lib/password-cache";
 
 // POST to change user password
 export async function POST(req: Request) {
@@ -16,35 +15,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "Password must be at least 8 characters" }, { status: 400 });
     }
 
-    // Fetch user from the database
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      return NextResponse.json({ message: "User not found" }, { status: 404 });
+    // Validate current password using cached function
+    const validation = await validateUserPassword(email, currentPassword);
+    
+    if (!validation.isValid) {
+      return NextResponse.json({ message: validation.error }, { status: validation.error === "User not found" ? 404 : 401 });
     }
 
-    // Check if the user has a password set
-    if (!user.password) {
-      return NextResponse.json({ message: "No password set for this account" }, { status: 400 });
+    // Change password using cached function
+    const result = await changeUserPassword(email, newPassword);
+    
+    if (!result.success) {
+      return NextResponse.json({ message: result.error }, { status: 500 });
     }
-
-    // ✅ Compare the current password with the hashed password in the database
-    const isPasswordMatch = await bcrypt.compare(currentPassword, user.password);
-
-    if (!isPasswordMatch) {
-      return NextResponse.json({ message: "Current password is incorrect" }, { status: 401 });
-    }
-
-    // Hash the new password
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update password in the database
-    await prisma.user.update({
-      where: { email },
-      data: { password: hashedNewPassword },
-    });
 
     return NextResponse.json({ message: "Password updated successfully" }, { status: 200 });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

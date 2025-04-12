@@ -17,11 +17,11 @@ function getCurrentWeekAndYear() {
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
   const userEmail = session?.user?.email
-  const { id } = params
+  const id = (await params).id
   if (!userEmail) {
     return NextResponse.json(
       { hasVoted: false },
@@ -55,10 +55,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
-  const { id } = params
+  const id = (await params).id
   const userEmail = session?.user?.email
   if (!userEmail) {
     return NextResponse.json(

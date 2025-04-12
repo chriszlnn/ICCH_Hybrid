@@ -5,8 +5,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronDown, Search, ArrowUpDown, Trophy, Heart, Star, Filter, Sparkles } from "lucide-react"
+import { ChevronDown, Search, ArrowUpDown, Trophy, Heart, Star, Filter, Sparkles, BarChart3, ThumbsUp } from "lucide-react"
 import type { Product } from "../product-ranking/types"
+import React from "react"
+//import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+//import { Badge } from "@/components/ui/badge"
 
 interface ProductVotesTableProps {
   products: Product[]
@@ -16,6 +19,26 @@ interface ProductVotesTableProps {
 
 type SortField = "category" | "subcategory" | "votes" | "likes" | "rating"
 type SortDirection = "asc" | "desc"
+
+// Function to determine what contributes most to the product's rank
+function getRankSource(product: Product): { source: 'votes' | 'rating' | 'likes', icon: React.ReactElement } {
+  if (product.votes > 0) {
+    return {
+      source: 'votes',
+      icon: <BarChart3 className="h-3 w-3 text-green-700" />
+    };
+  } else if (product.rating > 0) {
+    return {
+      source: 'rating',
+      icon: <Star className="h-3 w-3 text-yellow-500" />
+    };
+  } else {
+    return {
+      source: 'likes',
+      icon: <ThumbsUp className="h-3 w-3 text-blue-500" />
+    };
+  }
+}
 
 export function ProductVotesTable({ products, onSelectProduct, selectedProductId }: ProductVotesTableProps) {
   const [searchTerm, setSearchTerm] = useState("")
@@ -33,28 +56,160 @@ export function ProductVotesTable({ products, onSelectProduct, selectedProductId
 
   // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
-    let comparison = 0
-
-    switch (sortField) {
-      case "category":
-        comparison = a.category.localeCompare(b.category)
-        break
-      case "subcategory":
-        comparison = a.subcategory.localeCompare(b.subcategory)
-        break
-      case "votes":
-        comparison = a.reviewCount - b.reviewCount
-        break
-      case "likes":
-        comparison = a.likes - b.likes
-        break
-      case "rating":
-        comparison = a.rating - b.rating
-        break
+    // First sort by rank to ensure 1st, 2nd, 3rd ranks appear in order
+    // Products with no rank (rank = 0) should appear at the bottom
+    if (a.rank !== 0 && b.rank === 0) return -1;
+    if (a.rank === 0 && b.rank !== 0) return 1;
+    if (a.rank !== 0 && b.rank !== 0) {
+      const rankComparison = a.rank - b.rank;
+      if (rankComparison !== 0) return rankComparison;
     }
 
-    return sortDirection === "asc" ? comparison : -comparison
+    // Handle sorting based on the selected sort field
+    let comparison = 0;
+    
+    switch (sortField) {
+      case "category":
+        comparison = a.category.localeCompare(b.category);
+        break;
+      case "subcategory":
+        comparison = a.subcategory.localeCompare(b.subcategory);
+        break;
+      case "votes":
+        // Use votes directly instead of reviewCount
+        comparison = (b.votes || 0) - (a.votes || 0); // Descending by default
+        break;
+      case "likes":
+        comparison = (b.likes || 0) - (a.likes || 0); // Descending by default
+        break;
+      case "rating":
+        comparison = (b.rating || 0) - (a.rating || 0); // Descending by default
+        break;
+      default:
+        // If no specific sort field or if it's the default view,
+        // apply the priority ranking (votes > rating > likes)
+        const aVotes = typeof a.votes === 'number' ? a.votes : 0;
+        const bVotes = typeof b.votes === 'number' ? b.votes : 0;
+        
+        if (aVotes > 0 || bVotes > 0) {
+          // If only one has votes, that one goes first
+          if (aVotes > 0 && bVotes === 0) return -1;
+          if (aVotes === 0 && bVotes > 0) return 1;
+          // If both have votes, sort by vote count
+          if (aVotes !== bVotes) return bVotes - aVotes;
+        }
+        
+        // If neither has votes or they're equal, check ratings
+        const aRating = typeof a.rating === 'number' ? a.rating : 0;
+        const bRating = typeof b.rating === 'number' ? b.rating : 0;
+        
+        if (aRating > 0 || bRating > 0) {
+          // If only one has rating, that one goes first
+          if (aRating > 0 && bRating === 0) return -1;
+          if (aRating === 0 && bRating > 0) return 1;
+          // If both have ratings, sort by rating
+          if (aRating !== bRating) return bRating - aRating;
+        }
+        
+        // Finally, check likes
+        const aLikes = typeof a.likes === 'number' ? a.likes : 0;
+        const bLikes = typeof b.likes === 'number' ? b.likes : 0;
+        
+        if (aLikes > 0 || bLikes > 0) {
+          // If only one has likes, that one goes first
+          if (aLikes > 0 && bLikes === 0) return -1;
+          if (aLikes === 0 && bLikes > 0) return 1;
+          // If both have likes, sort by likes count
+          if (aLikes !== bLikes) return bLikes - aLikes;
+        }
+        
+        // If still tied, sort by name for stability
+        return a.name.localeCompare(b.name);
+    }
+    
+    // Apply sort direction
+    return sortDirection === "asc" ? comparison : -comparison;
   })
+  
+  // Calculate proper rank for each product based on its metrics
+  // This ensures ranks are calculated even if the database value is missing
+  const productsWithCalculatedRanks = [...sortedProducts];
+  
+  // Group products by subcategory for rank calculation
+  const productsBySubcategory: Record<string, Product[]> = {};
+  
+  productsWithCalculatedRanks.forEach(product => {
+    const subcategory = product.subcategory || 'uncategorized';
+    if (!productsBySubcategory[subcategory]) {
+      productsBySubcategory[subcategory] = [];
+    }
+    productsBySubcategory[subcategory].push(product);
+  });
+  
+  // Process each subcategory to properly assign ranks
+  Object.keys(productsBySubcategory).forEach(subcategory => {
+    const subcategoryProducts = productsBySubcategory[subcategory];
+    
+    // Sort by priority: votes > rating > likes
+    subcategoryProducts.sort((a, b) => {
+      // Check votes first
+      if (a.votes !== b.votes) return b.votes - a.votes;
+      // Then rating
+      if (a.rating !== b.rating) return b.rating - a.rating;
+      // Then likes
+      if (a.likes !== b.likes) return b.likes - a.likes;
+      return 0;
+    });
+    
+    // Assign ranks based on the sorted order
+    subcategoryProducts.forEach((product, index) => {
+      if (product.votes > 0 || product.rating > 0 || product.likes > 0) {
+        // If product has any metrics, assign a rank
+        product.rank = index + 1;
+      } else {
+        // No ranking metrics
+        product.rank = 0;
+      }
+    });
+  });
+  
+  // Now resort the products for display based on rank
+  const finalSortedProducts = productsWithCalculatedRanks.sort((a, b) => {
+    // Products with rank come before products without rank
+    if ((a.rank > 0) && (b.rank === 0)) return -1;
+    if ((a.rank === 0) && (b.rank > 0)) return 1;
+    
+    // Both have ranks - sort by rank ascending (1, 2, 3...)
+    if (a.rank > 0 && b.rank > 0) {
+      return a.rank - b.rank;
+    }
+    
+    // For products without ranks, sort by the selected sort field
+    let comparison = 0;
+    
+    switch (sortField) {
+      case "category":
+        comparison = a.category.localeCompare(b.category);
+        break;
+      case "subcategory":
+        comparison = a.subcategory.localeCompare(b.subcategory);
+        break;
+      case "votes":
+        comparison = (b.votes || 0) - (a.votes || 0);
+        break;
+      case "likes":
+        comparison = (b.likes || 0) - (a.likes || 0);
+        break;
+      case "rating":
+        comparison = (b.rating || 0) - (a.rating || 0);
+        break;
+      default:
+        // Default sort by name
+        comparison = a.name.localeCompare(b.name);
+    }
+    
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
 
   const handleSort = (field: SortField) => {
     if (field === sortField) {
@@ -71,11 +226,62 @@ export function ProductVotesTable({ products, onSelectProduct, selectedProductId
   }
 
   // Get rank badge styling based on position
-  const getRankBadge = (index: number) => {
-    if (index === 0) return <Trophy className="h-5 w-5 text-amber-500" />
-    if (index === 1) return <Trophy className="h-5 w-5 text-gray-400" />
-    if (index === 2) return <Trophy className="h-5 w-5 text-amber-700" />
-    return null
+  const getRankBadge = (product: Product) => {
+    // Don't show rank for products with no metrics
+    if (product.rank === 0) {
+      return <span className="text-gray-300">-</span>;
+    }
+    
+    // Use the getRankSource function to determine the ranking source
+    const { source, icon } = getRankSource(product);
+    
+    // Only products with actual rank (> 0) should get badges
+    if (product.rank === 1) {
+      return (
+        <div className="relative">
+          <Trophy className={`h-5 w-5 text-amber-500`} />
+          {source !== "votes" && 
+            <div className="absolute -top-2 -right-2 w-3 h-3 rounded-full bg-white flex items-center justify-center">
+              {icon}
+            </div>
+          }
+        </div>
+      );
+    }
+    
+    if (product.rank === 2) {
+      return (
+        <div className="relative">
+          <Trophy className="h-5 w-5 text-gray-400" />
+          {source !== "votes" && 
+            <div className="absolute -top-2 -right-2 w-3 h-3 rounded-full bg-white flex items-center justify-center">
+              {icon}
+            </div>
+          }
+        </div>
+      );
+    }
+    
+    if (product.rank === 3) {
+      return (
+        <div className="relative">
+          <Trophy className="h-5 w-5 text-amber-700" />
+          {source !== "votes" && 
+            <div className="absolute -top-2 -right-2 w-3 h-3 rounded-full bg-white flex items-center justify-center">
+              {icon}
+            </div>
+          }
+        </div>
+      );
+    }
+    
+    // For ranks beyond top 3, show the rank number with an indicator of the source
+    return (
+      <div className="flex items-center">
+        <span className="text-gray-500 mr-1">#{product.rank}</span>
+        <span title={`Ranked by ${source}`}>{icon}</span>
+      </div>
+    );
   }
 
   return (
@@ -170,8 +376,8 @@ export function ProductVotesTable({ products, onSelectProduct, selectedProductId
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedProducts.length > 0 ? (
-              sortedProducts.map((product, index) => (
+            {finalSortedProducts.length > 0 ? (
+              finalSortedProducts.map((product) => (
                 <TableRow
                   key={product.id}
                   className={`cursor-pointer transition-all duration-200 ${
@@ -187,7 +393,7 @@ export function ProductVotesTable({ products, onSelectProduct, selectedProductId
                 >
                   <TableCell className="font-medium text-center">
                     <div className="flex items-center justify-center">
-                      {getRankBadge(index) || <span className="text-gray-500">#{index + 1}</span>}
+                      {getRankBadge(product)}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -212,7 +418,7 @@ export function ProductVotesTable({ products, onSelectProduct, selectedProductId
                   </TableCell>
                   <TableCell>{product.category}</TableCell>
                   <TableCell>{product.subcategory}</TableCell>
-                  <TableCell className="text-center">{product.reviewCount}</TableCell>
+                  <TableCell className="text-center">{product.votes}</TableCell>
                   <TableCell className="text-center">{product.likes}</TableCell>
                   <TableCell className="text-center">{product.rating.toFixed(1)}</TableCell>
                 </TableRow>
@@ -237,7 +443,7 @@ export function ProductVotesTable({ products, onSelectProduct, selectedProductId
       </div>
 
       <div className="p-3 border-t bg-gray-50 text-xs text-gray-500 flex items-center">
-        <div className="flex-1">Showing {sortedProducts.length} products</div>
+        <div className="flex-1">Showing {finalSortedProducts.length} products</div>
         <div className="flex items-center">
           <Filter className="h-3 w-3 mr-1" />
           Sorted by: <span className="font-medium ml-1 text-gray-700">{sortField}</span>

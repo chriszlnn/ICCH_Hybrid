@@ -25,6 +25,7 @@ export interface Product {
   updatedAt: string
   reviews?: Review[]
   tags?: string[]
+  volume?: string // Product volume (e.g. '150ml', '50g')
 }
 
 export interface CategoryOption {

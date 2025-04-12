@@ -8,7 +8,7 @@ import { withDbConnection } from "@/lib/db-utils";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -16,7 +16,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = params.id;
+    const userId = (await params).id;
 
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
@@ -86,9 +86,9 @@ export async function DELETE(
 // PUT request to update user, client, or staff
 export async function PUT(
   request: Request, 
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = params.id; // userId is a string (cuid)
+  const userId = (await params).id; // userId is a string (cuid)
   const { emailVerified, name, department } = await request.json();
 
   try {
@@ -170,9 +170,9 @@ export async function PUT(
 // POST request to resend verification email
 export async function POST(
   request: Request, 
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const userId = params.id; // userId is a string (cuid)
+  const userId = (await params).id; // userId is a string (cuid)
 
   try {
     // Use the withRetry utility to handle connection pool issues

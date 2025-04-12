@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/general/card";
 import { Input } from "@/components/ui/general/input";
 import { Button } from "@/components/ui/general/button";
@@ -16,16 +16,20 @@ export default function ResetPasswordForm() {
   const [error, setError] = useState("");
   const [alertType, setAlertType] = useState<"error" | "success" | null>(null);
   const [success, setSuccess] = useState(false);
-  const searchParams = useSearchParams();
+  const [token, setToken] = useState<string | null>(null);
   const router = useRouter();
   
-  const token = searchParams.get("token");
-
+  // Get token from URL on client side
   useEffect(() => {
-    if (!token) {
+    const params = new URLSearchParams(window.location.search);
+    const tokenParam = params.get("token");
+    setToken(tokenParam);
+    
+    if (!tokenParam) {
       setError("Invalid or missing reset token.");
+      setAlertType("error");
     }
-  }, [token]);
+  }, []);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const validatePassword = (password: string | any[]) => password.length >= 8;
@@ -50,9 +54,9 @@ export default function ResetPasswordForm() {
     }
   
     try {
-      const token = new URLSearchParams(window.location.search).get("token"); // Extract token from URL
       if (!token) {
         setError("Invalid or missing token.");
+        setAlertType("error");
         setIsLoading(false);
         return;
       }
@@ -81,6 +85,7 @@ export default function ResetPasswordForm() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred.");
+      setAlertType("error");
     } finally {
       setIsLoading(false);
     }

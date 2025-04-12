@@ -42,11 +42,11 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
           setProfile((prevProfile) => ({
             ...prevProfile,
             email: userEmail,
-            username: data.username || "New User",
-            bio: data.bio || "No bio yet.",
-            imageUrl: data.imageUrl || "/blank-profile.svg",
-            department: data.department || "",
-            name: data.name || "",
+            username: data.username || data.staff?.username || "New User",
+            bio: data.bio || data.staff?.bio || "No bio yet.",
+            imageUrl: data.imageUrl || data.staff?.imageUrl || "/blank-profile.svg",
+            department: data.staff?.department || "",
+            name: data.staff?.name || "",
             posts: prevProfile.posts,
           }));
         } else {

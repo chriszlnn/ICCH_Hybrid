@@ -59,6 +59,12 @@ export default function ManageUser() {
   });
   const [error, setError] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"error" | "success" | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailAlertOpen, setEmailAlertOpen] = useState(false);
+  const [emailAlertMessage, setEmailAlertMessage] = useState("");
+  const [emailAlertType, setEmailAlertType] = useState<"success" | "error">("success");
 
   useEffect(() => {
     // Set mounted to true when component mounts
@@ -191,7 +197,7 @@ export default function ManageUser() {
     return staff.filter((staffMember) => {
       const searchLower = searchQuery.toLowerCase();
       return (
-        (staffMember.userId?.toString() || '').toLowerCase().includes(searchLower) ||
+        (staffMember.id?.toString() || '').toLowerCase().includes(searchLower) ||
         (staffMember.email || '').toLowerCase().includes(searchLower) ||
         (staffMember.name || '').toLowerCase().includes(searchLower)
       );
@@ -229,46 +235,76 @@ export default function ManageUser() {
     if (!itemToDelete) return;
   
     try {
-      // Ensure the ID is a string
-      const id = String(itemToDelete.userId);
-  
-      // Log the ID for debugging
-      console.log("Deleting item with ID:", id);
-  
-      // Call the new DELETE API endpoint
-      const response = await fetch(`/api/users/delete`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id }),
-      });
-  
-      // Log the response status for debugging
-      console.log("Delete response status:", response.status);
+      setIsDeleting(true);
       
-      if (response.ok) {
-        // Refresh the data
-        const clientRes = await fetch("/api/clients");
-        const staffRes = await fetch("/api/staff");
-        const clientData = await clientRes.json();
-        const staffData = await staffRes.json();
-        setClients(clientData);
-        setStaff(staffData);
-  
-        // Close the delete dialog
-        setDeleteDialogOpen(false);
-        setItemToDelete(null);
+      if (activeTab === "staff") {
+        // For staff, use the staff-specific endpoint
+        const id = String(itemToDelete.id);
+        console.log("Deleting staff with ID:", id);
+        
+        const response = await fetch(`/api/staff/${id}`, {
+          method: "DELETE",
+        });
+        
+        console.log("Delete staff response status:", response.status);
+        
+        if (response.ok) {
+          // Refresh the staff data
+          const staffRes = await fetch("/api/staff");
+          const staffData = await staffRes.json();
+          setStaff(staffData);
+          
+          // Close the delete dialog
+          setDeleteDialogOpen(false);
+          setItemToDelete(null);
+        } else {
+          // Get the error message from the response
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Failed to delete staff:", errorData.error || response.statusText);
+          if (errorData.details) {
+            console.error("Error details:", errorData.details);
+          }
+          alert(`Failed to delete staff: ${errorData.error || "Unknown error"}`);
+        }
       } else {
-        // Get the error message from the response
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Failed to delete item:", errorData.error || response.statusText);
-        if (errorData.details) {
-          console.error("Error details:", errorData.details);
+        // For clients, use the existing user deletion endpoint
+        const id = String(itemToDelete.userId);
+        console.log("Deleting client with ID:", id);
+        
+        // Call the user DELETE API endpoint
+        const response = await fetch(`/api/users/delete`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ id }),
+        });
+        
+        console.log("Delete client response status:", response.status);
+        
+        if (response.ok) {
+          // Refresh the client data
+          const clientRes = await fetch("/api/clients");
+          const clientData = await clientRes.json();
+          setClients(clientData);
+          
+          // Close the delete dialog
+          setDeleteDialogOpen(false);
+          setItemToDelete(null);
+        } else {
+          // Get the error message from the response
+          const errorData = await response.json().catch(() => ({}));
+          console.error("Failed to delete client:", errorData.error || response.statusText);
+          if (errorData.details) {
+            console.error("Error details:", errorData.details);
+          }
+          alert(`Failed to delete client: ${errorData.error || "Unknown error"}`);
         }
       }
     } catch (error) {
       console.error("Error deleting item:", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -276,6 +312,7 @@ export default function ManageUser() {
     if (!editingItem) return;
   
     try {
+      setIsEditing(true);
       let requestBody;
   
       if (activeTab === "clients") {
@@ -293,13 +330,18 @@ export default function ManageUser() {
       }
   
       // Send the request to the API
-      const response = await fetch(`/api/users/${editingItem.userId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await fetch(
+        activeTab === "staff" 
+          ? `/api/staff/${editingItem.id}` 
+          : `/api/users/${editingItem.userId}`, 
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        }
+      );
   
       if (response.ok) {
         // Refresh the data
@@ -321,26 +363,36 @@ export default function ManageUser() {
       }
     } catch (error) {
       console.error("Error updating item:", error);
+    } finally {
+      setIsEditing(false);
     }
   };
 
   const handleResendVerificationEmail = async () => {
-  try {
-    const response = await fetch(`/api/users/${editingItem.userId}`, {
-      method: "POST",
-    });
+    try {
+      setIsSendingEmail(true);
+      const userIdField = activeTab === "staff" ? editingItem.id : editingItem.userId;
+      const response = await fetch(`/api/users/${userIdField}`, {
+        method: "POST",
+      });
 
-    if (response.ok) {
-      alert("Verification email has been resent successfully!");
-    } else {
-      console.error("Failed to resend verification email");
-      alert("Failed to resend verification email. Please try again.");
+      if (response.ok) {
+        setEmailAlertType("success");
+        setEmailAlertMessage("Verification email has been sent successfully!");
+        setEmailAlertOpen(true);
+      } else {
+        setEmailAlertType("error");
+        setEmailAlertMessage("Failed to send verification email. Please try again.");
+        setEmailAlertOpen(true);
+      }
+    } catch (error) {
+      setEmailAlertType("error");
+      setEmailAlertMessage("Error sending verification email. Please try again.");
+      setEmailAlertOpen(true);
+    } finally {
+      setIsSendingEmail(false);
     }
-  } catch (error) {
-    console.error("Error resending verification email:", error);
-    alert("Failed to resend verification email. Please try again.");
-  }
-};
+  };
 
   const handleCloseAddStaffDialog = () => {
     setIsAddStaffOpen(false);
@@ -593,8 +645,8 @@ export default function ManageUser() {
                       </thead>
                       <tbody>
                         {filteredStaff.map((staff) => (
-                          <tr key={staff.userId} className="border-b">
-                            <td className="py-3">{staff.userId}</td>
+                          <tr key={staff.id} className="border-b">
+                            <td className="py-3">{staff.id}</td>
                             <td className="py-3">{staff.name}</td>
                             <td className="py-3">{staff.email}</td>
                             <td className="py-3">{staff.department}</td>
@@ -687,10 +739,17 @@ export default function ManageUser() {
                     <div className="space-y-2">
                       <Button
                         onClick={handleResendVerificationEmail}
-                        disabled={!editingItem.email}
+                        disabled={!editingItem.email || isSendingEmail}
                         className="w-full"
                       >
-                        Resend Verification Email
+                        {isSendingEmail ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          "Resend Verification Email"
+                        )}
                       </Button>
                     </div>
                   )}
@@ -702,7 +761,7 @@ export default function ManageUser() {
                     <Label htmlFor="staffId">Staff ID</Label>
                     <Input
                       id="staffId"
-                      value={editingItem.userId}
+                      value={editingItem.id}
                       disabled
                     />
                   </div>
@@ -741,16 +800,25 @@ export default function ManageUser() {
             </div>
           )}
           <CustomDialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isEditing}>
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit}>Save changes</Button>
+            <Button onClick={handleSaveEdit} disabled={isEditing}>
+              {isEditing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save changes"
+              )}
+            </Button>
           </CustomDialogFooter>
         </CustomDialogContent>
       </CustomDialog>
 
       {/* Delete Confirmation Dialog */}
-      <CustomAlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <CustomAlertDialog open={deleteDialogOpen} onOpenChange={handleCloseDeleteDialog}>
         <CustomAlertDialogContent className="max-w-[500px] p-6">
           <CustomAlertDialogHeader className="space-y-2">
             <CustomAlertDialogTitle>Are you sure?</CustomAlertDialogTitle>
@@ -760,9 +828,42 @@ export default function ManageUser() {
             </CustomAlertDialogDescription>
           </CustomAlertDialogHeader>
           <CustomAlertDialogFooter className="mt-6">
-            <CustomAlertDialogCancel>Cancel</CustomAlertDialogCancel>
-            <CustomAlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
-              Delete
+            <CustomAlertDialogCancel disabled={isDeleting} onClick={handleCloseDeleteDialog}>Cancel</CustomAlertDialogCancel>
+            <CustomAlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground" disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </CustomAlertDialogAction>
+          </CustomAlertDialogFooter>
+        </CustomAlertDialogContent>
+      </CustomAlertDialog>
+
+      {/* Email Verification Alert Dialog */}
+      <CustomAlertDialog open={emailAlertOpen} onOpenChange={setEmailAlertOpen}>
+        <CustomAlertDialogContent className="max-w-[500px] p-6">
+          <CustomAlertDialogHeader className="space-y-2">
+            <div className="flex items-center">
+              {emailAlertType === "success" ? (
+                <CheckCircle2 className="h-6 w-6 text-green-500 mr-2" />
+              ) : (
+                <AlertCircle className="h-6 w-6 text-red-500 mr-2" />
+              )}
+              <CustomAlertDialogTitle>
+                {emailAlertType === "success" ? "Success" : "Error"}
+              </CustomAlertDialogTitle>
+            </div>
+            <CustomAlertDialogDescription>
+              {emailAlertMessage}
+            </CustomAlertDialogDescription>
+          </CustomAlertDialogHeader>
+          <CustomAlertDialogFooter className="mt-6">
+            <CustomAlertDialogAction onClick={() => setEmailAlertOpen(false)}>
+              OK
             </CustomAlertDialogAction>
           </CustomAlertDialogFooter>
         </CustomAlertDialogContent>

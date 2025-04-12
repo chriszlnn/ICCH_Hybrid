@@ -8,10 +8,24 @@ import { Plus, Edit, Trash2 } from "lucide-react"
 import type { BeautyPost } from "@/lib/types/types"
 import { useToast } from "../ui/toast/use-toast"
 import { useSession } from "next-auth/react"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function EditDashboard() {
   const [posts, setPosts] = useState<BeautyPost[]>([])
   const [loading, setLoading] = useState(true)
+  const [postToDelete, setPostToDelete] = useState<number | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
   const { data: session } = useSession(); 
 
@@ -38,23 +52,33 @@ export default function EditDashboard() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this post?")) return
+  const confirmDelete = (id: number) => {
+    setPostToDelete(id)
+    setDeleteDialogOpen(true)
+  }
 
+  const handleDelete = async () => {
+    if (postToDelete === null) return
+    
+    setIsDeleting(true)
     try {
-      const response = await fetch(`/api/posts/${id}`, {
+      const response = await fetch(`/api/posts/${postToDelete}`, {
         method: "DELETE",
       })
 
       if (!response.ok) throw new Error("Failed to delete post")
 
+      // Refresh the posts list
+      await fetchPosts()
+      
       toast({
         title: "Success",
         description: "Post deleted successfully",
       })
-
-      // Refresh the posts list
-      fetchPosts()
+      
+      // Only close dialog and reset state after everything is done
+      setDeleteDialogOpen(false)
+      setPostToDelete(null)
     } catch (error) {
       console.error("Error deleting post:", error)
       toast({
@@ -62,6 +86,9 @@ export default function EditDashboard() {
         description: "Failed to delete post",
         variant: "destructive",
       })
+      // Don't close dialog on error, let user retry
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -75,6 +102,32 @@ export default function EditDashboard() {
 
   return (
     <div>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
+        // Only allow closing the dialog if not in deleting state
+        if (!isDeleting) {
+          setDeleteDialogOpen(open)
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the post.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete} 
+              className="bg-red-600 hover:bg-red-700"
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="p-6 flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Manage Posts</h2>
         <Link href={newPostLink}>
@@ -86,7 +139,20 @@ export default function EditDashboard() {
       </div>
 
       {loading ? (
-        <p>Loading posts...</p>
+        <div className="p-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, index) => (
+            <Card key={`skeleton-${index}`}>
+              <CardContent className="p-4">
+                <Skeleton className="h-5 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/4" />
+              </CardContent>
+              <CardFooter className="flex justify-end gap-2 p-4 pt-0">
+                <Skeleton className="h-9 w-16" />
+                <Skeleton className="h-9 w-20" />
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
       ) : posts.length === 0 ? (
         <p>No posts found. Create your first beauty post!</p>
       ) : (
@@ -114,7 +180,11 @@ export default function EditDashboard() {
                       Edit
                     </Button>
                   </Link>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(Number(post.id))}>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => confirmDelete(Number(post.id))}
+                  >
                     <Trash2 className="h-4 w-4 mr-1" />
                     Delete
                   </Button>

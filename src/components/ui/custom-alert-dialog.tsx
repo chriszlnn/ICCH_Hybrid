@@ -15,22 +15,30 @@ interface CustomAlertDialogProps {
 const CustomAlertDialog = React.forwardRef<HTMLDivElement, CustomAlertDialogProps>(
   ({ open, onOpenChange, children, className, ...props }, ref) => {
     const [mounted, setMounted] = React.useState(false)
+    const contentRef = React.useRef<HTMLDivElement>(null)
+
+    // Merge the forwarded ref with our local ref
+    React.useImperativeHandle(ref, () => contentRef.current as HTMLDivElement)
 
     React.useEffect(() => {
       setMounted(true)
       return () => setMounted(false)
     }, [])
 
+    // Handle click outside
+    const handleBackdropClick = (e: React.MouseEvent) => {
+      if (contentRef.current && !contentRef.current.contains(e.target as Node)) {
+        onOpenChange(false)
+      }
+    }
+
     if (!mounted || !open) return null
 
     return createPortal(
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div 
-          className="fixed inset-0 bg-black/80 transition-opacity" 
-          onClick={() => onOpenChange(false)}
-        />
+      <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={handleBackdropClick}>
+        <div className="fixed inset-0 bg-black/80 transition-opacity" />
         <div
-          ref={ref}
+          ref={contentRef}
           className={cn(
             "relative z-50 w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg",
             className

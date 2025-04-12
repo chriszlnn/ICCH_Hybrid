@@ -1,4 +1,3 @@
- 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
@@ -18,9 +17,10 @@ const updateProductSchema = z.object({
 }).partial(); // Make all fields optional
 
 // GET a single product by ID
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const product = await getCachedProductById(params.id);
+    const id = (await params).id;
+    const product = await getCachedProductById(id);
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
@@ -37,8 +37,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
 }
 
 // PUT update a product by ID
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const id = (await params).id;
     const body = await request.json();
     console.log('Received update request body:', JSON.stringify(body, null, 2));
     
@@ -60,7 +61,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
     // Check if product exists before updating
     const existingProduct = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingProduct) {
@@ -74,7 +75,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     };
 
     const updatedProduct = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -109,10 +110,10 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 // DELETE a product
 export async function DELETE(
   request: Request, 
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const id = (await params).id;
     
     const session = await auth();
     if (!session?.user) {

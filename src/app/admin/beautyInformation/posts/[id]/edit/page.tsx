@@ -33,6 +33,9 @@ export default function EditPostPage() {
         images: [],
         file: "",
         likes: 0,
+        userLiked: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
       setLoading(false);
       return;
@@ -104,7 +107,16 @@ export default function EditPostPage() {
         <h1 className="text-2xl font-bold">{id ? "Edit Beauty Post" : "Create Beauty Post"}</h1>
       </div>
       <PostEditor
-        initialPost={post || { id: 0, title: "", images: [], file: "", likes: 0 }} // Provide default values for new posts
+        initialPost={post || { 
+          id: 0, 
+          title: "", 
+          images: [], 
+          file: "", 
+          likes: 0,
+          userLiked: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }} // Provide default values for new posts
         onSave={handleUpdate} // Ensure `onSave` is passed correctly
         isUpdating={updating} // Pass the correct `updating` state
       />

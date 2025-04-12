@@ -30,7 +30,7 @@ async function withRetry<T>(operation: () => Promise<T>, maxRetries = 3, delay =
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { recommendationId: string } }
+  { params }: { params: Promise<{ recommendationId: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.email) {
@@ -39,7 +39,7 @@ export async function DELETE(
 
   const userEmail = session.user.email
   
-  const { recommendationId } = params;
+  const { recommendationId } = await params;
 
   try {
     // Use the retry mechanism for database operations

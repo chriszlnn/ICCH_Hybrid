@@ -6,7 +6,7 @@ const prisma = new PrismaClient()
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.email) {
@@ -17,7 +17,7 @@ export async function GET(
   }
 
   try {
-    const { id } = params;
+    const id = (await params).id;
     const like = await prisma.productLike.findFirst({
       where: {
         productId: id,
@@ -39,7 +39,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
   if (!session?.user?.email) {
@@ -50,7 +50,7 @@ export async function POST(
   }
 
   try {
-    const { id } = params;
+    const id = (await params).id;
     // Check if like already exists
     const existingLike = await prisma.productLike.findFirst({
       where: {

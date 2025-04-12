@@ -4,12 +4,12 @@ import { withDbConnection } from "@/lib/db-utils";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const postId = params.id;
+    const id = (await params).id;
     
-    if (!postId) {
+    if (!id) {
       return NextResponse.json(
         { error: "Post ID is required" },
         { status: 400 }
@@ -20,7 +20,7 @@ export async function GET(
     const comments = await withDbConnection(async () => {
       return await prisma.comment.findMany({
         where: {
-          postId: postId,
+          postId: id,
         },
         include: {
           user: {
