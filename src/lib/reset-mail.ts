@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const domain = "http://localhost:3000"
+const domain = "https://icch-hybrid.vercel.app"
 
 
 export const sendResetPasswordEmail = async (email: string, token: string) => {
