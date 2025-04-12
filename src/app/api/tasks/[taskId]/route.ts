@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { taskId: string } }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
     const session = await auth();
@@ -17,7 +17,7 @@ export async function PATCH(
 
     const task = await prisma.task.update({
       where: {
-        id: params.taskId,
+        id: (await params).taskId,
       },
       data: {
         title,
@@ -38,7 +38,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { taskId: string } }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
     const session = await auth();
@@ -48,7 +48,7 @@ export async function DELETE(
 
     await prisma.task.delete({
       where: {
-        id: params.taskId,
+        id: (await params).taskId,
       },
     });
 

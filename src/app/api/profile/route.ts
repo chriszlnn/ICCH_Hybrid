@@ -74,8 +74,11 @@ export async function GET(req: Request) {
       }
     }
 
+    // Prepare the response combining user data with role-specific data
+    const response = { ...user };
+
     // Return the user data
-    return NextResponse.json(user);
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Error fetching user:", error);
     return NextResponse.json(

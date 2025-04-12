@@ -23,9 +23,19 @@ interface ProductListProps {
   products: Product[]
   initialLikedProductIds: string[]
   onVoteSuccess: (data: { updatedProduct: Product }) => void
+  isRankLoading?: boolean
+  updatingProductId?: string | null
+  onUpdateRanks?: (productId: string, action: 'like' | 'vote' | 'review') => Promise<void>
 }
 
-export function ProductList({ products, initialLikedProductIds, onVoteSuccess }: ProductListProps) {
+export function ProductList({ 
+  products, 
+  initialLikedProductIds, 
+  onVoteSuccess,
+  isRankLoading = false,
+  updatingProductId = null,
+  onUpdateRanks
+}: ProductListProps) {
   const [likedProducts, setLikedProducts] = useState<string[]>(initialLikedProductIds)
   const [votedProducts, setVotedProducts] = useState<string[]>([])
   const [isVoteDialogOpen, setIsVoteDialogOpen] = useState(false)
@@ -94,6 +104,11 @@ useEffect(() => {
         )
         throw new Error('Failed to toggle like')
       }
+      
+      // Call onUpdateRanks if provided
+      if (onUpdateRanks) {
+        await onUpdateRanks(productId, 'like');
+      }
     } catch (error) {
       console.error('Error toggling like:', error)
     }
@@ -115,46 +130,107 @@ useEffect(() => {
   
     setIsVoting(true)
     try {
+      console.log(`Submitting vote for product: ${selectedProduct.id} (${selectedProduct.name})`);
+      
       const response = await fetch('/api/product/vote', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ productId: selectedProduct.id })
+        body: JSON.stringify({ 
+          productId: selectedProduct.id,
+          // Include additional details to ensure we're voting for the correct product
+          productName: selectedProduct.name,
+          subcategory: selectedProduct.subcategory,
+          // Add timestamp for debugging
+          clientTimestamp: new Date().toISOString()
+        })
       })
   
       if (response.ok) {
-        const data = await response.json()
-        setVotedProducts([...votedProducts, selectedProduct.id])
+        const data = await response.json();
+        
+        // Add the product ID to our voted products list
+        setVotedProducts(prev => {
+          if (!prev.includes(selectedProduct.id)) {
+            return [...prev, selectedProduct.id];
+          }
+          return prev;
+        });
+        
+        console.log(`Vote successful for product: ${selectedProduct.id}`, data.product);
+        
+        // Ensure the product being passed has the correct ID and updated vote count
+        const updatedProduct = data.product;
+        
+        // Verify the product ID is correct before passing it to the callback
+        if (updatedProduct.id !== selectedProduct.id) {
+          console.error('Server returned wrong product ID!', {
+            expected: selectedProduct.id,
+            received: updatedProduct.id,
+            expectedName: selectedProduct.name,
+            receivedName: updatedProduct.name
+          });
+          throw new Error('Server returned incorrect product ID');
+        }
+        
+        // Check if vote count has increased as expected
+        const oldVotes = selectedProduct.votes || 0;
+        let newVotes = updatedProduct.votes;
+        
+        // Convert array votes to numeric
+        if (Array.isArray(newVotes)) {
+          newVotes = newVotes.length;
+        } else if (typeof newVotes !== 'number') {
+          newVotes = oldVotes + 1; // Fallback
+        }
+        
+        if (newVotes <= oldVotes) {
+          console.warn('Vote count did not increase as expected:', {
+            product: updatedProduct.name,
+            beforeVotes: oldVotes,
+            afterVotes: newVotes
+          });
+        }
+        
+        // Normalize the updated product to ensure consistent types
+        const normalizedProduct = {
+          ...updatedProduct,
+          votes: typeof newVotes === 'number' ? newVotes : oldVotes + 1,
+          reviewCount: updatedProduct.reviewCount || newVotes
+        };
         
         // Pass the full updated product
         onVoteSuccess({
-          updatedProduct: data.product
-        })
+          updatedProduct: normalizedProduct
+        });
         
-        setIsVoteDialogOpen(false)
-        setSelectedProduct(null)
+        // Don't need to call onUpdateRanks as onVoteSuccess now handles the full refresh
+        // This avoids duplicate refresh calls
+        
+        setIsVoteDialogOpen(false);
+        setSelectedProduct(null);
         toast({
           title: "Vote Submitted",
           description: "Thank you for your vote! You can vote again next week.",
-        })
+        });
       } else {
-        const errorData = await response.json()
+        const errorData = await response.json();
         toast({
           title: "Vote Failed",
           description: errorData.error || "Failed to submit your vote.",
           variant: "destructive",
-        })
+        });
       }
     } catch (error) {
-      console.error('Failed to submit vote', error)
+      console.error('Failed to submit vote', error);
       toast({
         title: "Error",
         description: "Failed to submit your vote. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsVoting(false)
+      setIsVoting(false);
     }
   }
 
@@ -195,6 +271,11 @@ const getRankBadge = (rank?: number) => {
             className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="relative">
+              {isRankLoading && updatingProductId === product.id && (
+                <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center z-20">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600"></div>
+                </div>
+              )}
               <img
                 src={product.image || "/placeholder.svg?height=300&width=400"}
                 alt={product.name}

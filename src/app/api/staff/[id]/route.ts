@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { withDbConnection } from "@/lib/db-utils";
 
-export async function PATCH(
+export async function PUT(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -13,8 +13,63 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const resolvedParams = await context.params;
-    const staffId = resolvedParams.id;
+    const staffId = (await params).id;
+    const data = await request.json();
+
+    const result = await withDbConnection(async () => {
+      const updatedStaff = await prisma.staff.update({
+        where: { id: staffId },
+        data: {
+          name: data.name,
+          department: data.department,
+          user: {
+            update: {
+              email: data.email,
+            },
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              emailVerified: true,
+            },
+          },
+        },
+      });
+
+      return {
+        id: updatedStaff.id,
+        userId: updatedStaff.userId,
+        email: updatedStaff.user.email,
+        name: updatedStaff.name,
+        department: updatedStaff.department,
+        emailVerified: updatedStaff.user.emailVerified,
+      };
+    });
+
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error("Error updating staff:", error);
+    return NextResponse.json(
+      { error: "Failed to update staff member" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const staffId = (await params).id;
     const data = await request.json();
 
     const result = await withDbConnection(async () => {
@@ -62,7 +117,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -70,8 +125,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const resolvedParams = await context.params;
-    const staffId = resolvedParams.id;
+    const staffId = (await params).id;
 
     const result = await withDbConnection(async () => {
       // First get the staff member to get their user ID

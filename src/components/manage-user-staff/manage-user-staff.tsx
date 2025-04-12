@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { Edit, MoreHorizontal, Search, Trash, Users, Plus } from "lucide-react";
+import { Edit, MoreHorizontal, Search, Trash, Users, Plus, CheckCircle2, AlertCircle, RefreshCcw } from "lucide-react";
 import { generateVerificationToken } from "@/lib/token";
 import { sendVerificationEmail } from "@/lib/mail";
 import Link from "next/link";
@@ -30,17 +30,21 @@ import {
   CustomAlertDialogTitle,
 } from "@/components/ui/custom-alert-dialog";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/toast/use-toast";
+import { Skeleton } from "@/components/ui/general/skeleton";
 
 interface Client {
   id: string;
   userId: string;
   email: string;
   username: string | null;
-  emailVerified: string | null;
-  imageUrl?: string;
+  emailVerified: Date | string | null;
+  imageUrl?: string | null;
+  postCount?: number;
 }
 
 export default function ManageUserStaff() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [editingItem, setEditingItem] = useState<Client | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -48,6 +52,7 @@ export default function ManageUserStaff() {
   const [itemToDelete, setItemToDelete] = useState<Client | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const editDialogRef = useRef<HTMLDivElement>(null);
   const deleteDialogRef = useRef<HTMLDivElement>(null);
@@ -59,49 +64,39 @@ export default function ManageUserStaff() {
   }, []);
 
   // Fetch clients data
+  const fetchClients = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const clientRes = await fetch("/api/clients");
+
+      if (!clientRes.ok) {
+        throw new Error(`HTTP error! status: ${clientRes.status}`);
+      }
+
+      const clientData = await clientRes.json();
+      setClients(clientData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setError("Failed to load client data. Database connection issue.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch clients on mount
   useEffect(() => {
     let isMounted = true;
-    let retryCount = 0;
-    const maxRetries = 3;
-    const baseDelay = 1000;
-
-    async function fetchData() {
-      try {
-        const clientRes = await fetch("/api/clients");
-
-        if (!clientRes.ok) {
-          throw new Error(`HTTP error! status: ${clientRes.status}`);
-        }
-
-        const clientData = await clientRes.json();
-
-        if (isMounted) {
-          setClients(clientData);
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        
-        if (retryCount < maxRetries) {
-          const delay = baseDelay * Math.pow(2, retryCount);
-          retryCount++;
-          console.log(`Retrying fetch in ${delay}ms (attempt ${retryCount}/${maxRetries})`);
-          setTimeout(fetchData, delay);
-        } else if (isMounted) {
-          setLoading(false);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
+    
+    if (isMounted) {
+      fetchClients();
     }
-
-    fetchData();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [fetchClients]);
 
   // Memoize filtered clients
   const filteredClients = useMemo(() => {
@@ -183,7 +178,7 @@ export default function ManageUserStaff() {
 
       // Only send the emailVerified field for client updates
       const requestBody = {
-        emailVerified: itemToUpdate.emailVerified ? "Verified" : "Unverified",
+        emailVerified: itemToUpdate.emailVerified != null ? "Verified" : "Unverified",
       };
 
       const response = await fetch(endpoint, {
@@ -203,8 +198,22 @@ export default function ManageUserStaff() {
       const clientData = await clientRes.json();
       setClients(clientData);
       setIsEditDialogOpen(false);
+      
+      // Show success toast notification
+      toast({
+        title: "Updated successfully",
+        description: "Client information has been updated.",
+        variant: "default",
+      });
     } catch (error) {
       console.error("Error updating item:", error);
+      
+      // Show error toast notification
+      toast({
+        title: "Update failed",
+        description: "There was a problem updating the client information.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
       setEditingItem(null);
@@ -220,19 +229,90 @@ export default function ManageUserStaff() {
       });
 
       if (response.ok) {
-        alert("Verification email has been resent successfully!");
+        // Show success toast notification instead of alert
+        toast({
+          title: "Email sent",
+          description: "Verification email has been sent successfully.",
+          variant: "default",
+        });
       } else {
         console.error("Failed to resend verification email");
-        alert("Failed to resend verification email. Please try again.");
+        // Show error toast notification instead of alert
+        toast({
+          title: "Email not sent",
+          description: "Failed to send verification email. Please try again.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error resending verification email:", error);
-      alert("Failed to resend verification email. Please try again.");
+      // Show error toast notification instead of alert
+      toast({
+        title: "Email not sent",
+        description: "Failed to send verification email. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
+  // TableSkeleton component for loading state
+  const TableSkeleton = () => {
+    return (
+      <div className="space-y-3">
+        {/* Header skeleton */}
+        <div className="border-b pb-3">
+          <div className="flex justify-between">
+            <div className="flex gap-3">
+              <Skeleton className="h-5 w-24" /> {/* Client Id */}
+              <Skeleton className="h-5 w-16" /> {/* Email */}
+              <Skeleton className="h-5 w-24" /> {/* Username */}
+              <Skeleton className="h-5 w-16" /> {/* Status */}
+            </div>
+            <Skeleton className="h-5 w-20" /> {/* Actions */}
+          </div>
+        </div>
+        
+        {/* Row skeletons */}
+        {Array(8).fill(0).map((_, i) => (
+          <div key={i} className="border-b py-3">
+            <div className="flex justify-between items-center">
+              <div className="flex flex-1 gap-4">
+                <Skeleton className="h-4 w-1/4 max-w-[180px]" /> {/* Client Id */}
+                <Skeleton className="h-4 w-1/3 max-w-[200px]" /> {/* Email */}
+                <Skeleton className="h-4 w-[120px]" /> {/* Username */}
+                <Skeleton className="h-5 w-[80px] rounded-full" /> {/* Status badge */}
+              </div>
+              <Skeleton className="h-8 w-8 rounded-md" /> {/* Action button */}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Error UI component
+  const ErrorDisplay = () => {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 space-y-4">
+        <div className="rounded-full bg-red-100 p-3">
+          <AlertCircle className="h-6 w-6 text-red-600" />
+        </div>
+        <div className="text-center">
+          <h3 className="text-lg font-medium">Database Connection Error</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            {error || "Could not connect to the database. Please try again."}
+          </p>
+        </div>
+        <Button onClick={fetchClients} variant="outline" className="gap-2">
+          <RefreshCcw className="h-4 w-4" />
+          Retry
+        </Button>
+      </div>
+    );
+  };
+
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col pb-12">
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
         <div className="flex items-center gap-2">
           <Link href="#" className="flex items-center gap-2 font-semibold">
@@ -273,59 +353,65 @@ export default function ManageUserStaff() {
               <CardDescription>Manage client information and accounts.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-auto">
-                <table className="w-full min-w-[600px] border-collapse">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="py-3 text-left font-medium">Client Id</th>
-                      <th className="py-3 text-left font-medium">Email</th>
-                      <th className="py-3 text-left font-medium">Username</th>
-                      <th className="hidden py-3 text-left font-medium sm:table-cell">Status</th>
-                      <th className="py-3 text-right font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredClients.map((client) => (
-                      <tr key={client.userId} className="border-b">
-                        <td className="py-3">{client.userId}</td>
-                        <td className="py-3">{client.email}</td>
-                        <td className="py-3">{client.username}</td>
-                        <td className="hidden py-3 sm:table-cell">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              client.emailVerified != null
-                                ? "bg-green-100 text-green-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {client.emailVerified != null ? "Verified" : "Unverified"}
-                          </span>
-                        </td>
-                        <td className="py-3 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Actions</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleEditClient(client)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDeleteClient(client)}>
-                                <Trash className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
+              {loading ? (
+                <TableSkeleton />
+              ) : error ? (
+                <ErrorDisplay />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px] md:min-w-full border-collapse table-auto">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="py-3 px-1 sm:px-3 text-left font-medium w-1/4 min-w-[180px]">Client Id</th>
+                        <th className="py-3 px-1 sm:px-3 text-left font-medium w-1/3 min-w-[120px]">Email</th>
+                        <th className="py-3 px-1 sm:px-3 text-left font-medium w-1/4 min-w-[100px]">Username</th>
+                        <th className="py-3 px-1 sm:px-3 text-left font-medium w-1/6 min-w-[80px]">Status</th>
+                        <th className="py-3 px-1 sm:px-3 text-right font-medium w-1/8 min-w-[60px]">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {filteredClients.map((client) => (
+                        <tr key={client.userId} className="border-b">
+                          <td className="py-3 px-1 sm:px-3 break-all text-xs sm:text-sm">{client.userId}</td>
+                          <td className="py-3 px-1 sm:px-3 break-words text-xs sm:text-sm">{client.email}</td>
+                          <td className="py-3 px-1 sm:px-3 break-words text-xs sm:text-sm">{client.username}</td>
+                          <td className="py-3 px-1 sm:px-3">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                client.emailVerified != null
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                              }`}
+                            >
+                              {client.emailVerified != null ? "Verified" : "Unverified"}
+                            </span>
+                          </td>
+                          <td className="py-3 px-1 sm:px-3 text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Actions</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleDeleteClient(client)}>
+                                  <Trash className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </main>
@@ -333,7 +419,7 @@ export default function ManageUserStaff() {
 
       {/* Edit Dialog */}
       <CustomDialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <CustomDialogContent className="max-w-[500px] p-6">
+        <CustomDialogContent className="max-w-[500px] p-2">
           <CustomDialogHeader className="space-y-2">
             <CustomDialogTitle>Edit Client Information</CustomDialogTitle>
             <CustomDialogDescription>
@@ -367,7 +453,7 @@ export default function ManageUserStaff() {
                 <Label htmlFor="status">Status</Label>
                 <select
                   id="status"
-                  value={editingItem.emailVerified ? "Verified" : "Unverified"}
+                  value={editingItem.emailVerified != null ? "Verified" : "Unverified"}
                   onChange={(e) =>
                     setEditingItem({
                       ...editingItem,
@@ -382,7 +468,7 @@ export default function ManageUserStaff() {
               </div>
 
               {/* Resend Verification Email Button */}
-              {!editingItem.emailVerified && (
+              {editingItem.emailVerified == null && (
                 <div className="space-y-2">
                   <Button
                     onClick={handleResendVerificationEmail}
@@ -414,17 +500,17 @@ export default function ManageUserStaff() {
       </CustomDialog>
 
       {/* Delete Dialog */}
-      <CustomAlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <CustomAlertDialogContent className="max-w-[500px] p-6">
-          <CustomAlertDialogHeader className="space-y-2">
+      <CustomAlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} className="pr-6">
+        <CustomAlertDialogContent className="max-w-[450px] p-0">
+          <CustomAlertDialogHeader className="space-y-1 p-0">
             <CustomAlertDialogTitle>Are you sure?</CustomAlertDialogTitle>
             <CustomAlertDialogDescription>
               This action cannot be undone. This will permanently delete the client account
               and remove their data from our servers.
             </CustomAlertDialogDescription>
           </CustomAlertDialogHeader>
-          <CustomAlertDialogFooter className="mt-6">
-            <CustomAlertDialogCancel>Cancel</CustomAlertDialogCancel>
+          <CustomAlertDialogFooter className="mt-4">
+            <CustomAlertDialogCancel onClick={handleCloseDeleteDialog}>Cancel</CustomAlertDialogCancel>
             <CustomAlertDialogAction 
               onClick={handleConfirmDelete} 
               className="bg-destructive text-destructive-foreground"

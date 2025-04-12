@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
@@ -20,9 +19,8 @@ const updateProductSchema = z.object({
 // GET a single product by ID
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // Await the params object
-    const resolvedParams = await params;
-    const product = await getCachedProductById(resolvedParams.id);
+    const id = (await params).id;
+    const product = await getCachedProductById(id);
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
@@ -38,12 +36,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
-// PUT (update) a product
+// PUT update a product by ID
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // Await the params object
-    const resolvedParams = await params;
-    const productId = resolvedParams.id;
+    const id = (await params).id;
     const body = await request.json();
     console.log('Received update request body:', JSON.stringify(body, null, 2));
     
@@ -65,7 +61,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
     // Check if product exists before updating
     const existingProduct = await prisma.product.findUnique({
-      where: { id: productId },
+      where: { id },
     });
 
     if (!existingProduct) {
@@ -79,7 +75,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     };
 
     const updatedProduct = await prisma.product.update({
-      where: { id: productId },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -111,21 +107,20 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
-// DELETE a product by ID
+// DELETE a product
 export async function DELETE(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
+  request: Request, 
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const id = (await params).id;
+    
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const resolvedParams = await context.params;
-    const productId = resolvedParams.id;
-
-    if (!productId) {
+    if (!id) {
       return NextResponse.json({ error: "Product ID is required" }, { status: 400 });
     }
 
@@ -133,22 +128,22 @@ export async function DELETE(
       // First, delete all related records
       await Promise.all([
         prisma.productLike.deleteMany({
-          where: { productId },
+          where: { productId: id },
         }),
         prisma.review.deleteMany({
-          where: { productId },
+          where: { productId: id },
         }),
         prisma.productVote.deleteMany({
-          where: { productId },
+          where: { productId: id },
         }),
         prisma.userRecommendation.deleteMany({
-          where: { productId },
+          where: { productId: id },
         }),
       ]);
 
       // Then delete the product
       const deletedProduct = await prisma.product.delete({
-        where: { id: productId },
+        where: { id },
       });
 
       return deletedProduct;

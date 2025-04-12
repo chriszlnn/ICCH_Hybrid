@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import type { BeautyPost } from "@/lib/types/types";
 import { useToast } from "@/components/ui/toast/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface EditPagePost extends BeautyPost {
   id: number;
@@ -33,6 +34,9 @@ export default function EditPostPage() {
         images: [],
         file: "",
         likes: 0,
+        userLiked: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
       setLoading(false);
       return;
@@ -92,10 +96,32 @@ export default function EditPostPage() {
     }
   };
 
-  if (loading) return <div className="container mx-auto py-6 px-4">Loading...</div>;
+  if (loading) return (
+    <div className="container mx-auto py-6 px-4 pb-16">
+      <div className="flex items-center mb-6">
+        <Skeleton className="h-10 w-10 rounded-full mr-4" />
+        <Skeleton className="h-8 w-48" />
+      </div>
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-36 w-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-60 w-full" />
+        </div>
+        <div className="flex justify-end gap-3">
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <main className="container mx-auto py-6 px-4">
+    <main className="container mx-auto py-6 px-4 pb-16">
       <div className="flex items-center mb-6">
         <Button variant="ghost" onClick={() => router.back()} className="mr-4">
           <ChevronLeft className="mr-2 h-4 w-4" />
@@ -104,7 +130,16 @@ export default function EditPostPage() {
         <h1 className="text-2xl font-bold">{id ? "Edit Beauty Post" : "Create Beauty Post"}</h1>
       </div>
       <PostEditor
-        initialPost={post || { id: 0, title: "", images: [], file: "", likes: 0 }} // Provide default values for new posts
+        initialPost={post || { 
+          id: 0, 
+          title: "", 
+          images: [], 
+          file: "", 
+          likes: 0,
+          userLiked: false,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }} // Provide default values for new posts
         onSave={handleUpdate} // Ensure `onSave` is passed correctly
         isUpdating={updating} // Pass the correct `updating` state
       />

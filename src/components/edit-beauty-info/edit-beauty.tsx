@@ -68,13 +68,16 @@ export default function PostEditor({ initialPost, onSave, isUpdating }: PostEdit
 
       const fileUrl = uploadResponse[0].url;
 
-      // Construct `postData` with optional `id`
+      // Construct `postData` with id (default to 0 for new posts)
       const postData: BeautyPost = {
-        ...(initialPost?.id && { id: initialPost.id }), // Include `id` only if it exists
+        id: initialPost?.id ?? 0,
         title,
         file: fileUrl,
         images,
         likes: initialPost?.likes ?? 0,
+        userLiked: initialPost?.userLiked ?? false,
+        createdAt: initialPost?.createdAt ?? new Date(),
+        updatedAt: new Date(),
       };
 
       console.log("onSave:", onSave); // Log the `onSave` prop
@@ -138,7 +141,9 @@ export default function PostEditor({ initialPost, onSave, isUpdating }: PostEdit
             Cancel
           </Button>
           <Button type="submit" disabled={isUpdating}>
-            {isUpdating ? "Saving..." : initialPost?.id ? "Update Post" : "Create Post"}
+            {isUpdating 
+              ? initialPost?.id ? "Updating..." : "Creating..." 
+              : initialPost?.id ? "Update Post" : "Create Post"}
           </Button>
         </div>
       </div>

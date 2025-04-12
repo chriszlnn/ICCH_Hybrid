@@ -8,7 +8,7 @@ export const revalidate = 60;
 export default async function PostPage({
   params,
 }: {
-  params: Promise<{ id: string }> | { id: string }
+  params: Promise<{ id: string }>
 }) {
   const resolvedParams = await params;
   const post = await getCachedPost(resolvedParams.id);

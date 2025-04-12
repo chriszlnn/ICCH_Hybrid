@@ -6,11 +6,10 @@ const prisma = new PrismaClient()
 
 export async function GET(
     request: Request,
-    context: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
   ) {
     try {
-      const params = await context.params;
-      const { id } = params;
+      const id = (await params).id;
       const reviews = await prisma.review.findMany({
         where: {
           productId: id
@@ -41,7 +40,7 @@ export async function GET(
 
   export async function POST(
     request: Request,
-    context: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
   ) {
     const session = await auth()
     console.log("Session in reviews API:", JSON.stringify(session, null, 2))
@@ -56,8 +55,7 @@ export async function GET(
     }
   
     try {
-      const params = await context.params;
-      const { id } = params;
+      const id = (await params).id;
       
       // Parse JSON data from request body
       const { rating, content, skinType, images } = await request.json();

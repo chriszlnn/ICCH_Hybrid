@@ -7,11 +7,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Await the params object
-    const resolvedParams = await params;
-    const postId = resolvedParams.id;
+    const id = (await params).id;
     
-    if (!postId) {
+    if (!id) {
       return NextResponse.json(
         { error: "Post ID is required" },
         { status: 400 }
@@ -22,7 +20,7 @@ export async function GET(
     const comments = await withDbConnection(async () => {
       return await prisma.comment.findMany({
         where: {
-          postId: postId,
+          postId: id,
         },
         include: {
           user: {

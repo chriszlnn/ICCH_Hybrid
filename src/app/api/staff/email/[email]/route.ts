@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 
 export async function GET(
   request: Request,
-  { params }: { params: { email: string } }
+  { params }: { params: Promise<{ email: string }> }
 ) {
   try {
     const session = await auth();
@@ -14,7 +14,7 @@ export async function GET(
 
     const staff = await prisma.staff.findUnique({
       where: {
-        email: params.email,
+        email: (await params).email,
       },
       select: {
         id: true,

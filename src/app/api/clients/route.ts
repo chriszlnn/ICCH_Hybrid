@@ -36,6 +36,7 @@ export async function GET() {
             select: {
               email: true,
               image: true,
+              emailVerified: true,
             }
           },
           _count: {
@@ -53,6 +54,7 @@ export async function GET() {
         email: client.user.email,
         username: client.username || "",
         imageUrl: client.imageUrl || client.user.image || null,
+        emailVerified: client.emailVerified || client.user.emailVerified,
         postCount: client._count.ClientPost
       }));
     });

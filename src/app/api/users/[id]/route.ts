@@ -8,7 +8,7 @@ import { withDbConnection } from "@/lib/db-utils";
 
 export async function DELETE(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -16,8 +16,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const resolvedParams = await context.params;
-    const userId = resolvedParams.id;
+    const userId = (await params).id;
 
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
@@ -85,10 +84,12 @@ export async function DELETE(
 }
 
 // PUT request to update user, client, or staff
-export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
-  const params = await props.params;
+export async function PUT(
+  request: Request, 
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const userId = (await params).id; // userId is a string (cuid)
   const { emailVerified, name, department } = await request.json();
-  const userId = params.id; // userId is a string (cuid)
 
   try {
     // Use the withRetry utility to handle connection pool issues
@@ -167,9 +168,11 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
 }
 
 // POST request to resend verification email
-export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
-  const params = await props.params;
-  const userId = params.id; // userId is a string (cuid)
+export async function POST(
+  request: Request, 
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const userId = (await params).id; // userId is a string (cuid)
 
   try {
     // Use the withRetry utility to handle connection pool issues

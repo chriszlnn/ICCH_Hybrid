@@ -25,9 +25,9 @@ async function getPost(id: string) {
   });
 }
 
-export default async function EditPostPage({ params }: { params: { id: string } }) {
+export default async function EditPostPage({ params }: { params: Promise<{ id: string }> }) {
   // Ensure params is properly awaited
-  const { id } = await Promise.resolve(params);
+  const { id } = await params;
   const post = await getPost(id);
 
   if (!post) {

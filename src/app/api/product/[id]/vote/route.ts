@@ -17,10 +17,12 @@ function getCurrentWeekAndYear() {
 
 export async function GET(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
-  if (!session?.user?.email) {
+  const userEmail = session?.user?.email
+  const id = (await params).id
+  if (!userEmail) {
     return NextResponse.json(
       { hasVoted: false },
       { status: 200 }
@@ -28,14 +30,12 @@ export async function GET(
   }
 
   try {
-    const params = await context.params;
-    const { id } = params;
     const { week, year } = getCurrentWeekAndYear()
     
     const vote = await prisma.productVote.findFirst({
       where: {
         productId: id,
-        userEmail: session.user.email,
+        userEmail,
         week,
         year
       }
@@ -55,10 +55,12 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth()
-  if (!session?.user?.email) {
+  const id = (await params).id
+  const userEmail = session?.user?.email
+  if (!userEmail) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -66,14 +68,12 @@ export async function POST(
   }
 
   try {
-    const params = await context.params;
-    const { id } = params;
     const { week, year } = getCurrentWeekAndYear()
 
     // Check if user already voted for this product this week
     const existingVote = await prisma.productVote.findFirst({
       where: {
-        userEmail: session.user.email,
+        userEmail,
         productId: id,
         week,
         year
@@ -90,7 +90,7 @@ export async function POST(
     // Create new vote
     await prisma.productVote.create({
       data: {
-        userEmail: session.user.email,
+        userEmail,
         productId: id,
         week,
         year

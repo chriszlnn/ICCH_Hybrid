@@ -1,6 +1,5 @@
 "use client"
 
-import { useSearchParams } from "next/navigation"
 import { useEffect, useState, useCallback } from "react"
 import CardWrapper from "../auth-ui/card-wrapper"
 import { FormSuccess } from "../auth-ui/form-success"
@@ -10,8 +9,14 @@ import { newVerification } from "@/lib/actions/new-verification"
 const VerifyEmailForm = () => {
     const [error, setError] = useState<string | undefined>(undefined);
     const [success, setSuccess] = useState<string | undefined>(undefined);
-    const searchParams = useSearchParams();
-    const token = searchParams.get("token")
+    const [token, setToken] = useState<string | null>(null);
+    
+    // Get search params in an effect to avoid hydration issues
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const tokenParam = params.get("token");
+        setToken(tokenParam);
+    }, []);
 
     const onSubmit = useCallback(() => {
         if (success || error) {
@@ -37,8 +42,10 @@ const VerifyEmailForm = () => {
     }, [token, success, error])
   
     useEffect(() => {
-       onSubmit()
-    }, [onSubmit])
+        if (token) {
+            onSubmit();
+        }
+    }, [token, onSubmit]);
 
   return (
     <div className="min-h-screen flex items-center justify-center max-w-2xl mx-auto">

@@ -19,6 +19,28 @@ export const getCachedUserProfile = cache(async (email: string) => {
               imageUrl: true
             }
           },
+          staff: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              bio: true,
+              imageUrl: true,
+              department: true,
+              name: true
+            }
+          },
+          admin: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              bio: true,
+              imageUrl: true,
+              department: true,
+              name: true
+            }
+          },
           reviews: {
             orderBy: {
               createdAt: 'desc'

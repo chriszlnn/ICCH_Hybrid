@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { changeUserPassword } from "@/lib/password-cache";
 
 export async function POST(req: Request) {
   try {
@@ -33,13 +33,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    await prisma.user.update({
-      where: { email: resetToken.email },
-      data: { password: hashedPassword },
-    });
-
+    // Use the changeUserPassword function from our password cache
+    const result = await changeUserPassword(resetToken.email, newPassword);
+    
+    if (!result.success) {
+      return NextResponse.json(
+        { message: result.error },
+        { status: 500 }
+      );
+    }
    
     await prisma.passwordResetToken.delete({
       where: {

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { Trophy, Heart, Star, TrendingUp, BarChart3, Users, Calendar, Tag, Vote } from "lucide-react"
 import type { Product } from "../product-ranking/types"
-import { AddToRecommendationsButton } from "@/components/product/add-to-recommendations-button"
+
 
 interface ProductStatsProps {
   product: Product
@@ -66,7 +66,7 @@ export function ProductStats({ product }: ProductStatsProps) {
                 <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
                 <p className="text-sm text-gray-500">{product.brand}</p>
               </div>
-              <AddToRecommendationsButton productId={product.id} variant="icon" />
+              
             </div>
             <div className="flex items-center gap-2 mt-1">
               <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium">
@@ -106,12 +106,21 @@ export function ProductStats({ product }: ProductStatsProps) {
                 </span>
                 <span className="text-2xl font-bold text-gray-900">{product.reviewCount}</span>
               </div>
-              <div className="flex items-center mt-3 bg-blue-50 p-2 rounded">
-                <Trophy className="h-4 w-4 text-amber-500 mr-2" />
-                <div className="text-sm text-gray-700">
-                  Rank <span className="font-bold">#{product.rank}</span> in {product.subcategory}
+              {product.rank > 0 && (
+                <div className="flex items-center mt-3 bg-blue-50 p-2 rounded">
+                  <Trophy className="h-4 w-4 text-amber-500 mr-2" />
+                  <div className="text-sm text-gray-700">
+                    Rank <span className="font-bold">#{product.rank}</span> in {product.subcategory}
+                    {product.reviewCount > 0 ? (
+                      <span className="text-xs text-green-600 ml-1">(by votes)</span>
+                    ) : product.rating > 0 ? (
+                      <span className="text-xs text-blue-600 ml-1">(by rating)</span>
+                    ) : (
+                      <span className="text-xs text-purple-600 ml-1">(by likes)</span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -133,7 +142,7 @@ export function ProductStats({ product }: ProductStatsProps) {
                     <div 
                       className="h-full bg-red-500 rounded-full transition-all duration-300"
                       style={{ 
-                        width: `${likesPercentage}%` 
+                        width: likesPercentage > 0 ? `${likesPercentage}%` : '0%'
                       }}
                     />
                   </div>
@@ -183,6 +192,11 @@ export function ProductStats({ product }: ProductStatsProps) {
                     percentage = 15
                   } else {
                     percentage = 5
+                  }
+
+                  // If product rating is 0, all percentages should be 0
+                  if (product.rating === 0) {
+                    percentage = 0;
                   }
 
                   return (
