@@ -104,24 +104,12 @@ export async function POST(request: Request) {
       })
 
       // Update ranks for all products in this subcategory
-      // Use a more efficient approach with a single query
-      const updates = subcategoryProducts.map((p, index) => ({
-        id: p.id,
-        rank: index + 1
-      }))
-
-      // Use Prisma's batch update approach instead of raw SQL
-      if (updates.length > 0) {
-        // Create a batch of update operations
-        const updateOperations = updates.map(update => 
-          tx.product.update({
-            where: { id: update.id },
-            data: { rank: update.rank }
-          })
-        );
-        
-        // Execute all updates in parallel
-        await Promise.all(updateOperations);
+      // Use a simpler approach that avoids SQL syntax issues
+      for (let i = 0; i < subcategoryProducts.length; i++) {
+        await tx.product.update({
+          where: { id: subcategoryProducts[i].id },
+          data: { rank: i + 1 }
+        });
       }
 
       // Return the updated product with its new rank
