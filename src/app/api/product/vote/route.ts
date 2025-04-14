@@ -110,16 +110,18 @@ export async function POST(request: Request) {
         rank: index + 1
       }))
 
-      // Use a more efficient batch update approach
+      // Use Prisma's batch update approach instead of raw SQL
       if (updates.length > 0) {
-        // Fix: Use a safer approach for the SQL query
-        const valuesList = updates.map(u => `('${u.id}', ${u.rank})`).join(',');
-        await tx.$executeRawUnsafe(`
-          UPDATE "Product" 
-          SET "rank" = c."rank"::integer
-          FROM (VALUES ${valuesList}) AS c(id, rank)
-          WHERE "Product"."id" = c.id
-        `);
+        // Create a batch of update operations
+        const updateOperations = updates.map(update => 
+          tx.product.update({
+            where: { id: update.id },
+            data: { rank: update.rank }
+          })
+        );
+        
+        // Execute all updates in parallel
+        await Promise.all(updateOperations);
       }
 
       // Return the updated product with its new rank
