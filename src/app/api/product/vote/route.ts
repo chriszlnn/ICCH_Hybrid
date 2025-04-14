@@ -3,7 +3,11 @@ import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import { auth } from '@/lib/auth'
 
-const prisma = new PrismaClient()
+// Use a singleton PrismaClient instance to prevent connection pool exhaustion
+// This is the recommended approach for Next.js API routes
+const globalForPrisma = global as unknown as { prisma: PrismaClient }
+const prisma = globalForPrisma.prisma || new PrismaClient()
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 // Helper to get current week/year
 function getCurrentWeekAndYear() {
@@ -26,6 +30,9 @@ export async function POST(request: Request) {
     )
   }
 
+  // At this point we know email exists
+  const userEmail = session.user.email;
+
   try {
     const { productId } = await request.json()
     if (!productId) {
@@ -40,7 +47,7 @@ export async function POST(request: Request) {
     // Check for existing vote this week
     const existingVote = await prisma.productVote.findFirst({
       where: {
-        userEmail: session.user.email,
+        userEmail,
         productId,
         week,
         year
@@ -54,64 +61,74 @@ export async function POST(request: Request) {
       )
     }
 
-    // Create new vote
-    await prisma.productVote.create({
-      data: {
-        userEmail: session.user.email,
-        productId,
-        week,
-        year,
-        createdAt: new Date()
-      }
-    })
-
-    // Update product vote count
-    await prisma.product.update({
-      where: { id: productId },
-      data: {
-        votes: { increment: 1 }
-      }
-    })
-
-    // Recalculate all ranks for products in this subcategory
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-      select: { category: true, subcategory: true }
-    })
-
-    if (!product || !product.subcategory) {
-      throw new Error('Product not found or has no subcategory')
-    }
-
-    // Get all products in the same subcategory only
-    const subcategoryProducts = await prisma.product.findMany({
-      where: {
-        subcategory: product.subcategory
-      },
-      orderBy: [
-        { votes: 'desc' },  // Primary sort by votes
-        { reviewCount: 'desc' }  // Secondary sort by reviews
-      ]
-    })
-
-    // Update ranks for all products in this subcategory
-    const updatePromises = subcategoryProducts.map((p, index) => 
-      prisma.product.update({
-        where: { id: p.id },
-        data: { rank: index + 1 }  // 1-based ranking
+    // Use a transaction to ensure data consistency and improve performance
+    const result = await prisma.$transaction(async (tx) => {
+      // Create new vote
+      await tx.productVote.create({
+        data: {
+          userEmail,
+          productId,
+          week,
+          year,
+          createdAt: new Date()
+        }
       })
-    )
 
-    await Promise.all(updatePromises)
+      // Update product vote count
+      await tx.product.update({
+        where: { id: productId },
+        data: {
+          votes: { increment: 1 }
+        }
+      })
 
-    // Return the updated product with its new rank
-    const updatedProduct = await prisma.product.findUnique({
-      where: { id: productId }
+      // Get product subcategory
+      const product = await tx.product.findUnique({
+        where: { id: productId },
+        select: { category: true, subcategory: true }
+      })
+
+      if (!product || !product.subcategory) {
+        throw new Error('Product not found or has no subcategory')
+      }
+
+      // Get all products in the same subcategory only
+      const subcategoryProducts = await tx.product.findMany({
+        where: {
+          subcategory: product.subcategory
+        },
+        orderBy: [
+          { votes: 'desc' },  // Primary sort by votes
+          { reviewCount: 'desc' }  // Secondary sort by reviews
+        ]
+      })
+
+      // Update ranks for all products in this subcategory
+      // Use a more efficient approach with a single query
+      const updates = subcategoryProducts.map((p, index) => ({
+        id: p.id,
+        rank: index + 1
+      }))
+
+      // Use a more efficient batch update approach
+      if (updates.length > 0) {
+        await tx.$executeRaw`
+          UPDATE "Product" 
+          SET "rank" = c."rank"::integer
+          FROM (VALUES ${updates.map(u => `(${u.id}, ${u.rank})`).join(',')}) AS c(id, rank)
+          WHERE "Product"."id" = c.id
+        `
+      }
+
+      // Return the updated product with its new rank
+      return await tx.product.findUnique({
+        where: { id: productId }
+      })
     })
 
     return NextResponse.json({ 
       success: true,
-      product: updatedProduct
+      product: result
     })
       
   } catch (error) {
@@ -133,10 +150,13 @@ export async function GET() {
       )
     }
   
+    // At this point we know email exists
+    const userEmail = session.user.email;
+  
     try {
       const votes = await prisma.productVote.findMany({
         where: {
-          userEmail: session.user.email,
+          userEmail,
         },
         select: {
           productId: true,
