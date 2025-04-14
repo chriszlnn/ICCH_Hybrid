@@ -2,7 +2,7 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const domain = "https://icch-hybrid.vercel.app"
+const domain = "https://www.icch.online"
 
 export const sendVerificationEmail = async (email: string, token: string) => {
     const confirmationLink = `${domain}/verify-email?token=${token}`
