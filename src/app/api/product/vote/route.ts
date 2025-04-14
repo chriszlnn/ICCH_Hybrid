@@ -1,4 +1,3 @@
-// app/api/product/vote/route.ts
 import { NextResponse } from 'next/server'
 import { PrismaClient } from '@prisma/client'
 import { auth } from '@/lib/auth'
@@ -61,72 +60,79 @@ export async function POST(request: Request) {
       )
     }
 
-    // Use a transaction to ensure data consistency and improve performance
-    const result = await prisma.$transaction(async (tx) => {
-      // Create new vote
-      await tx.productVote.create({
-        data: {
-          userEmail,
-          productId,
-          week,
-          year,
-          createdAt: new Date()
-        }
-      })
+    // Get product subcategory first
+    const product = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { category: true, subcategory: true }
+    })
 
-      // Update product vote count
-      await tx.product.update({
-        where: { id: productId },
-        data: {
-          votes: { increment: 1 }
-        }
-      })
+    if (!product || !product.subcategory) {
+      return NextResponse.json(
+        { error: 'Product not found or has no subcategory' },
+        { status: 404 }
+      )
+    }
 
-      // Get product subcategory
-      const product = await tx.product.findUnique({
-        where: { id: productId },
-        select: { category: true, subcategory: true }
-      })
-
-      if (!product || !product.subcategory) {
-        throw new Error('Product not found or has no subcategory')
+    // Create new vote
+    await prisma.productVote.create({
+      data: {
+        userEmail,
+        productId,
+        week,
+        year,
+        createdAt: new Date()
       }
+    })
 
-      // Get all products in the same subcategory only
-      const subcategoryProducts = await tx.product.findMany({
+    // Update product vote count
+    await prisma.product.update({
+      where: { id: productId },
+      data: {
+        votes: { increment: 1 }
+      }
+    })
+
+    // Get all products in the same subcategory only
+    const subcategoryProducts = await prisma.product.findMany({
+      where: {
+        subcategory: product.subcategory
+      },
+      orderBy: [
+        { votes: 'desc' },  // Primary sort by votes
+        { reviewCount: 'desc' }  // Secondary sort by reviews
+      ]
+    })
+
+    // Update ranks for all products in this subcategory
+    // Use a simpler approach without transactions to avoid timing issues
+    if (subcategoryProducts.length > 0) {
+      // Reset all ranks to 0 first
+      await prisma.product.updateMany({
         where: {
           subcategory: product.subcategory
         },
-        orderBy: [
-          { votes: 'desc' },  // Primary sort by votes
-          { reviewCount: 'desc' }  // Secondary sort by reviews
-        ]
-      })
-
-      // Update ranks for all products in this subcategory
-      // Use a more efficient approach that avoids transaction issues
-      if (subcategoryProducts.length > 0) {
-        // Create a batch of update operations
-        const updateOperations = subcategoryProducts.map((p, index) => 
-          tx.product.update({
-            where: { id: p.id },
-            data: { rank: index + 1 }
-          })
-        );
-        
-        // Execute all updates in parallel within the transaction
-        await Promise.all(updateOperations);
+        data: {
+          rank: 0
+        }
+      });
+      
+      // Then update each product with its new rank
+      for (let i = 0; i < subcategoryProducts.length; i++) {
+        await prisma.product.update({
+          where: { id: subcategoryProducts[i].id },
+          data: { rank: i + 1 }
+        });
       }
+    }
 
-      // Return the updated product with its new rank
-      return await tx.product.findUnique({
-        where: { id: productId }
-      })
-    })
+    // Get the updated product
+    const updatedProduct = await prisma.product.findUnique({
+      where: { id: productId }
+    });
 
     return NextResponse.json({ 
       success: true,
-      product: result
+      product: updatedProduct
     })
       
   } catch (error) {
@@ -170,4 +176,4 @@ export async function GET() {
         { status: 500 }
       )
     }
-  }
+  } 
