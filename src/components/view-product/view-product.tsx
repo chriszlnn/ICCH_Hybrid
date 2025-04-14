@@ -1,8 +1,10 @@
-"use client";
+"use client"
 
-import { useState, useMemo, useEffect } from "react";
-import Image from "next/image";
-import { Filter, X } from "lucide-react";
+import type React from "react"
+
+import { useState, useMemo, useEffect } from "react"
+import Image from "next/image"
+import { Filter, X } from "lucide-react"
 
 // Add this style block at the top of the file, after the imports
 const styles = `
@@ -13,28 +15,28 @@ const styles = `
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-`;
+`
 
 // Define product type for backend integration
 interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  category: string;
-  subcategory?: string;
+  id: string
+  name: string
+  price: number
+  image: string
+  category: string
+  subcategory?: string
 }
 
 // Category type
-type Category = "All" | "skincare" | "makeup" | "hairbody";
+type Category = "All" | "skincare" | "makeup" | "hairbody"
 
 // Sort options
-type SortOption = "newest" | "price-low" | "price-high" | "name";
+type SortOption = "newest" | "price-low" | "price-high" | "name"
 
 // Category options
 const categoryOptions: CategoryOption[] = [
-  { 
-    id: "skincare", 
+  {
+    id: "skincare",
     label: "Skincare",
     subcategories: [
       { id: "cleansers", label: "Cleansers" },
@@ -43,22 +45,22 @@ const categoryOptions: CategoryOption[] = [
       { id: "moisturizers", label: "Moisturizers & Creams" },
       { id: "eyecare", label: "Eye Care" },
       { id: "masks", label: "Masks & Treatments" },
-      { id: "sunscreen", label: "Sunscreen & UV Protection" }
-    ]
+      { id: "sunscreen", label: "Sunscreen & UV Protection" },
+    ],
   },
-  { 
-    id: "makeup", 
+  {
+    id: "makeup",
     label: "Makeup",
     subcategories: [
       { id: "face", label: "Face Makeup" },
       { id: "lip", label: "Lip Products" },
       { id: "eye", label: "Eye Makeup" },
       { id: "base", label: "Makeup Base & Primers" },
-      { id: "setting", label: "Setting & Finishing Products" }
-    ]
+      { id: "setting", label: "Setting & Finishing Products" },
+    ],
   },
-  { 
-    id: "hairbody", 
+  {
+    id: "hairbody",
     label: "Hair & Body",
     subcategories: [
       { id: "shampoo", label: "Shampoo & Conditioners" },
@@ -67,20 +69,20 @@ const categoryOptions: CategoryOption[] = [
       { id: "lotions", label: "Body Lotions & Creams" },
       { id: "hand", label: "Hand & Foot Care" },
       { id: "scrubs", label: "Body Scrubs & Exfoliators" },
-      { id: "perfumes", label: "Deodorants & Perfumes" }
-    ]
-  }
-];
+      { id: "perfumes", label: "Deodorants & Perfumes" },
+    ],
+  },
+]
 
 // Type for category options
 type CategoryOption = {
-  id: string;
-  label: string;
+  id: string
+  label: string
   subcategories: Array<{
-    id: string;
-    label: string;
-  }>;
-};
+    id: string
+    label: string
+  }>
+}
 
 // Product Skeleton Component
 const ProductSkeleton = () => (
@@ -95,92 +97,92 @@ const ProductSkeleton = () => (
       <div className="h-3 bg-gray-200 rounded w-12"></div>
     </div>
   </div>
-);
+)
 
 export default function ViewProductPage() {
-  const [products, setProducts] = useState<Product[]>([]); // State for fetched products
-  const [activeCategory, setActiveCategory] = useState<Category>("All");
-  const [activeSubcategory, setActiveSubcategory] = useState<string>("All");
-  const [showFilterPanel, setShowFilterPanel] = useState<boolean>(false);
-  const [sortOption, setSortOption] = useState<SortOption>("newest");
-  const [minPrice, setMinPrice] = useState<string>("");
-  const [maxPrice, setMaxPrice] = useState<string>("");
-  const [tempMinPrice, setTempMinPrice] = useState<string>("");
-  const [tempMaxPrice, setTempMaxPrice] = useState<string>("");
-  const [isPriceFilterActive, setIsPriceFilterActive] = useState<boolean>(false);
-  const [tempSortOption, setTempSortOption] = useState<SortOption>(sortOption);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [products, setProducts] = useState<Product[]>([]) // State for fetched products
+  const [activeCategory, setActiveCategory] = useState<Category>("All")
+  const [activeSubcategory, setActiveSubcategory] = useState<string>("All")
+  const [showFilterPanel, setShowFilterPanel] = useState<boolean>(false)
+  const [sortOption, setSortOption] = useState<SortOption>("newest")
+  const [minPrice, setMinPrice] = useState<string>("")
+  const [maxPrice, setMaxPrice] = useState<string>("")
+  const [tempMinPrice, setTempMinPrice] = useState<string>("")
+  const [tempMaxPrice, setTempMaxPrice] = useState<string>("")
+  const [isPriceFilterActive, setIsPriceFilterActive] = useState<boolean>(false)
+  const [tempSortOption, setTempSortOption] = useState<SortOption>(sortOption)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
 
   // Get available subcategories based on selected category
   const availableSubcategories = useMemo(() => {
-    if (activeCategory === "All") return [];
-    const category = categoryOptions.find(cat => cat.id === activeCategory);
-    return category ? category.subcategories : [];
-  }, [activeCategory]);
+    if (activeCategory === "All") return []
+    const category = categoryOptions.find((cat) => cat.id === activeCategory)
+    return category ? category.subcategories : []
+  }, [activeCategory])
 
   // Reset subcategory when category changes
   useEffect(() => {
     if (activeCategory === "All") {
-      setActiveSubcategory("All");
+      setActiveSubcategory("All")
     } else {
       // Always set to "All" when changing categories
-      setActiveSubcategory("All");
+      setActiveSubcategory("All")
     }
-  }, [activeCategory]);
+  }, [activeCategory])
 
   // Fetch products from the API on component mount
   useEffect(() => {
     const fetchProducts = async () => {
-      setIsLoading(true);
+      setIsLoading(true)
       try {
-        const response = await fetch("/api/products");
-        if (!response.ok) throw new Error("Failed to fetch products");
-        const data = await response.json();
-        setProducts(data);
+        const response = await fetch("/api/products")
+        if (!response.ok) throw new Error("Failed to fetch products")
+        const data = await response.json()
+        setProducts(data)
       } catch (error) {
-        console.error("Error fetching products:", error);
+        console.error("Error fetching products:", error)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    fetchProducts();
-  }, []);
+    fetchProducts()
+  }, [])
 
   // Filter products based on selected category, subcategory and price range
   const filteredProducts = useMemo(() => {
-    let filtered = [...products];
+    let filtered = [...products]
 
     // Apply category filter
     if (activeCategory !== "All") {
-      filtered = filtered.filter((product) => product.category === activeCategory);
+      filtered = filtered.filter((product) => product.category === activeCategory)
     }
 
     // Apply subcategory filter
     if (activeSubcategory !== "All") {
-      filtered = filtered.filter((product) => product.subcategory === activeSubcategory);
+      filtered = filtered.filter((product) => product.subcategory === activeSubcategory)
     }
 
     // Apply price range filter if active
     if (isPriceFilterActive) {
-      const min = minPrice ? Number.parseFloat(minPrice) : 0;
-      const max = maxPrice ? Number.parseFloat(maxPrice) : Number.POSITIVE_INFINITY;
+      const min = minPrice ? Number.parseFloat(minPrice) : 0
+      const max = maxPrice ? Number.parseFloat(maxPrice) : Number.POSITIVE_INFINITY
 
-      filtered = filtered.filter((product) => product.price >= min && product.price <= max);
+      filtered = filtered.filter((product) => product.price >= min && product.price <= max)
     }
 
     // Sort products
     if (sortOption === "price-low") {
-      return [...filtered].sort((a, b) => a.price - b.price);
+      return [...filtered].sort((a, b) => a.price - b.price)
     } else if (sortOption === "price-high") {
-      return [...filtered].sort((a, b) => b.price - a.price);
+      return [...filtered].sort((a, b) => b.price - a.price)
     } else if (sortOption === "name") {
-      return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+      return [...filtered].sort((a, b) => a.name.localeCompare(b.name))
     }
 
     // For 'newest', we keep the original order
-    return filtered;
-  }, [products, activeCategory, activeSubcategory, sortOption, minPrice, maxPrice, isPriceFilterActive]);
+    return filtered
+  }, [products, activeCategory, activeSubcategory, sortOption, minPrice, maxPrice, isPriceFilterActive])
 
   // Toggle filter panel
   const toggleFilterPanel = () => {
@@ -239,56 +241,54 @@ export default function ViewProductPage() {
         <div className="flex flex-wrap gap-2 justify-center md:justify-start">
           <button
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              activeCategory === "All"
-                ? "bg-green-100 text-green-800" 
-                : "bg-gray-200 text-gray-900"
+              activeCategory === "All" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
             onClick={() => setActiveCategory("All")}
           >
             All
           </button>
           {categoryOptions.map((category) => (
-          <button
+            <button
               key={category.id}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 activeCategory === category.id
-                ? "bg-green-100 text-green-800" 
-                : "bg-gray-200 text-gray-900"
-            }`}
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
               onClick={() => setActiveCategory(category.id as Category)}
-          >
+            >
               {category.label}
-          </button>
+            </button>
           ))}
         </div>
 
         {/* Subcategory Filters */}
         {activeCategory !== "All" && availableSubcategories.length > 0 && (
           <div className="flex flex-wrap gap-2 justify-center md:justify-start mt-3">
-          <button
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            <button
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                 activeSubcategory === "All"
-                ? "bg-green-100 text-green-800" 
-                : "bg-gray-200 text-gray-900"
-            }`}
+                  ? "bg-green-100 text-green-800 border border-green-600"
+                  : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+              }`}
               onClick={() => setActiveSubcategory("All")}
-          >
-              All in {categoryOptions.find(cat => cat.id === activeCategory)?.label}
-          </button>
+            >
+              All in {categoryOptions.find((cat) => cat.id === activeCategory)?.label}
+            </button>
             {availableSubcategories.map((subcategory) => (
-          <button
+              <button
                 key={subcategory.id}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                   activeSubcategory === subcategory.id
-                ? "bg-green-100 text-green-800" 
-                : "bg-gray-200 text-gray-900"
-            }`}
+                    ? "bg-green-100 text-green-800 border border-green-600"
+                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
+                }`}
                 onClick={() => setActiveSubcategory(subcategory.id)}
-          >
+              >
                 {subcategory.label}
-          </button>
+              </button>
             ))}
-        </div>
+          </div>
         )}
       </div>
 
@@ -399,12 +399,12 @@ export default function ViewProductPage() {
 
         {activeCategory !== "All" && (
           <div className="flex items-center bg-green-50 text-green-800 text-xs rounded-full px-2 py-1">
-            <span>Category: {categoryOptions.find(cat => cat.id === activeCategory)?.label}</span>
-            <button 
+            <span>Category: {categoryOptions.find((cat) => cat.id === activeCategory)?.label}</span>
+            <button
               onClick={() => {
-                setActiveCategory("All");
-                setActiveSubcategory("All");
-              }} 
+                setActiveCategory("All")
+                setActiveSubcategory("All")
+              }}
               className="ml-1 text-green-600 hover:text-green-800"
             >
               <X className="h-3 w-3" />
@@ -414,11 +414,8 @@ export default function ViewProductPage() {
 
         {activeSubcategory !== "All" && (
           <div className="flex items-center bg-green-50 text-green-800 text-xs rounded-full px-2 py-1">
-            <span>Subcategory: {availableSubcategories.find(sub => sub.id === activeSubcategory)?.label}</span>
-            <button 
-              onClick={() => setActiveSubcategory("All")} 
-              className="ml-1 text-green-600 hover:text-green-800"
-            >
+            <span>Subcategory: {availableSubcategories.find((sub) => sub.id === activeSubcategory)?.label}</span>
+            <button onClick={() => setActiveSubcategory("All")} className="ml-1 text-green-600 hover:text-green-800">
               <X className="h-3 w-3" />
             </button>
           </div>
@@ -447,9 +444,7 @@ export default function ViewProductPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
         {isLoading ? (
           // Show skeleton loading state
-          Array.from({ length: 8 }).map((_, index) => (
-            <ProductSkeleton key={index} />
-          ))
+          Array.from({ length: 8 }).map((_, index) => <ProductSkeleton key={index} />)
         ) : filteredProducts.length > 0 ? (
           // Show actual products
           filteredProducts.map((product) => (
@@ -467,20 +462,20 @@ export default function ViewProductPage() {
                 </div>
               </div>
               <div className="space-y-1">
-              <h3 className="text-xs font-medium line-clamp-2 group-hover:text-green-700 transition-colors">
-                {product.name}
-              </h3>
+                <h3 className="text-xs font-medium line-clamp-2 group-hover:text-green-700 transition-colors">
+                  {product.name}
+                </h3>
                 <div className="flex flex-wrap gap-1">
                   <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-800 rounded-full">
-                    {categoryOptions.find(cat => cat.id === product.category)?.label || product.category}
+                    {categoryOptions.find((cat) => cat.id === product.category)?.label || product.category}
                   </span>
-                  <span className="text-xs px-2 py-0.5 bg-green-50 text-green-800 rounded-full">
+                  <span className="text-xs px-2 py-0.5 bg-green-100 text-green-800 border border-green-600 rounded-full">
                     {categoryOptions
-                      .find(cat => cat.id === product.category)
-                      ?.subcategories.find(sub => sub.id === product.subcategory)?.label || product.subcategory}
+                      .find((cat) => cat.id === product.category)
+                      ?.subcategories.find((sub) => sub.id === product.subcategory)?.label || product.subcategory}
                   </span>
                 </div>
-              <p className="text-xs mt-1 text-gray-600">RM {product.price.toFixed(2)}</p>
+                <p className="text-xs mt-1 text-gray-600">RM {product.price.toFixed(2)}</p>
               </div>
             </div>
           ))
@@ -497,4 +492,3 @@ export default function ViewProductPage() {
     </div>
   )
 }
-
