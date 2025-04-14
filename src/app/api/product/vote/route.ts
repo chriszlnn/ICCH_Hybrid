@@ -104,12 +104,25 @@ export async function POST(request: Request) {
       })
 
       // Update ranks for all products in this subcategory
-      // Use a simpler approach that avoids SQL syntax issues
-      for (let i = 0; i < subcategoryProducts.length; i++) {
-        await tx.product.update({
-          where: { id: subcategoryProducts[i].id },
-          data: { rank: i + 1 }
+      // Use a single updateMany operation to avoid transaction issues
+      if (subcategoryProducts.length > 0) {
+        // First, reset all ranks to 0 to avoid conflicts
+        await tx.product.updateMany({
+          where: {
+            subcategory: product.subcategory
+          },
+          data: {
+            rank: 0
+          }
         });
+        
+        // Then update each product with its new rank
+        for (let i = 0; i < subcategoryProducts.length; i++) {
+          await tx.product.update({
+            where: { id: subcategoryProducts[i].id },
+            data: { rank: i + 1 }
+          });
+        }
       }
 
       // Return the updated product with its new rank
