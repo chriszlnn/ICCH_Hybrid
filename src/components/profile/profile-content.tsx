@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { EditableAvatar } from "@/components/avatar/editable-avatar";
 import { EditProfile } from "@/components/edit-profile/edit-profile";
 import { signOut } from "next-auth/react";
@@ -12,6 +12,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Prisma } from '@prisma/client';
 import Link from "next/link";
 import { Heart, MessageCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 // Define your types using Prisma's generated types
 type ClientPostWithRelations = Prisma.ClientPostGetPayload<{
@@ -60,72 +61,81 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isPostsLoading, setIsPostsLoading] = useState(true);
   const [postsError, setPostsError] = useState<string | null>(null);
+  const router = useRouter();
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        if (!userEmail) return;
+  // Memoize fetchProfile to prevent unnecessary re-renders
+  const fetchProfile = useCallback(async () => {
+    try {
+      if (!userEmail) return;
 
-        setIsLoading(true);
-        const res = await fetch(`/api/profile?email=${encodeURIComponent(userEmail)}`);
-        if (res.ok) {
-          const data = await res.json();
-          setProfile((prevProfile) => ({
-            ...prevProfile,
-            email: userEmail,
-            username: data.client?.username || "",
-            bio: data.client?.bio || "",
-            imageUrl: data.client?.imageUrl || "/blank-profile.svg",
-          }));
-        } else {
-          console.error("Failed to fetch profile");
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      } finally {
-        setIsLoading(false);
+      setIsLoading(true);
+      const res = await fetch(`/api/profile?email=${encodeURIComponent(userEmail)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProfile((prevProfile) => ({
+          ...prevProfile,
+          email: userEmail,
+          username: data.client?.username || "",
+          bio: data.client?.bio || "",
+          imageUrl: data.client?.imageUrl || "/blank-profile.svg",
+        }));
+      } else {
+        console.error("Failed to fetch profile");
       }
-    };
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userEmail]);
 
-    const fetchPosts = async () => {
-      try {
-        setIsPostsLoading(true);
-        setPostsError(null);
-        const res = await fetch(`/api/client-post?email=${encodeURIComponent(userEmail)}`);
+  // Memoize fetchPosts to prevent unnecessary re-renders
+  const fetchPosts = useCallback(async () => {
+    try {
+      setIsPostsLoading(true);
+      setPostsError(null);
+      const res = await fetch(`/api/client-post?email=${encodeURIComponent(userEmail)}`);
+      
+      if (res.ok) {
+        const data: ClientPostWithRelations[] = await res.json();
         
-        if (res.ok) {
-          const data: ClientPostWithRelations[] = await res.json();
-          
-          if (data && Array.isArray(data)) {
-            setPosts(data.map(post => ({
-              id: post.id,
-              images: post.images,
-              caption: post.content,
-              createdAt: post.createdAt,
-              productIds: post.taggedProducts.map(tp => tp.productId),
-              likes: post.likes?.length || 0,
-              comments: post.comments || []
-            })));
-          } else {
-            setPosts([]);
-            setPostsError("No posts found");
-          }
+        if (data && Array.isArray(data)) {
+          setPosts(data.map(post => ({
+            id: post.id,
+            images: post.images,
+            caption: post.content,
+            createdAt: post.createdAt,
+            productIds: post.taggedProducts.map(tp => tp.productId),
+            likes: post.likes?.length || 0,
+            comments: post.comments || []
+          })));
         } else {
           setPosts([]);
-          setPostsError("Failed to fetch posts");
+          setPostsError("No posts found");
         }
-      } catch (error) {
-        console.error("Error fetching posts:", error);
+      } else {
         setPosts([]);
-        setPostsError("Error loading posts");
-      } finally {
-        setIsPostsLoading(false);
+        setPostsError("Failed to fetch posts");
       }
-    };
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+      setPosts([]);
+      setPostsError("Error loading posts");
+    } finally {
+      setIsPostsLoading(false);
+    }
+  }, [userEmail]);
 
+  useEffect(() => {
     fetchProfile();
     fetchPosts();
-  }, [userEmail]);
+  }, [fetchProfile, fetchPosts]);
+
+  // Prefetch post data when hovering over a post
+  const handlePostHover = (postId: string) => {
+    // Prefetch the post page
+    router.prefetch(`/client/profile/posts/${postId}`);
+  };
 
   // Handle avatar update
   const handleAvatarUpdate = async (newSrc: string) => {
@@ -253,12 +263,18 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
                   key={post.id}
                   href={`/client/profile/posts/${post.id}`}
                   className="relative aspect-square group cursor-pointer"
+                  onMouseEnter={() => handlePostHover(post.id)}
+                  prefetch={true}
                 >
                   <Image
                     src={post.images[0]}
                     alt={post.caption}
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    priority={false}
+                    loading="lazy"
                     className="object-cover rounded-md"
+                    quality={75}
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="text-white text-center flex gap-4">
