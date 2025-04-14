@@ -132,6 +132,10 @@ useEffect(() => {
     try {
       console.log(`Submitting vote for product: ${selectedProduct.id} (${selectedProduct.name})`);
       
+      // Add timeout handling to prevent 504 errors
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+      
       const response = await fetch('/api/product/vote', {
         method: 'POST',
         headers: {
@@ -144,8 +148,11 @@ useEffect(() => {
           subcategory: selectedProduct.subcategory,
           // Add timestamp for debugging
           clientTimestamp: new Date().toISOString()
-        })
-      })
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
   
       if (response.ok) {
         const data = await response.json();
@@ -224,11 +231,21 @@ useEffect(() => {
       }
     } catch (error) {
       console.error('Failed to submit vote', error);
-      toast({
-        title: "Error",
-        description: "Failed to submit your vote. Please try again.",
-        variant: "destructive",
-      });
+      
+      // Check if it's a timeout error
+      if (error instanceof Error && error.name === 'AbortError') {
+        toast({
+          title: "Request Timeout",
+          description: "The request took too long to complete. Please try again later.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to submit your vote. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsVoting(false);
     }

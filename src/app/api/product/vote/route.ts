@@ -112,12 +112,14 @@ export async function POST(request: Request) {
 
       // Use a more efficient batch update approach
       if (updates.length > 0) {
-        await tx.$executeRaw`
+        // Fix: Use a safer approach for the SQL query
+        const valuesList = updates.map(u => `('${u.id}', ${u.rank})`).join(',');
+        await tx.$executeRawUnsafe(`
           UPDATE "Product" 
           SET "rank" = c."rank"::integer
-          FROM (VALUES ${updates.map(u => `(${u.id}, ${u.rank})`).join(',')}) AS c(id, rank)
+          FROM (VALUES ${valuesList}) AS c(id, rank)
           WHERE "Product"."id" = c.id
-        `
+        `);
       }
 
       // Return the updated product with its new rank

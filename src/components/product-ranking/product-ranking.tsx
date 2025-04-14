@@ -124,23 +124,12 @@ export function ProductRanking() {
     const oneWeekAgo = new Date(currentDate);
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     
-    console.log("======== RANKING CALCULATION ========");
-    console.log("Filtering out votes older than:", oneWeekAgo.toISOString());
-    console.log(`Processing ${apiProducts.length} products for ranking`);
-    
-    // Log input products for debugging
-    apiProducts.forEach(p => {
-      console.log(`Input product: ${p.id} (${p.name}) - ` + 
-        `votes: ${Array.isArray(p.votes) ? `Array with ${p.votes.length} items` : p.votes}, ` +
-        `reviewCount: ${p.reviewCount}, rank: ${p.rank}, rating: ${p.rating}, likes: ${p.likes}`);
-      
-      // Log detailed vote information if available
-      if (Array.isArray(p.votes)) {
-        p.votes.forEach((vote, i) => {
-          console.log(`  Vote ${i+1}: createdAt=${vote.createdAt}, productId=${vote.productId}, userId=${vote.userId}`);
-        });
-      }
-    });
+    // Only log in development environment
+    if (process.env.NODE_ENV === 'development') {
+      console.log("======== RANKING CALCULATION ========");
+      console.log("Filtering out votes older than:", oneWeekAgo.toISOString());
+      console.log(`Processing ${apiProducts.length} products for ranking`);
+    }
     
     // Process each product to handle expired votes
     const processedProducts = apiProducts.map(product => {
@@ -151,7 +140,9 @@ export function ProductRanking() {
       if (hasVotesArray(product)) {
         const votesArray = product.votes || [];
         
-        console.log(`Product ${product.id} (${product.name}) has ${votesArray.length} total votes before filtering`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Product ${product.id} (${product.name}) has ${votesArray.length} total votes before filtering`);
+        }
         
         // Enhanced filtering for votes:
         // 1. Check vote timestamp (not expired)
@@ -159,23 +150,31 @@ export function ProductRanking() {
         // 3. Ensure it has a valid user ID
         validVotes = votesArray.filter(vote => {
           if (!vote.createdAt) {
-            console.log(`  Rejecting vote: missing timestamp for product ${product.name}`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`  Rejecting vote: missing timestamp for product ${product.name}`);
+            }
             return false;
           }
           
           // Skip votes that don't have a productId (likely older votes)
           if (!vote.productId) {
-            console.log(`  Warning: Vote has no productId for product ${product.name} - assuming it belongs to this product`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`  Warning: Vote has no productId for product ${product.name} - assuming it belongs to this product`);
+            }
             // Allow votes without productId as they might be legacy data
           } else if (vote.productId !== product.id) {
             // Critical: The vote explicitly references a different product
-            console.log(`  CRITICAL: Found mismatched vote for product ${product.name} - vote.productId=${vote.productId} but product.id=${product.id}`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`  CRITICAL: Found mismatched vote for product ${product.name} - vote.productId=${vote.productId} but product.id=${product.id}`);
+            }
             return false;
           }
           
           // Check user ID - votes should have a userId
           if (!vote.userId) {
-            console.log(`  Rejecting vote: missing userId for product ${product.name}`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`  Rejecting vote: missing userId for product ${product.name}`);
+            }
             return false;
           }
           
@@ -183,7 +182,7 @@ export function ProductRanking() {
           const voteDate = new Date(vote.createdAt);
           const isValid = voteDate >= oneWeekAgo;
           
-          if (!isValid) {
+          if (!isValid && process.env.NODE_ENV === 'development') {
             console.log(`  Rejecting vote: expired vote from ${voteDate.toISOString()} for product ${product.name}`);
           }
           
@@ -192,17 +191,21 @@ export function ProductRanking() {
         });
         
         validVoteCount = validVotes.length;
-        console.log(`Product ${product.id} (${product.name}) has ${validVoteCount} valid votes after filtering`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Product ${product.id} (${product.name}) has ${validVoteCount} valid votes after filtering`);
+        }
       } else {
         // For products with numeric votes
         validVoteCount = typeof product.votes === 'number' ? product.votes : 0;
         
         // If the product has a review count that's higher than votes, something might be wrong
-        if (product.reviewCount > validVoteCount) {
+        if (product.reviewCount > validVoteCount && process.env.NODE_ENV === 'development') {
           console.log(`WARNING: Product ${product.id} (${product.name}) has more reviews (${product.reviewCount}) than votes (${validVoteCount})`);
         }
         
-        console.log(`Product ${product.id} (${product.name}) has ${validVoteCount} votes (numeric value)`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Product ${product.id} (${product.name}) has ${validVoteCount} votes (numeric value)`);
+        }
       }
       
       // Create a consistent product object with updated votes
@@ -233,11 +236,13 @@ export function ProductRanking() {
     Object.keys(productsBySubcategory).forEach(subcategory => {
       const subcategoryProducts = productsBySubcategory[subcategory];
       
-      console.log(`\nCalculating ranks for subcategory: ${subcategory} (${subcategoryProducts.length} products)`);
-      console.log(`Products in ${subcategory} before sorting:`);
-      subcategoryProducts.forEach(p => {
-        console.log(`  ${p.id} (${p.name}): votes=${p.votes}, rating=${p.rating}, likes=${p.likes}`);
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`\nCalculating ranks for subcategory: ${subcategory} (${subcategoryProducts.length} products)`);
+        console.log(`Products in ${subcategory} before sorting:`);
+        subcategoryProducts.forEach(p => {
+          console.log(`  ${p.id} (${p.name}): votes=${p.votes}, rating=${p.rating}, likes=${p.likes}`);
+        });
+      }
       
       // First check what metrics are available in this subcategory
       const hasVotes = subcategoryProducts.some(p => p.votes > 0);
@@ -246,17 +251,19 @@ export function ProductRanking() {
       
       // Sort based on the available metrics, prioritizing votes > ratings > likes
       if (hasVotes) {
-        console.log(`Subcategory ${subcategory} has products with votes - sorting by vote count`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Subcategory ${subcategory} has products with votes - sorting by vote count`);
+        }
         subcategoryProducts.sort((a, b) => {
           // Check if products have valid vote counts
           const aVotes = typeof a.votes === 'number' ? a.votes : 0;
           const bVotes = typeof b.votes === 'number' ? b.votes : 0;
           
           // Log if a product has zero votes but non-zero reviewCount (might indicate an issue)
-          if (aVotes === 0 && a.reviewCount > 0) {
+          if (aVotes === 0 && a.reviewCount > 0 && process.env.NODE_ENV === 'development') {
             console.log(`Warning: Product ${a.id} (${a.name}) has reviewCount=${a.reviewCount} but votes=0`);
           }
-          if (bVotes === 0 && b.reviewCount > 0) {
+          if (bVotes === 0 && b.reviewCount > 0 && process.env.NODE_ENV === 'development') {
             console.log(`Warning: Product ${b.id} (${b.name}) has reviewCount=${b.reviewCount} but votes=0`);
           }
           
@@ -272,17 +279,23 @@ export function ProductRanking() {
           return bVotes - aVotes;
         });
       } else if (hasRatings) {
-        console.log(`Subcategory ${subcategory} has products with ratings - sorting by rating`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Subcategory ${subcategory} has products with ratings - sorting by rating`);
+        }
         subcategoryProducts.sort((a, b) => {
           return (b.rating || 0) - (a.rating || 0);
         });
       } else if (hasLikes) {
-        console.log(`Subcategory ${subcategory} has products with likes - sorting by likes`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Subcategory ${subcategory} has products with likes - sorting by likes`);
+        }
         subcategoryProducts.sort((a, b) => {
           return (b.likes || 0) - (a.likes || 0);
         });
       } else {
-        console.log(`Subcategory ${subcategory} has no votes, ratings, or likes - sorting by ID for stability`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Subcategory ${subcategory} has no votes, ratings, or likes - sorting by ID for stability`);
+        }
         // Sort by ID for stability if no other metrics
         subcategoryProducts.sort((a, b) => {
           return (a.id || '').localeCompare(b.id || '');
@@ -290,10 +303,12 @@ export function ProductRanking() {
       }
       
       // Log sorted products
-      console.log(`Products in ${subcategory} after sorting:`);
-      subcategoryProducts.forEach((p, i) => {
-        console.log(`  ${i+1}. ${p.id} (${p.name}): votes=${p.votes}, rating=${p.rating}, likes=${p.likes}`);
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Products in ${subcategory} after sorting:`);
+        subcategoryProducts.forEach((p, i) => {
+          console.log(`  ${i+1}. ${p.id} (${p.name}): votes=${p.votes}, rating=${p.rating}, likes=${p.likes}`);
+        });
+      }
       
       // Assign ranks based on the sorted order and available metrics
       subcategoryProducts.forEach((product, index) => {
@@ -302,36 +317,45 @@ export function ProductRanking() {
           product.rank = index + 1;
           
           // Log based on which attribute primarily determined the rank
-          if (product.votes > 0) {
-            console.log(`Assigned rank ${product.rank} to product ${product.id} (${product.name}) with ${product.votes} votes`);
-          } else if (product.rating > 0) {
-            console.log(`Assigned rank ${product.rank} to product ${product.id} (${product.name}) with rating ${product.rating}`);
-          } else {
-            console.log(`Assigned rank ${product.rank} to product ${product.id} (${product.name}) with ${product.likes} likes`);
+          if (process.env.NODE_ENV === 'development') {
+            if (product.votes > 0) {
+              console.log(`Assigned rank ${product.rank} to product ${product.id} (${product.name}) with ${product.votes} votes`);
+            } else if (product.rating > 0) {
+              console.log(`Assigned rank ${product.rank} to product ${product.id} (${product.name}) with rating ${product.rating}`);
+            } else {
+              console.log(`Assigned rank ${product.rank} to product ${product.id} (${product.name}) with ${product.likes} likes`);
+            }
           }
         } else {
           // No metrics available
           product.rank = 0;
-          console.log(`Product ${product.id} (${product.name}) has no ranking metrics - assigned rank 0`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`Product ${product.id} (${product.name}) has no ranking metrics - assigned rank 0`);
+          }
         }
       });
     });
     
-    console.log("======== END RANKING CALCULATION ========");
+    if (process.env.NODE_ENV === 'development') {
+      console.log("======== END RANKING CALCULATION ========");
+    }
     
     // Return all products with updated ranks
     return processedProducts;
   };
 
   const getSortedProducts = () => {
-    console.log("Products before sorting:", products.map(p => ({
-      id: p.id,
-      name: p.name,
-      votes: p.votes,
-      rating: p.rating,
-      likes: p.likes,
-      rank: p.rank
-    })));
+    // Only log in development environment
+    if (process.env.NODE_ENV === 'development') {
+      console.log("Products before sorting:", products.map(p => ({
+        id: p.id,
+        name: p.name,
+        votes: p.votes,
+        rating: p.rating,
+        likes: p.likes,
+        rank: p.rank
+      })));
+    }
     
     // Normalize products to ensure all have proper values
     const normalizedProducts = products.map(p => ({
@@ -359,14 +383,17 @@ export function ProductRanking() {
       return b.likes - a.likes;
     });
     
-    console.log("Products after sorting:", sortedProducts.map(p => ({
-      id: p.id,
-      name: p.name,
-      votes: p.votes,
-      rating: p.rating,
-      likes: p.likes,
-      rank: p.rank
-    })));
+    // Only log in development environment
+    if (process.env.NODE_ENV === 'development') {
+      console.log("Products after sorting:", sortedProducts.map(p => ({
+        id: p.id,
+        name: p.name,
+        votes: p.votes,
+        rating: p.rating,
+        likes: p.likes,
+        rank: p.rank
+      })));
+    }
     
     return sortedProducts;
   };
@@ -378,13 +405,13 @@ export function ProductRanking() {
     setUpdatingProductId(productId);
     
     try {
-      console.log(`Updating ranks after ${action} for product ${productId}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Updating ranks after ${action} for product ${productId}`);
+      }
       
-      // Call vote cleanup to ensure we have up-to-date vote data
-      await fetch('/api/product/cleanup-votes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      // Add timeout handling to prevent 504 errors
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
       
       // Fetch all products in the current category and subcategory to ensure consistent ranking
       let url = `/api/product?category=${selectedCategory}`
@@ -392,7 +419,9 @@ export function ProductRanking() {
         url += `&subcategory=${selectedSubcategory}`
       }
       
-      const productsResponse = await fetch(url);
+      const productsResponse = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
       if (!productsResponse.ok) throw new Error('Failed to fetch updated products');
       
       // Process the updated products data
@@ -404,14 +433,26 @@ export function ProductRanking() {
       // Update state with new product data and ranks
       setProducts(recalculatedProducts);
       
-      console.log(`Ranks updated successfully after ${action}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Ranks updated successfully after ${action}`);
+      }
     } catch (error) {
       console.error(`Error updating ${action} rank:`, error);
-      toast({
-        title: "Error",
-        description: `Failed to update product rankings after ${action}`,
-        variant: "destructive",
-      });
+      
+      // Check if it's a timeout error
+      if (error instanceof Error && error.name === 'AbortError') {
+        toast({
+          title: "Request Timeout",
+          description: "The ranking update took too long. Please try again later.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to update product rankings after ${action}`,
+          variant: "destructive",
+        });
+      }
     } finally {
       // Clear loading states after a short delay to ensure UI feedback is visible
       setTimeout(() => {
@@ -464,11 +505,9 @@ export function ProductRanking() {
             
             (async () => {
               try {
-                // Clean up votes first
-                await fetch('/api/product/cleanup-votes', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' }
-                });
+                // Add timeout handling to prevent 504 errors
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
                 
                 // Fetch all products to ensure consistency
                 let url = `/api/product?category=${selectedCategory}`
@@ -477,7 +516,9 @@ export function ProductRanking() {
                 }
                 
                 console.log(`Fetching all products after vote: ${url}`);
-                const response = await fetch(url);
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                
                 if (!response.ok) throw new Error('Failed to fetch products after vote');
                 
                 const allProducts = await response.json();
@@ -507,44 +548,58 @@ export function ProductRanking() {
               } catch (error) {
                 console.error('Error refreshing products after vote:', error);
                 
-                // Fallback to just updating the single product if the full refresh fails
-                setProducts(prev => {
-                  // Log the current state of the product in the array
-                  const currentProduct = prev.find(p => p.id === updatedProduct.id);
-                  console.log('Current product in state:', currentProduct);
-                  console.log('Updated product from vote:', updatedProduct);
-                  
-                  // Update the product with the new data
-                  const updatedProducts = prev.map(p => {
-                    if (p.id === updatedProduct.id) {
-                      // Process votes to ensure it's a number
-                      let voteCount = 1; // Default fallback
-                      
-                      if (typeof updatedProduct.votes === 'number') {
-                        voteCount = updatedProduct.votes;
-                      } else if (updatedProduct.votes && typeof updatedProduct.votes === 'object') {
-                        // Try to safely handle array-like objects
-                        try {
-                          const votesArray = Array.from(updatedProduct.votes as unknown as VoteWithTimestamp[]);
-                          voteCount = votesArray.length;
-                        } catch (e) {
-                          console.error('Error converting votes to array:', e);
-                        }
-                      }
-                      
-                      // Create updated product with safe values
-                      return {
-                        ...updatedProduct,
-                        votes: voteCount,
-                        reviewCount: typeof updatedProduct.reviewCount === 'number' 
-                          ? updatedProduct.reviewCount 
-                          : voteCount
-                      };
-                    }
-                    return p;
+                // Check if it's a timeout error
+                if (error instanceof Error && error.name === 'AbortError') {
+                  toast({
+                    title: "Request Timeout",
+                    description: "The ranking update took too long. The page will refresh automatically.",
+                    variant: "destructive",
                   });
-                  return calculateProductRanks(updatedProducts);
-                });
+                  
+                  // Refresh the page after a short delay to get fresh data
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 2000);
+                } else {
+                  // Fallback to just updating the single product if the full refresh fails
+                  setProducts(prev => {
+                    // Log the current state of the product in the array
+                    const currentProduct = prev.find(p => p.id === updatedProduct.id);
+                    console.log('Current product in state:', currentProduct);
+                    console.log('Updated product from vote:', updatedProduct);
+                    
+                    // Update the product with the new data
+                    const updatedProducts = prev.map(p => {
+                      if (p.id === updatedProduct.id) {
+                        // Process votes to ensure it's a number
+                        let voteCount = 1; // Default fallback
+                        
+                        if (typeof updatedProduct.votes === 'number') {
+                          voteCount = updatedProduct.votes;
+                        } else if (updatedProduct.votes && typeof updatedProduct.votes === 'object') {
+                          // Try to safely handle array-like objects
+                          try {
+                            const votesArray = Array.from(updatedProduct.votes as unknown as VoteWithTimestamp[]);
+                            voteCount = votesArray.length;
+                          } catch (e) {
+                            console.error('Error converting votes to array:', e);
+                          }
+                        }
+                        
+                        // Create updated product with safe values
+                        return {
+                          ...updatedProduct,
+                          votes: voteCount,
+                          reviewCount: typeof updatedProduct.reviewCount === 'number' 
+                            ? updatedProduct.reviewCount 
+                            : voteCount
+                        };
+                      }
+                      return p;
+                    });
+                    return calculateProductRanks(updatedProducts);
+                  });
+                }
               } finally {
                 // Clear loading states after a short delay for better UX
                 setTimeout(() => {
