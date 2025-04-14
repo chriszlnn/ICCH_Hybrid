@@ -40,9 +40,9 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
           setProfile((prevProfile) => ({
             ...prevProfile, // Preserve the existing state
             email: userEmail,
-            username: data.username || "New User", // ✅ Default username
-            bio: data.bio || "No bio yet.", // ✅ Default bio
-            imageUrl: data.imageUrl || "/blank-profile.svg", // ✅ Default image
+            username: data.username || data.admin?.username || "New User", // Check for admin data
+            bio: data.bio || data.admin?.bio || "No bio yet.", // Check for admin data
+            imageUrl: data.imageUrl || data.admin?.imageUrl || "/blank-profile.svg", // Check for admin data
             // `posts` is preserved from the previous state
           }));
         } else {

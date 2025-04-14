@@ -6,6 +6,7 @@ import type React from "react"
 import { useState , useEffect} from "react"
 import { Star, Heart, ArrowUp } from "lucide-react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import {
   Dialog,
   DialogContent,
@@ -41,39 +42,63 @@ export function ProductList({
   const [isVoteDialogOpen, setIsVoteDialogOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [isVoting, setIsVoting] = useState(false)
+  const [isLikesLoading, setIsLikesLoading] = useState(true)
   const [productsState, setProducts] = useState<Product[]>([])
   const router = useRouter()
   const { toast } = useToast()
 
-
-  // In ProductList component
-useEffect(() => {
-  const fetchVotedProducts = async () => {
-    try {
-      const response = await fetch('/api/product/vote');
-      if (response.ok) {
-        const data = await response.json();
-        // Filter votes to only those in the last week
-        const now = new Date();
-        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        
-        const recentVotes = data.filter((vote: { createdAt: string }) => 
-          new Date(vote.createdAt) > oneWeekAgo
-        );
-        
-        setVotedProducts(recentVotes.map((v: { productId: string }) => v.productId));
+  // Fetch liked products when component mounts or when returning from product view
+  useEffect(() => {
+    const fetchLikedProducts = async () => {
+      setIsLikesLoading(true)
+      try {
+        const response = await fetch('/api/product/like')
+        if (response.ok) {
+          const data = await response.json()
+          setLikedProducts(data.map((p: { productId: string }) => p.productId))
+        }
+      } catch (error) {
+        console.error('Error fetching liked products:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load your liked products",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLikesLoading(false)
       }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load your voting history",
-        variant: "destructive",
-      });
     }
-  };
-  
-  fetchVotedProducts();
-}, [toast]);
+
+    fetchLikedProducts()
+  }, [toast]) // Add any dependencies that might trigger a refresh
+
+  useEffect(() => {
+    const fetchVotedProducts = async () => {
+      try {
+        const response = await fetch('/api/product/vote');
+        if (response.ok) {
+          const data = await response.json();
+          // Filter votes to only those in the last week
+          const now = new Date();
+          const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          
+          const recentVotes = data.filter((vote: { createdAt: string }) => 
+            new Date(vote.createdAt) > oneWeekAgo
+          );
+          
+          setVotedProducts(recentVotes.map((v: { productId: string }) => v.productId));
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load your voting history",
+          variant: "destructive",
+        });
+      }
+    };
+    
+    fetchVotedProducts();
+  }, [toast]);
 
   const toggleLike = async (e: React.MouseEvent, productId: string) => {
     e.stopPropagation()
@@ -204,7 +229,8 @@ useEffect(() => {
         const normalizedProduct = {
           ...updatedProduct,
           votes: typeof newVotes === 'number' ? newVotes : oldVotes + 1,
-          reviewCount: updatedProduct.reviewCount || newVotes
+          // Don't use vote count as a fallback for review count
+          reviewCount: updatedProduct.reviewCount
         };
         
         // Pass the full updated product
@@ -287,24 +313,32 @@ const getRankBadge = (rank?: number) => {
             onClick={() => navigateToProductDetail(product.id)}
             className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
           >
-            <div className="relative">
+            <div className="relative w-full h-64">
               {isRankLoading && updatingProductId === product.id && (
                 <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center z-20">
                   <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-green-600"></div>
                 </div>
               )}
-              <img
+              <Image
                 src={product.image || "/placeholder.svg?height=300&width=400"}
                 alt={product.name}
-                className="w-full h-64 object-cover"
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                className="object-cover"
+                priority={product.rank ? product.rank <= 3 : false} // Prioritize loading for top 3 ranked products
               />
               {getRankBadge(product.rank)}
               <button
                 onClick={(e) => toggleLike(e, product.id)}
                 className="absolute top-3 right-3 bg-white rounded-full p-2 shadow-md text-gray-400 hover:text-red-500 focus:outline-none transition-colors z-10"
                 aria-label={likedProducts.includes(product.id) ? "Unlike" : "Like"}
+                disabled={isLikesLoading}
               >
-                <Heart className={`h-5 w-5 ${likedProducts.includes(product.id) ? "fill-red-500 text-red-500" : ""}`} />
+                {isLikesLoading ? (
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-gray-400"></div>
+                ) : (
+                  <Heart className={`h-5 w-5 ${likedProducts.includes(product.id) ? "fill-red-500 text-red-500" : ""}`} />
+                )}
               </button>
               <div className="absolute bottom-3 right-3 z-10">
                 <AddToRecommendationsButton productId={product.id} variant="icon" />
