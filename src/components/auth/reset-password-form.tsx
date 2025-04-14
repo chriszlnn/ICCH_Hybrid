@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from "@/components/ui/general/input";
 import { Button } from "@/components/ui/general/button";
 import { Label } from "@radix-ui/react-label";
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
 
 export default function ResetPasswordForm() {
@@ -144,7 +144,7 @@ export default function ResetPasswordForm() {
         )}
             <div className="space-y-2">
               <Label htmlFor="new-password">New Password</Label>
-              <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required  style={{
+              <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required disabled={isLoading} style={{
             outline: 'none',
             boxShadow: 'none',
           }}
@@ -152,7 +152,7 @@ export default function ResetPasswordForm() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm-password">Confirm New Password</Label>
-              <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required  style={{
+              <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required disabled={isLoading} style={{
             outline: 'none',
             boxShadow: 'none',
           }}
@@ -168,7 +168,14 @@ export default function ResetPasswordForm() {
               shadow-[0_0_20px_rgba(18,181,96,0.3)]
               hover:shadow-[0_0_30px_rgba(18,181,96,0.5)]
               active:shadow-[0_0_40px_rgba(18,181,96,0.7)]" type="submit" disabled={isLoading}>
-            {isLoading ? "Resetting..." : "Reset Password"}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Resetting...
+              </>
+            ) : (
+              "Reset Password"
+            )}
           </Button>
         </CardFooter>
       </form>

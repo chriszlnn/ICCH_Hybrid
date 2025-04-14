@@ -6,36 +6,47 @@ import { useRouter } from "next/navigation";
 import { handleSignUp } from "@/lib/actions/sign-up-actions";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
-import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 
 const SignUpForm = () => {
   const [error, setError] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"error" | "success" | null>(null);
+  const [isLoading, setIsLoading] = useState(false); // Add loading state
   const router = useRouter();
 
   const handleFormSubmit = async (formData: FormData): Promise<void> => {
-    const password = formData.get("password") as string;
-    const confirmPassword = formData.get("confirmpassword") as string;
+    setIsLoading(true); // Set loading to true when form is submitted
+    try {
+      const password = formData.get("password") as string;
+      const confirmPassword = formData.get("confirmpassword") as string;
 
-    // Client-side validation for password match
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      // Client-side validation for password match
+      if (password !== confirmPassword) {
+        setError("Passwords do not match");
+        setAlertType("error");
+        setIsLoading(false); // Reset loading state
+        return;
+      }
+
+      const result = await handleSignUp(formData);
+
+      if (result?.error) {
+        console.log("Error in form:", result.error);
+        setError(result.error); // Set the error message
+        setAlertType("error"); // Set alert type to error
+      } else {
+        setError(null); // Clear any previous error
+        setAlertType("success"); // Set alert type to success
+        setTimeout(() => {
+          router.push("/sign-in"); // Delay redirect to show success message
+        }, 2000); // Redirect after 2 seconds
+      }
+    } catch (err) {
+      console.error("Sign-up error:", err);
+      setError("An unexpected error occurred. Please try again.");
       setAlertType("error");
-      return;
-    }
-
-    const result = await handleSignUp(formData);
-
-    if (result?.error) {
-      console.log("Error in form:",result.error);
-      setError(result.error); // Set the error message
-      setAlertType("error"); // Set alert type to error
-    } else {
-      setError(null); // Clear any previous error
-      setAlertType("success"); // Set alert type to success
-      setTimeout(() => {
-        router.push("/sign-in"); // Delay redirect to show success message
-      }, 2000); // Redirect after 2 seconds
+    } finally {
+      setIsLoading(false); // Reset loading state when done
     }
   };
 
@@ -87,6 +98,7 @@ const SignUpForm = () => {
               boxShadow: "none",
             }}
             className="border border-gray-300 rounded-md p-2 focus:outline-none focus:border-green-500 focus:bg-none autofill:!bg-green-100"
+            disabled={isLoading}
           />
           <Input
             name="password"
@@ -99,6 +111,7 @@ const SignUpForm = () => {
               boxShadow: "none",
             }}
             className="border border-gray-300 rounded-md p-2 focus:outline-none focus:border-green-500 focus:bg-none autofill:!bg-green-100"
+            disabled={isLoading}
           />
           <Input
             name="confirmpassword"
@@ -111,6 +124,7 @@ const SignUpForm = () => {
               boxShadow: "none",
             }}
             className="border border-gray-300 rounded-md p-2 focus:outline-none focus:border-green-500 focus:bg-none autofill:!bg-green-100"
+            disabled={isLoading}
           />
           <Button
             className="w-full bg-[#12B560] hover:bg-[#12B560]/90
@@ -119,13 +133,21 @@ const SignUpForm = () => {
               hover:shadow-[0_0_30px_rgba(18,181,96,0.5)]
               active:shadow-[0_0_40px_rgba(18,181,96,0.7)]"
             type="submit"
+            disabled={isLoading}
           >
-            Sign Up
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing up...
+              </>
+            ) : (
+              "Sign Up"
+            )}
           </Button>
         </form>
 
         <div className="text-center">
-          <Button asChild variant="link">
+          <Button asChild variant="link" disabled={isLoading}>
             <Link href="/sign-in">Already have an account? Sign in</Link>
           </Button>
         </div>
