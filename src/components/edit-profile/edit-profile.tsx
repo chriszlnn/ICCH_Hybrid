@@ -33,6 +33,7 @@ export function EditProfile({ currentProfile, onSaveAction }: EditProfileProps) 
   const [saving, setSaving] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<"error" | "success" | "">("");
   const [activeTab, setActiveTab] = useState("account");
@@ -54,6 +55,7 @@ export function EditProfile({ currentProfile, onSaveAction }: EditProfileProps) 
     setAlertType("");
     setCurrentPassword("");
     setNewPassword("");
+    setConfirmPassword("");
   };
 
   // Handle saving profile changes
@@ -77,6 +79,13 @@ export function EditProfile({ currentProfile, onSaveAction }: EditProfileProps) 
       setAlertMessage("Password must be at least 8 characters.");
       return;
     }
+
+    if (newPassword !== confirmPassword) {
+      setAlertType("error");
+      setAlertMessage("Passwords do not match.");
+      return;
+    }
+
     resetAlerts();
 
     try {
@@ -91,6 +100,7 @@ export function EditProfile({ currentProfile, onSaveAction }: EditProfileProps) 
       // Clear password fields after successful update
       setCurrentPassword("");
       setNewPassword("");
+      setConfirmPassword("");
       
       setAlertType("success");
       setAlertMessage("Password updated successfully!");
@@ -201,6 +211,15 @@ export function EditProfile({ currentProfile, onSaveAction }: EditProfileProps) 
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="confirm">Confirm New Password</Label>
+                  <Input
+                    id="confirm"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                   />
                 </div>
               </CardContent>

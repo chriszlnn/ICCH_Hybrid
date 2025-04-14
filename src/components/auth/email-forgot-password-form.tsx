@@ -46,7 +46,7 @@ export default function ForgotPasswordForm() {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center" >
-      <Card className="w-full max-w-md mx-auto space-y-6 w-full rounded-lg bg-white transition-all duration-300
+      <Card className="w-full max-w-md mx-auto space-y-6  rounded-lg bg-white transition-all duration-300
           shadow-[0_0_0_1px_rgba(18,181,96,0.1)]
           hover:shadow-[0_0_20px_rgba(18,181,96,0.2)]
           focus-within:shadow-[0_0_20px_rgba(18,181,96,0.3)]">
@@ -77,7 +77,7 @@ export default function ForgotPasswordForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center" >
-    <Card className="w-full max-w-md mx-auto space-y-6 w-full rounded-lg bg-white transition-all duration-300
+    <Card className="w-full max-w-md mx-auto space-y-6 rounded-lg bg-white transition-all duration-300
           shadow-[0_0_0_1px_rgba(18,181,96,0.1)]
           hover:shadow-[0_0_20px_rgba(18,181,96,0.2)]
           focus-within:shadow-[0_0_20px_rgba(18,181,96,0.3)]">
