@@ -41,7 +41,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
             ...prevProfile, // Preserve the existing state
             email: userEmail,
             username: data.username || data.admin?.username || "New User", // Check for admin data
-            bio: data.bio || data.admin?.bio || "No bio yet.", // Check for admin data
+            bio: data.bio || data.admin?.bio || "", // Check for admin data
             imageUrl: data.imageUrl || data.admin?.imageUrl || "/blank-profile.svg", // Check for admin data
             // `posts` is preserved from the previous state
           }));

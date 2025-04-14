@@ -43,7 +43,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
             ...prevProfile,
             email: userEmail,
             username: data.username || data.staff?.username || "New User",
-            bio: data.bio || data.staff?.bio || "No bio yet.",
+            bio: data.bio || data.staff?.bio || "",
             imageUrl: data.imageUrl || data.staff?.imageUrl || "/blank-profile.svg",
             department: data.staff?.department || "",
             name: data.staff?.name || "",
