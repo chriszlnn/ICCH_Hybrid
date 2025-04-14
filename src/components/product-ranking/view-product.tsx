@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Star, ArrowLeft, MessageSquare } from "lucide-react"
+import Image from "next/image"
 //import { mockProducts } from "./mock-data" // This will be replaced with API calls
 import { ReviewSection } from "./review-section"
 import { WriteReviewModal } from "./write-review-modal"
@@ -53,6 +54,11 @@ interface ProductWithVotesArray {
   likes?: number;
   votes: VoteWithTimestamp[];
   [key: string]: unknown;
+}
+
+// After the ProductWithVotesArray interface, add a new interface for products with points
+interface ProductWithPoints extends Product {
+  points?: number;
 }
 
 export function ViewProduct() {
@@ -132,7 +138,8 @@ export function ViewProduct() {
           processedProduct = {
             ...productData,
             votes: validVotes.length,
-            reviewCount: validVotes.length
+            // Don't set reviewCount to match votes
+            reviewCount: productData.reviewCount
           };
         } else {
           // If votes is not an array or doesn't exist, use product as-is
@@ -194,50 +201,35 @@ export function ViewProduct() {
                 return {
                   ...product,
                   votes: validVoteCount,
-                  reviewCount: validVoteCount,
+                  // Don't set reviewCount to match votes
+                  reviewCount: product.reviewCount,
                   rating: typeof product.rating === 'number' ? product.rating : 0,
                   likes: typeof product.likes === 'number' ? product.likes : 0
                 };
               });
               
-              // Sort products based on the available metrics, prioritizing votes > ratings > likes
+              // Sort products based on the available metrics using points system
               // This replicates the logic in product-ranking.tsx
-              const hasVotes = processedProducts.some((p: Product) => p.votes > 0);
-              const hasRatings = processedProducts.some((p: Product) => p.rating > 0);
-              const hasLikes = processedProducts.some((p: Product) => p.likes > 0);
               
-              if (hasVotes) {
-                console.log(`Subcategory has products with votes - sorting by vote count`);
-                processedProducts.sort((a: Product, b: Product) => {
-                  const aVotes = typeof a.votes === 'number' ? a.votes : 0;
-                  const bVotes = typeof b.votes === 'number' ? b.votes : 0;
-                  
-                  // If only one has actual votes, that one goes first
-                  const aHasActualVotes = aVotes > 0;
-                  const bHasActualVotes = bVotes > 0;
-                  
-                  if (aHasActualVotes && !bHasActualVotes) return -1;
-                  if (!aHasActualVotes && bHasActualVotes) return 1;
-                  
-                  // Otherwise, sort by vote count
-                  return bVotes - aVotes;
-                });
-              } else if (hasRatings) {
-                console.log(`Subcategory has products with ratings - sorting by rating`);
-                processedProducts.sort((a: Product, b: Product) => {
-                  return (b.rating || 0) - (a.rating || 0);
-                });
-              } else if (hasLikes) {
-                console.log(`Subcategory has products with likes - sorting by likes`);
-                processedProducts.sort((a: Product, b: Product) => {
-                  return (b.likes || 0) - (a.likes || 0);
-                });
-              }
+              // Calculate points for each product
+              processedProducts.forEach((product: Product) => {
+                const votePoints = product.votes * 3; // 3 points per vote
+                const ratingPoints = (product.rating || 0) * 2; // 2 points per star
+                const likePoints = product.likes * 1; // 1 point per like
+                
+                // Total points
+                (product as ProductWithPoints).points = votePoints + ratingPoints + likePoints;
+              });
               
-              // Assign ranks based on the sorted order
+              // Sort products by total points (descending)
+              processedProducts.sort((a: Product, b: Product) => {
+                return ((b as ProductWithPoints).points || 0) - ((a as ProductWithPoints).points || 0);
+              });
+              
+              // Assign ranks based on the sorted order - higher points get lower rank numbers
               processedProducts.forEach((product: Product, index: number) => {
                 if (product.votes > 0 || product.rating > 0 || product.likes > 0) {
-                  product.rank = index + 1;
+                  product.rank = index + 1; // Rank 1 is the highest (most points)
                 } else {
                   product.rank = 0;
                 }
@@ -517,10 +509,8 @@ export function ViewProduct() {
             });
             
             updatedProduct.votes = validVotes.length;
-            updatedProduct.reviewCount = validVotes.length;
           } else if (typeof updatedProduct.votes === 'number') {
-            // Make sure reviewCount matches votes
-            updatedProduct.reviewCount = updatedProduct.votes;
+            // Don't update reviewCount here either - it should be based on actual reviews
           }
           
           // Fetch the latest rank for this product from the API
@@ -595,11 +585,14 @@ export function ViewProduct() {
       <div className="flex flex-col md:flex-row max-w-7xl mx-auto">
         {/* Left Side - Product Image */}
         <div className="md:w-1/2 p-4 md:sticky md:top-20 md:self-start max-h-[calc(100vh-5rem)] overflow-auto">
-          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <img
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden relative aspect-square">
+            <Image
               src={product.image || "/placeholder.svg?height=600&width=600"}
               alt={product.name}
-              className="w-full h-auto object-contain"
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-contain"
+              priority // Prioritize loading for the main product image
             />
           </div>
         </div>
@@ -625,9 +618,6 @@ export function ViewProduct() {
                 {product.rank > 0 ? (
                   <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
                     Rank #{product.rank}
-                    {product.votes > 0 && <span className="ml-1 text-xs">(by votes)</span>}
-                    {product.votes === 0 && product.rating > 0 && <span className="ml-1 text-xs">(by rating)</span>}
-                    {product.votes === 0 && product.rating === 0 && product.likes > 0 && <span className="ml-1 text-xs">(by likes)</span>}
                   </div>
                 ) : (
                   <div className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-medium">
@@ -720,11 +710,13 @@ export function ViewProduct() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center space-x-2 py-3">
-            <div className="bg-gray-100 p-2 rounded-md">
-              <img
+            <div className="bg-gray-100 p-2 rounded-md relative w-16 h-16">
+              <Image
                 src={product.image || "/placeholder.svg?height=100&width=100"}
                 alt={product.name}
-                className="w-16 h-16 object-cover rounded"
+                fill
+                sizes="64px"
+                className="object-cover rounded"
               />
             </div>
             <div>
