@@ -104,25 +104,23 @@ export async function POST(request: Request) {
     })
 
     // Update ranks for all products in this subcategory
-    // Use a simpler approach without transactions to avoid timing issues
+    // Use a more efficient approach to prevent timeouts
     if (subcategoryProducts.length > 0) {
-      // Reset all ranks to 0 first
-      await prisma.product.updateMany({
-        where: {
-          subcategory: product.subcategory
-        },
-        data: {
-          rank: 0
-        }
-      });
+      // Create a batch update using a single query with Prisma's $executeRawUnsafe
+      const caseStatements = subcategoryProducts.map((p, index) => 
+        `WHEN id = '${p.id}' THEN ${index + 1}`
+      ).join(' ');
       
-      // Then update each product with its new rank
-      for (let i = 0; i < subcategoryProducts.length; i++) {
-        await prisma.product.update({
-          where: { id: subcategoryProducts[i].id },
-          data: { rank: i + 1 }
-        });
-      }
+      const sql = `
+        UPDATE "Product"
+        SET "rank" = CASE
+          ${caseStatements}
+          ELSE 0
+        END
+        WHERE "subcategory" = '${product.subcategory}'
+      `;
+      
+      await prisma.$executeRawUnsafe(sql);
     }
 
     // Get the updated product
