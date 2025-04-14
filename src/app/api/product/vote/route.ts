@@ -104,25 +104,18 @@ export async function POST(request: Request) {
       })
 
       // Update ranks for all products in this subcategory
-      // Use a single updateMany operation to avoid transaction issues
+      // Use a more efficient approach that avoids transaction issues
       if (subcategoryProducts.length > 0) {
-        // First, reset all ranks to 0 to avoid conflicts
-        await tx.product.updateMany({
-          where: {
-            subcategory: product.subcategory
-          },
-          data: {
-            rank: 0
-          }
-        });
+        // Create a batch of update operations
+        const updateOperations = subcategoryProducts.map((p, index) => 
+          tx.product.update({
+            where: { id: p.id },
+            data: { rank: index + 1 }
+          })
+        );
         
-        // Then update each product with its new rank
-        for (let i = 0; i < subcategoryProducts.length; i++) {
-          await tx.product.update({
-            where: { id: subcategoryProducts[i].id },
-            data: { rank: i + 1 }
-          });
-        }
+        // Execute all updates in parallel within the transaction
+        await Promise.all(updateOperations);
       }
 
       // Return the updated product with its new rank
