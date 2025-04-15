@@ -73,6 +73,7 @@ export function PostContent({ post }: PostContentProps) {
   const [commentsCount, setCommentsCount] = useState(post.comments.length);
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [isLikeLoading, setIsLikeLoading] = useState(false);
   const [comments, setComments] = useState(post.comments);
   const router = useRouter();
   const { data: session } = useSession();
@@ -105,6 +106,7 @@ export function PostContent({ post }: PostContentProps) {
     if (!userEmail) return;
     
     try {
+      setIsLikeLoading(true);
       const response = await fetch(`/api/user/likes?postId=${post.id}`);
       if (response.ok) {
         const data = await response.json();
@@ -112,6 +114,8 @@ export function PostContent({ post }: PostContentProps) {
       }
     } catch (error) {
       console.error("Error fetching user likes:", error);
+    } finally {
+      setIsLikeLoading(false);
     }
   }, [session, post.id]);
 
@@ -343,11 +347,11 @@ export function PostContent({ post }: PostContentProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className={`hover:text-red-500 ${isLiked ? 'text-red-500' : ''}`}
                     onClick={handleLike}
                     disabled={isLiking}
+                    className={`hover:text-red-500 ${isLiked || isLikeLoading ? 'text-red-500' : ''}`}
                   >
-                    <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+                    <Heart className={`h-5 w-5 ${isLiked || isLikeLoading ? 'fill-current' : ''}`} />
                   </Button>
                   <span className="ml-1 font-medium">{likesCount}</span>
                 </div>
