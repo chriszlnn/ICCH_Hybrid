@@ -1,276 +1,266 @@
-"use client";
+"use client"
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { useUploadThing } from "@/lib/uploadthing";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import Image from "next/image";
-import { Upload, X, MoveUp, MoveDown, Filter } from "lucide-react";
-import Cropper, { Area } from "react-easy-crop";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import type React from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { useUploadThing } from "@/lib/uploadthing"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import Image from "next/image"
+import { Upload, X, MoveUp, MoveDown, Filter } from "lucide-react"
+import Cropper, { type Area } from "react-easy-crop"
 
 interface Product {
-  id: string;
-  name: string;
-  image: string;
-  category: string;
-  subcategory?: string;
+  id: string
+  name: string
+  image: string
+  category: string
+  subcategory?: string
 }
 
 interface CategoryGroup {
-  category: string;
+  category: string
   subcategories: {
-    name: string;
-    products: Product[];
-  }[];
-  products: Product[];
+    name: string
+    products: Product[]
+  }[]
+  products: Product[]
 }
 
 interface CroppedAreaPixels {
-  width: number;
-  height: number;
-  x: number;
-  y: number;
+  width: number
+  height: number
+  x: number
+  y: number
 }
 
 export function PostClient() {
-  const router = useRouter();
-  const [images, setImages] = useState<string[]>([]);
-  const [caption, setCaption] = useState("");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter()
+  const [images, setImages] = useState<string[]>([])
+  const [caption, setCaption] = useState("")
+  const [products, setProducts] = useState<Product[]>([])
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showProductSelector, setShowProductSelector] = useState(false)
 
   // Cropper States
-  const [isCropping, setIsCropping] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [cropIndex, setCropIndex] = useState<number | null>(null);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<CroppedAreaPixels | null>(null);
+  const [isCropping, setIsCropping] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [cropIndex, setCropIndex] = useState<number | null>(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<CroppedAreaPixels | null>(null)
 
   // Filter States
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
 
   // Initialize the uploadthing client
   const { startUpload, isUploading } = useUploadThing("imageUploader", {
     onClientUploadComplete: (files) => {
       if (files) {
-        const newImageUrls = files.map((file) => file.url);
-        setImages((prev) => [...prev, ...newImageUrls]);
-        toast.success("Images uploaded successfully!");
+        const newImageUrls = files.map((file) => file.url)
+        setImages((prev) => [...prev, ...newImageUrls])
+        toast.success("Images uploaded successfully!")
       }
     },
     onUploadError: (error) => {
-      console.error("Error uploading:", error);
-      toast.error("Failed to upload images");
+      console.error("Error uploading:", error)
+      toast.error("Failed to upload images")
     },
-  });
+  })
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const files = e.target.files
+    if (!files || files.length === 0) return
 
     // Check if adding these files would exceed the 5 image limit
     if (images.length + files.length > 5) {
-      toast.error("You can only upload a maximum of 5 images");
-      return;
+      toast.error("You can only upload a maximum of 5 images")
+      return
     }
 
     try {
-      await startUpload(Array.from(files));
+      await startUpload(Array.from(files))
     } catch (error) {
-      console.error("Error starting upload:", error);
-      toast.error("Failed to start upload");
+      console.error("Error starting upload:", error)
+      toast.error("Failed to start upload")
     } finally {
-      e.target.value = "";
+      e.target.value = ""
     }
-  };
+  }
 
   // Fetch available products for tagging
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch("/api/products");
+        const response = await fetch("/api/products")
         if (response.ok) {
-          const data = await response.json();
-          setProducts(data);
+          const data = await response.json()
+          setProducts(data)
         } else {
-          toast.error("Failed to fetch products");
+          toast.error("Failed to fetch products")
         }
       } catch (error) {
-        console.error("Error fetching products:", error);
-        toast.error("Failed to fetch products");
+        console.error("Error fetching products:", error)
+        toast.error("Failed to fetch products")
       }
-    };
+    }
 
-    fetchProducts();
-  }, []);
+    fetchProducts()
+  }, [])
 
   // Group products by category and subcategory
   const groupedProducts = products.reduce<CategoryGroup[]>((acc, product) => {
     // Normalize the category name
     const category = (product.category || "Uncategorized")
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-    
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ")
+
     // Normalize the subcategory name
     const subcategory = (product.subcategory || "General")
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-    
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ")
+
     // Find existing category group
-    let categoryGroup = acc.find(group => group.category.toLowerCase() === category.toLowerCase());
-    
+    let categoryGroup = acc.find((group) => group.category.toLowerCase() === category.toLowerCase())
+
     if (!categoryGroup) {
       // Create new category group
       categoryGroup = {
         category,
         subcategories: [],
-        products: []
-      };
-      acc.push(categoryGroup);
+        products: [],
+      }
+      acc.push(categoryGroup)
     }
-    
+
     // Add product to appropriate subcategory
     const existingSubcategory = categoryGroup.subcategories.find(
-      sub => sub.name.toLowerCase() === subcategory.toLowerCase()
-    );
+      (sub) => sub.name.toLowerCase() === subcategory.toLowerCase(),
+    )
 
     if (existingSubcategory) {
       existingSubcategory.products.push({
         ...product,
         category,
-        subcategory
-      });
+        subcategory,
+      })
     } else {
       categoryGroup.subcategories.push({
         name: subcategory,
-        products: [{
-          ...product,
-          category,
-          subcategory
-        }]
-      });
+        products: [
+          {
+            ...product,
+            category,
+            subcategory,
+          },
+        ],
+      })
     }
-    
-    return acc;
-  }, []);
+
+    return acc
+  }, [])
 
   // Sort categories alphabetically
-  groupedProducts.sort((a, b) => a.category.localeCompare(b.category));
+  groupedProducts.sort((a, b) => a.category.localeCompare(b.category))
 
   // Sort subcategories and products within each category
-  groupedProducts.forEach(group => {
+  groupedProducts.forEach((group) => {
     // Sort subcategories alphabetically
-    group.subcategories.sort((a, b) => a.name.localeCompare(b.name));
-    
+    group.subcategories.sort((a, b) => a.name.localeCompare(b.name))
+
     // Sort products within each subcategory
-    group.subcategories.forEach(sub => {
-      sub.products.sort((a, b) => a.name.localeCompare(b.name));
-    });
-  });
+    group.subcategories.forEach((sub) => {
+      sub.products.sort((a, b) => a.name.localeCompare(b.name))
+    })
+  })
 
   // Get unique categories for filter
-  const categories = Array.from(
-    new Set(groupedProducts.map(group => group.category))
-  ).sort();
+  const categories = Array.from(new Set(groupedProducts.map((group) => group.category))).sort()
 
   // Filter products based on search query and selected category
   const filteredGroupedProducts = groupedProducts
-    .filter(group => 
-      selectedCategory === "" || 
-      group.category.toLowerCase() === selectedCategory.toLowerCase()
-    )
-    .map(group => {
-      if (searchQuery.trim() === "") return group;
-      
+    .filter((group) => selectedCategory === "" || group.category.toLowerCase() === selectedCategory.toLowerCase())
+    .map((group) => {
+      if (searchQuery.trim() === "") return group
+
       // Filter subcategories that contain matching products
       const filteredSubcategories = group.subcategories
-        .map(sub => {
-          const filteredProducts = sub.products.filter(product => 
-            product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (product.subcategory?.toLowerCase() || "").includes(searchQuery.toLowerCase())
-          );
-          
+        .map((sub) => {
+          const filteredProducts = sub.products.filter(
+            (product) =>
+              product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (product.subcategory?.toLowerCase() || "").includes(searchQuery.toLowerCase()),
+          )
+
           if (filteredProducts.length > 0) {
             return {
               ...sub,
-              products: filteredProducts
-            };
+              products: filteredProducts,
+            }
           }
-          return null;
+          return null
         })
-        .filter(Boolean);
-      
+        .filter(Boolean)
+
       // Only include categories that have matching products
       if (filteredSubcategories.length > 0) {
         return {
           ...group,
-          subcategories: filteredSubcategories
-        };
+          subcategories: filteredSubcategories,
+        }
       }
-      return null;
+      return null
     })
-    .filter(Boolean) as CategoryGroup[];
+    .filter(Boolean) as CategoryGroup[]
 
   const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
+    setImages((prev) => prev.filter((_, i) => i !== index))
+  }
 
   const moveImage = (index: number, direction: "up" | "down") => {
-    if ((direction === "up" && index === 0) || (direction === "down" && index === images.length - 1)) return;
-    const newImages = [...images];
-    const newIndex = direction === "up" ? index - 1 : index + 1;
-    [newImages[index], newImages[newIndex]] = [newImages[newIndex], newImages[index]];
-    setImages(newImages);
-  };
+    if ((direction === "up" && index === 0) || (direction === "down" && index === images.length - 1)) return
+    const newImages = [...images]
+    const newIndex = direction === "up" ? index - 1 : index + 1
+    ;[newImages[index], newImages[newIndex]] = [newImages[newIndex], newImages[index]]
+    setImages(newImages)
+  }
 
-  const handleCropChange = useCallback((crop: { x: number; y: number }) => setCrop(crop), []);
-  const handleZoomChange = useCallback((zoom: number) => setZoom(zoom), []);
+  const handleCropChange = useCallback((crop: { x: number; y: number }) => setCrop(crop), [])
+  const handleZoomChange = useCallback((zoom: number) => setZoom(zoom), [])
   const onCropComplete = useCallback((_: Area, croppedAreaPixels: Area) => {
-    setCroppedAreaPixels(croppedAreaPixels as CroppedAreaPixels);
-  }, []);
+    setCroppedAreaPixels(croppedAreaPixels as CroppedAreaPixels)
+  }, [])
 
   // Open cropper modal
   const openCropper = (index: number) => {
-    setSelectedImage(images[index]);
-    setCropIndex(index);
-    setIsCropping(true);
-  };
+    setSelectedImage(images[index])
+    setCropIndex(index)
+    setIsCropping(true)
+  }
 
   // Apply cropping
   const applyCrop = async () => {
-    if (!selectedImage || !croppedAreaPixels || cropIndex === null) return;
+    if (!selectedImage || !croppedAreaPixels || cropIndex === null) return
 
-    const image = new window.Image();
-    image.src = selectedImage;
-    await new Promise((resolve) => (image.onload = resolve));
+    const image = new window.Image()
+    image.src = selectedImage
+    await new Promise((resolve) => (image.onload = resolve))
 
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const canvas = document.createElement("canvas")
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
 
-    canvas.width = croppedAreaPixels.width;
-    canvas.height = croppedAreaPixels.height;
+    canvas.width = croppedAreaPixels.width
+    canvas.height = croppedAreaPixels.height
     ctx.drawImage(
       image,
       croppedAreaPixels.x,
@@ -280,69 +270,76 @@ export function PostClient() {
       0,
       0,
       croppedAreaPixels.width,
-      croppedAreaPixels.height
-    );
+      croppedAreaPixels.height,
+    )
 
-    const croppedImage = canvas.toDataURL("image/png");
+    const croppedImage = canvas.toDataURL("image/png")
 
-    const updatedImages = [...images];
-    updatedImages[cropIndex] = croppedImage;
-    setImages(updatedImages);
+    const updatedImages = [...images]
+    updatedImages[cropIndex] = croppedImage
+    setImages(updatedImages)
 
-    setIsCropping(false);
-    setSelectedImage(null);
-    setCropIndex(null);
-  };
+    setIsCropping(false)
+    setSelectedImage(null)
+    setCropIndex(null)
+  }
+
+  const selectProduct = (productId: string) => {
+    if (!selectedProducts.includes(productId)) {
+      setSelectedProducts((prev) => [...prev, productId])
+    }
+    setShowProductSelector(false)
+  }
 
   // In your PostClient component
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
 
-  // Validate inputs
-  if (!images || images.length === 0) {
-    toast.error("Please upload at least one image");
-    return;
-  }
-
-  if (!selectedProducts || selectedProducts.length === 0) {
-    toast.error("Please select at least one product to tag");
-    return;
-  }
-
-  setIsSubmitting(true);
-
-  try {
-    const response = await fetch("/api/client-post", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        title: "New Post",
-        images: images,
-        content: caption.trim() || "", // Make caption optional by providing empty string if not set
-        productIds: selectedProducts,
-      }),
-    });
-
-    if (response.ok) {
-      toast.success("Post created successfully!");
-      router.push("/client/profile");
-    } else {
-      const error = await response.json();
-      toast.error(`Failed to create post: ${error.message || "Unknown error"}`);
+    // Validate inputs
+    if (!images || images.length === 0) {
+      toast.error("Please upload at least one image")
+      return
     }
-  } catch (error) {
-    console.error("Error creating post:", error);
-    toast.error("Failed to create post");
-  } finally {
-    setIsSubmitting(false);
+
+    if (!selectedProducts || selectedProducts.length === 0) {
+      toast.error("Please select at least one product to tag")
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch("/api/client-post", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "New Post",
+          images: images,
+          content: caption.trim() || "", // Make caption optional by providing empty string if not set
+          productIds: selectedProducts,
+        }),
+      })
+
+      if (response.ok) {
+        toast.success("Post created successfully!")
+        router.push("/client/profile")
+      } else {
+        const error = await response.json()
+        toast.error(`Failed to create post: ${error.message || "Unknown error"}`)
+      }
+    } catch (error) {
+      console.error("Error creating post:", error)
+      toast.error("Failed to create post")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
-};
   return (
     <div className="max-w-2xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-6">Create a New Post</h1>
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Image Upload Section */}
         <div className="space-y-4">
@@ -350,7 +347,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             {images.map((image, index) => (
               <div key={index} className="relative group aspect-square">
                 <Image
-                  src={image}
+                  src={image || "/placeholder.svg"}
                   alt={`Upload ${index + 1}`}
                   fill
                   className="object-cover cursor-pointer"
@@ -448,123 +445,140 @@ const handleSubmit = async (e: React.FormEvent) => {
             <h2 className="text-lg font-semibold">Tag Products</h2>
             {selectedProducts.length > 0 && (
               <span className="text-sm text-muted-foreground">
-                {selectedProducts.length} product{selectedProducts.length > 1 ? 's' : ''} selected
+                {selectedProducts.length} product{selectedProducts.length > 1 ? "s" : ""} selected
               </span>
             )}
           </div>
-          <Select 
-            value={""} 
-            onValueChange={(value) => {
-              if (!selectedProducts.includes(value)) {
-                setSelectedProducts(prev => [...prev, value]);
-              }
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select products" />
-            </SelectTrigger>
-            <SelectContent 
-              className="max-h-[300px] [&::-webkit-scrollbar-button]:hidden"
-              align="start"
-              sideOffset={4}
+
+          {/* Custom Product Selector */}
+          <div className="relative">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-between"
+              onClick={() => setShowProductSelector(!showProductSelector)}
             >
-              <div className="sticky top-0 bg-background border-b z-10">
-                <div className="flex gap-2 p-2">
-                  <Input
-                    placeholder="Search products..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1"
-                  />
-                  <div className="relative">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className={`h-9 ${selectedCategory ? "bg-blue-50 border-blue-200" : ""}`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setIsFilterOpen(!isFilterOpen);
-                      }}
-                    >
-                      <Filter className="h-4 w-4 mr-1" />
-                      Filter
-                    </Button>
-                    
-                    {isFilterOpen && (
-                      <div className="absolute right-0 mt-1 w-48 bg-white border rounded-md shadow-lg p-2 z-20">
-                        <div className="text-xs font-medium mb-1">Filter by category</div>
-                        <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                          <div 
-                            className={`text-xs p-1 rounded cursor-pointer ${selectedCategory === "" ? "bg-blue-50" : "hover:bg-gray-50"}`}
-                            onClick={() => {
-                              setSelectedCategory("");
-                              setIsFilterOpen(false);
-                            }}
-                          >
-                            All Categories
-                          </div>
-                          {categories.map(category => (
-                            <div 
-                              key={category}
-                              className={`text-xs p-1 rounded cursor-pointer ${selectedCategory.toLowerCase() === category.toLowerCase() ? "bg-blue-50" : "hover:bg-gray-50"}`}
+              <span>
+                {selectedProducts.length > 0 ? `${selectedProducts.length} products selected` : "Select products"}
+              </span>
+              <span className="ml-2">{showProductSelector ? "▲" : "▼"}</span>
+            </Button>
+
+            {showProductSelector && (
+              <div className="absolute z-50 left-0 right-0 mt-1 bg-white border rounded-md shadow-lg max-h-[60vh] overflow-hidden flex flex-col">
+                {/* Search and Filter - Fixed at top */}
+                <div className="sticky top-0 bg-white border-b z-10 p-2 shadow-sm">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      placeholder="Search products..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="flex-1"
+                    />
+                    <div className="relative">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`h-9 w-full sm:w-auto ${selectedCategory ? "bg-blue-50 border-blue-200" : ""}`}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          setIsFilterOpen(!isFilterOpen)
+                        }}
+                      >
+                        <Filter className="h-4 w-4 mr-1" />
+                        Filter
+                      </Button>
+
+                      {isFilterOpen && (
+                        <div className="absolute right-0 mt-1 w-full sm:w-48 bg-white border rounded-md shadow-lg p-2 z-20">
+                          <div className="text-xs font-medium mb-1">Filter by category</div>
+                          <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                            <div
+                              className={`text-xs p-1 rounded cursor-pointer ${selectedCategory === "" ? "bg-blue-50" : "hover:bg-gray-50"}`}
                               onClick={() => {
-                                setSelectedCategory(category);
-                                setIsFilterOpen(false);
+                                setSelectedCategory("")
+                                setIsFilterOpen(false)
                               }}
                             >
-                              {category}
+                              All Categories
+                            </div>
+                            {categories.map((category) => (
+                              <div
+                                key={category}
+                                className={`text-xs p-1 rounded cursor-pointer ${selectedCategory.toLowerCase() === category.toLowerCase() ? "bg-blue-50" : "hover:bg-gray-50"}`}
+                                onClick={() => {
+                                  setSelectedCategory(category)
+                                  setIsFilterOpen(false)
+                                }}
+                              >
+                                {category}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Product List - Scrollable */}
+                <div className="overflow-y-auto flex-1">
+                  {filteredGroupedProducts.map((group) => (
+                    <div key={group.category} className="border-b last:border-b-0">
+                      <div className="px-3 py-2 font-medium bg-gray-50">{group.category}</div>
+                      {group.subcategories.map((sub) => (
+                        <div key={`${group.category}-${sub.name}`}>
+                          <div className="px-4 py-1 text-sm text-muted-foreground">{sub.name}</div>
+                          {sub.products.map((product) => (
+                            <div
+                              key={product.id}
+                              className="flex items-center gap-3 py-2 px-3 hover:bg-gray-50 cursor-pointer"
+                              onClick={() => selectProduct(product.id)}
+                            >
+                              <div className="relative w-8 h-8 rounded-md overflow-hidden flex-shrink-0">
+                                <Image
+                                  src={product.image || "/placeholder.svg"}
+                                  alt={product.name}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                              <span className="truncate">{product.name}</span>
+                              {selectedProducts.includes(product.id) && (
+                                <div className="ml-auto w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
+                                  <span className="text-white text-xs">✓</span>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              {filteredGroupedProducts.map((group) => (
-                <SelectGroup key={group.category}>
-                  <SelectLabel className="px-2 py-1.5 text-sm font-medium">
-                    {group.category}
-                  </SelectLabel>
-                  {group.subcategories.map((sub) => (
-                    <div key={`${group.category}-${sub.name}`}>
-                      <SelectLabel className="px-4 py-1 text-sm text-muted-foreground">
-                        {sub.name}
-                      </SelectLabel>
-                      {sub.products.map((product) => (
-                        <SelectItem 
-                          key={`${product.id}`} 
-                          value={product.id}
-                          className="flex items-center gap-3 py-2 px-2"
-                        >
-                          <div className="relative w-8 h-8 rounded-md overflow-hidden flex-shrink-0">
-                            <Image
-                              src={product.image || "/placeholder.svg"}
-                              alt={product.name}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                          <span className="truncate flex-1">{product.name}</span>
-                        </SelectItem>
                       ))}
                     </div>
                   ))}
-                  <SelectSeparator />
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+                </div>
+
+                {/* Close Button */}
+                <div className="sticky bottom-0 bg-white border-t p-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full"
+                    onClick={() => setShowProductSelector(false)}
+                  >
+                    Done
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {selectedProducts.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {selectedProducts.map(productId => {
-                const product = products.find(p => p.id === productId);
-                if (!product) return null;
+              {selectedProducts.map((productId) => {
+                const product = products.find((p) => p.id === productId)
+                if (!product) return null
                 return (
-                  <div 
-                    key={product.id} 
-                    className="flex items-center gap-2 bg-blue-50 rounded-full pl-2 pr-1 py-1"
-                  >
+                  <div key={product.id} className="flex items-center gap-2 bg-blue-50 rounded-full pl-2 pr-1 py-1">
                     <div className="relative w-6 h-6 rounded-full overflow-hidden">
                       <Image
                         src={product.image || "/placeholder.svg"}
@@ -579,12 +593,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 hover:bg-blue-100"
-                      onClick={() => setSelectedProducts(prev => prev.filter(id => id !== product.id))}
+                      onClick={() => setSelectedProducts((prev) => prev.filter((id) => id !== product.id))}
                     >
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
-                );
+                )
               })}
             </div>
           )}
@@ -602,15 +616,10 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
 
         {/* Submit Button */}
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={isSubmitting || isUploading}
-        >
+        <Button type="submit" className="w-full" disabled={isSubmitting || isUploading}>
           {isSubmitting ? "Creating Post..." : "Create Post"}
         </Button>
       </form>
     </div>
-  );
+  )
 }
-
