@@ -1,11 +1,12 @@
 "use client";
 import { useSession } from "next-auth/react";
 import GiveFeedback from "@/components/give-feedback/give-feedback";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart, MessageCircle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
 
 interface Post {
   id: string;
@@ -26,23 +27,31 @@ const ClientDashboard = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Memoize fetchPosts to prevent unnecessary re-renders
+  const fetchPosts = useCallback(async () => {
+    try {
+      const response = await fetch('/api/client-post/all');
+      if (!response.ok) throw new Error('Failed to fetch posts');
+      const data = await response.json();
+      setPosts(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load posts');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        const response = await fetch('/api/client-post/all');
-        if (!response.ok) throw new Error('Failed to fetch posts');
-        const data = await response.json();
-        setPosts(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load posts');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchPosts();
-  }, []);
+  }, [fetchPosts]);
+
+  // Prefetch post data when hovering over a post
+  const handlePostHover = (postId: string) => {
+    // Prefetch the post page
+    router.prefetch(`/client/profile/posts/${postId}`);
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -78,12 +87,18 @@ const ClientDashboard = () => {
                 key={post.id}
                 href={`/client/profile/posts/${post.id}`}
                 className="relative aspect-square group cursor-pointer"
+                onMouseEnter={() => handlePostHover(post.id)}
+                prefetch={true}
               >
                 <Image
                   src={post.images[0]}
                   alt={post.content}
                   fill
+                  sizes="(max-width: 768px) 50vw, 33vw"
+                  priority={false}
+                  loading="lazy"
                   className="object-cover rounded-md"
+                  quality={75}
                 />
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <div className="text-white text-center flex gap-4">

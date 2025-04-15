@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Heart, MessageCircle, X, ArrowLeft, MoreVertical, Trash2, Tag } from "lucide-react";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { CommentSection } from "@/components/comments/comment-section";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
@@ -24,6 +24,9 @@ interface PostLike {
   userId: string;
   postId: string;
   createdAt: Date;
+  user?: {
+    email: string;
+  };
 }
 
 interface TaggedProduct {
@@ -77,8 +80,8 @@ export function PostContent({ post }: PostContentProps) {
 
   const isPostOwner = session?.user?.email === post.client.email;
 
-  // Function to fetch updated comments
-  const fetchComments = async () => {
+  // Function to fetch updated comments - memoized to prevent unnecessary re-renders
+  const fetchComments = useCallback(async () => {
     try {
       const response = await fetch(`/api/client-post/${post.id}/comment`);
       if (response.ok) {
@@ -89,33 +92,43 @@ export function PostContent({ post }: PostContentProps) {
     } catch (error) {
       console.error("Error fetching comments:", error);
     }
-  };
+  }, [post.id]);
 
   // Handle comment changes
-  const handleCommentChange = async () => {
+  const handleCommentChange = useCallback(async () => {
     await fetchComments();
-  };
+  }, [fetchComments]);
 
-  // Check if the current user has already liked the post
-  useEffect(() => {
+  // Check if the current user has already liked the post - memoized
+  const fetchUserLikes = useCallback(async () => {
     const userEmail = session?.user?.email;
-    if (userEmail) {
-      // Check if the current user has already liked the post
-      const fetchUserLikes = async () => {
-        try {
-          const response = await fetch(`/api/user/likes?postId=${post.id}`);
-          if (response.ok) {
-            const data = await response.json();
-            setIsLiked(data.hasLiked);
-          }
-        } catch (error) {
-          console.error("Error fetching user likes:", error);
-        }
-      };
-      
-      fetchUserLikes();
+    if (!userEmail) return;
+    
+    try {
+      const response = await fetch(`/api/user/likes?postId=${post.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setIsLiked(data.hasLiked);
+      }
+    } catch (error) {
+      console.error("Error fetching user likes:", error);
     }
   }, [session, post.id]);
+
+  // Initialize isLiked state when the component first loads
+  useEffect(() => {
+    // Check if the current user has already liked the post based on the post data
+    if (session?.user?.email && post.likes) {
+      // Check if any of the likes are from the current user
+      const userHasLiked = post.likes.some(like => 
+        like.user?.email === session.user?.email
+      );
+      setIsLiked(userHasLiked);
+    }
+    
+    // Then fetch the latest like status from the server
+    fetchUserLikes();
+  }, [session, post.likes, fetchUserLikes]);
 
   const handleLike = async () => {
     if (!session) {
@@ -168,6 +181,12 @@ export function PostContent({ post }: PostContentProps) {
           description: error.message || "Failed to like post",
           variant: "destructive",
         });
+      } else {
+        const data = await response.json();
+        
+        // Update the isLiked state based on the server response
+        setIsLiked(data.liked);
+        setLikesCount(data.likes);
       }
     } catch (error) {
       // Revert optimistic update if the request failed
@@ -179,7 +198,7 @@ export function PostContent({ post }: PostContentProps) {
         description: "Something went wrong",
         variant: "destructive",
       });
-      console.error(error);
+      console.error("Error in like request:", error);
     } finally {
       setIsLiking(false);
     }
@@ -206,20 +225,20 @@ export function PostContent({ post }: PostContentProps) {
                 });
                 router.push("/client/profile"); // Redirect to profile page
               } else {
-                const error = await response.json();
+                const errorData = await response.json();
                 toast({
                   title: "Error",
-                  description: error.message || "Failed to delete post",
+                  description: errorData.message || "Failed to delete post",
                   variant: "destructive",
                 });
               }
-            } catch (error) {
+            } catch (err) {
               toast({
                 title: "Error",
                 description: "Something went wrong",
                 variant: "destructive",
               });
-              console.error(error);
+              console.error(err);
             }
           }}
         >
@@ -304,7 +323,9 @@ export function PostContent({ post }: PostContentProps) {
                         src={taggedProduct.product.image || "/placeholder.svg"}
                         alt={taggedProduct.product.name}
                         fill
+                        sizes="24px"
                         className="object-cover"
+                        loading="lazy"
                       />
                     </div>
                     <span className="text-sm truncate max-w-[150px]">{taggedProduct.product.name}</span>
@@ -326,7 +347,7 @@ export function PostContent({ post }: PostContentProps) {
                     onClick={handleLike}
                     disabled={isLiking}
                   >
-                    <Heart className={`h-6 w-6 ${isLiked ? 'fill-current' : ''}`} />
+                    <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
                   </Button>
                   <span className="ml-1 font-medium">{likesCount}</span>
                 </div>
@@ -336,7 +357,7 @@ export function PostContent({ post }: PostContentProps) {
                     size="icon"
                     onClick={() => setIsCommentModalOpen(true)}
                   >
-                    <MessageCircle className="h-6 w-6" />
+                    <MessageCircle className="h-5 w-5" />
                   </Button>
                   <span className="ml-1 font-medium">{commentsCount}</span>
                 </div>
