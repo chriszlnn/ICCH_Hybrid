@@ -11,7 +11,7 @@ import {
   TableBody, 
   TableCell 
 } from "@/components/ui/table";
-import { Loader2, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { useToast } from "@/components/ui/toast/use-toast";
 import ViewClientPost from "@/components/view-client-post/view-client-post";
 
@@ -31,6 +31,7 @@ interface ClientPost {
 export default function ClientPostsList() {
   const [posts, setPosts] = useState<ClientPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -40,6 +41,7 @@ export default function ClientPostsList() {
 
   const fetchPosts = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await fetch('/api/client-post/all');
       if (!response.ok) {
@@ -49,6 +51,7 @@ export default function ClientPostsList() {
       setPosts(data);
     } catch (error) {
       console.error('Error fetching posts:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load client posts');
       toast({
         title: "Error",
         description: "Failed to load client posts",
@@ -65,6 +68,7 @@ export default function ClientPostsList() {
 
   const handleCloseModal = () => {
     setSelectedClientId(null);
+    fetchPosts();
   };
 
   // Group posts by client
@@ -94,14 +98,6 @@ export default function ClientPostsList() {
   // Convert map to array for rendering
   const clients = Array.from(clientsMap.values());
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-32">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
     <Card>
       <CardContent className="p-0">
@@ -116,7 +112,30 @@ export default function ClientPostsList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {clients.length === 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  <div className="flex flex-col items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mb-2"></div>
+                    <p className="text-sm text-gray-500">Loading client posts...</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : error ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  <div className="text-center py-4 bg-red-50 rounded-lg">
+                    <p className="text-red-600">{error}</p>
+                    <button
+                      onClick={fetchPosts}
+                      className="mt-4 text-green-600 hover:text-green-800 text-sm"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : clients.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8">
                   No clients with posts found

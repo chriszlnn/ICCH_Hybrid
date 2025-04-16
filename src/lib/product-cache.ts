@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { prisma } from "@/lib/prisma";
 import { withDbConnection } from "@/lib/db-utils";
+import { Prisma } from '@prisma/client';
 
 // Cache for getting all products
 export const getCachedProducts = cache(async () => {
@@ -82,38 +83,51 @@ export const getCachedProductById = cache(async (id: string) => {
 });
 
 // Cache for getting products by category and subcategory
-export const getCachedProductsByCategory = cache(async (category: string, subcategory?: string, limit?: number) => {
+export const getCachedProductsByCategory = cache(async (category?: string, subcategory?: string, limit?: number) => {
   try {
-    return await withDbConnection(async () => {
-      const products = await prisma.product.findMany({
-        where: {
-          category: { equals: category, mode: 'insensitive' },
-          ...(subcategory && { subcategory: { equals: subcategory, mode: 'insensitive' } })
-        },
-        orderBy: [
-          { votes: 'desc' },
-          { reviewCount: 'desc' },
-          { createdAt: 'desc' }
-        ],
-        ...(limit ? { take: limit } : {}),
-        include: {
-          reviews: true,
-          productLikes: true,
-          ProductVote: true
+    const whereClause: Prisma.ProductWhereInput = {
+      ...(category && { 
+        category: {
+          equals: category,
+          mode: 'insensitive'
         }
-      });
+      }),
+      ...(subcategory && { 
+        subcategory: {
+          equals: subcategory,
+          mode: 'insensitive'
+        }
+      }),
+    };
 
-      // Transform products with stats
-      return products.map((product, index) => ({
-        ...product,
-        rank: index + 1,
-        rating: product.reviews.length > 0 
-          ? product.reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / product.reviews.length 
-          : 0,
-        reviewCount: product.reviews.length,
-        likes: product.productLikes.length
-      }));
+    const products = await prisma.product.findMany({
+      where: whereClause,
+      include: {
+        reviews: {
+          select: {
+            rating: true,
+          },
+        },
+        productLikes: true,
+        ProductVote: true
+      },
+      orderBy: [
+        { category: 'asc' },
+        { subcategory: 'asc' },
+        { name: 'asc' }
+      ],
+      ...(limit ? { take: limit } : {})
     });
+
+    return products.map(product => ({
+      ...product,
+      rating: product.reviews.length > 0 
+        ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length 
+        : 0,
+      reviewCount: product.reviews.length,
+      likes: product.productLikes.length,
+      votes: product.ProductVote.length
+    }));
   } catch (error) {
     console.error('Error fetching cached products by category:', error);
     return null;

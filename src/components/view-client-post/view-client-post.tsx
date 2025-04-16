@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Trash, MessageSquare, Heart } from "lucide-react";
+import { Trash, MessageSquare, Heart } from "lucide-react";
 import { useToast } from "@/components/ui/toast/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ import {
   TableCell 
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ClientPost {
   id: string;
@@ -70,6 +71,7 @@ interface ViewClientPostProps {
 export default function ViewClientPost({ postId, onClose }: ViewClientPostProps) {
   const [clientPosts, setClientPosts] = useState<ClientPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -101,6 +103,7 @@ export default function ViewClientPost({ postId, onClose }: ViewClientPostProps)
     }
 
     setLoading(true);
+    setError(null);
     try {
       // For a single post
       const response = await fetch(`/api/client-post/${postId}`);
@@ -139,17 +142,18 @@ export default function ViewClientPost({ postId, onClose }: ViewClientPostProps)
       } else {
         throw new Error('Failed to fetch client posts');
       }
-      } catch (error) {
+    } catch (error) {
       console.error('Error fetching client posts:', error);
-        toast({
-          title: "Error",
+      setError(error instanceof Error ? error.message : 'Failed to load client posts');
+      toast({
+        title: "Error",
         description: "Failed to load client posts",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDeleteClick = (postId: string) => {
     setPostToDelete(postId);
@@ -310,6 +314,12 @@ export default function ViewClientPost({ postId, onClose }: ViewClientPostProps)
     }
   }, [clientPosts]);
 
+  const handleCloseCommentsModal = () => {
+    setCommentsModalOpen(false);
+    // Refresh the client posts to update comment counts
+    fetchClientPosts();
+  };
+
   if (loading) {
     return (
       <Dialog open={true} onOpenChange={onClose}>
@@ -317,13 +327,26 @@ export default function ViewClientPost({ postId, onClose }: ViewClientPostProps)
           <DialogHeader>
             <DialogTitle className="sr-only">Loading Client Posts</DialogTitle>
           </DialogHeader>
-          <div className="flex justify-center items-center h-32">
-            <Loader2 className="h-8 w-8 animate-spin" />
+          <div className="flex flex-col items-center justify-center h-32">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mb-2"></div>
+            <p className="text-sm text-gray-500">Loading client posts...</p>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
+
+  // Skeleton component for tagged products
+  const TaggedProductsSkeleton = () => (
+    <div className="flex flex-wrap gap-2">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex items-center space-x-2 bg-gray-100 px-2 py-1 rounded">
+          <Skeleton className="h-6 w-6 rounded-sm" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -347,7 +370,21 @@ export default function ViewClientPost({ postId, onClose }: ViewClientPostProps)
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clientPosts.length === 0 ? (
+                {error ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <div className="text-center py-4 bg-red-50 rounded-lg">
+                        <p className="text-red-600">{error}</p>
+                        <button
+                          onClick={fetchClientPosts}
+                          className="mt-4 text-green-600 hover:text-green-800 text-sm"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : clientPosts.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
                       No posts found for this client
@@ -388,72 +425,72 @@ export default function ViewClientPost({ postId, onClose }: ViewClientPostProps)
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap gap-2">
-                          {/* Display tagged products */}
-                          {post.taggedProducts && post.taggedProducts.length > 0 ? (
-                            post.taggedProducts.map((taggedProduct) => {
-                              const product = taggedProducts.get(taggedProduct.productId);
-                              return product ? (
-                                <a 
-                                  key={taggedProduct.productId}
-                                  href={`/staff/votes?productId=${product.id}`}
-                                  className="flex items-center space-x-2 bg-blue-50 text-blue-700 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
-                                  title={`View ${product.name} in product votes dashboard`}
-                                >
-                                  {product.image && (
-                                    <div className="h-6 w-6 relative rounded-sm overflow-hidden">
-                                      <img 
-                                        src={product.image} 
-                                        alt={product.name}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    </div>
-                                  )}
-                                  <span className="max-w-[120px] truncate text-xs">{product.name}</span>
-                                </a>
-                              ) : (
-                                <div 
-                                  key={taggedProduct.productId}
-                                  className="flex items-center text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
-                                >
-                                  {taggedProduct.productId.substring(0, 8)}...
-                                </div>
-                              );
-                            })
-                          ) : post.productIds && post.productIds.length > 0 ? (
-                            post.productIds.map((productId) => {
-                              const product = taggedProducts.get(productId);
-                              return product ? (
-                                <a 
-                                  key={productId}
-                                  href={`/staff/votes?productId=${product.id}`}
-                                  className="flex items-center space-x-2 bg-blue-50 text-blue-700 px-2 py-1 rounded hover:bg-blue-100 transition-colors"
-                                  title={`View ${product.name} in product votes dashboard`}
-                                >
-                                  {product.image && (
-                                    <div className="h-6 w-6 relative rounded-sm overflow-hidden">
-                                      <img 
-                                        src={product.image} 
-                                        alt={product.name}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    </div>
-                                  )}
-                                  <span className="max-w-[120px] truncate text-xs">{product.name}</span>
-                                </a>
-                              ) : (
-                                <div 
-                                  key={productId}
-                                  className="flex items-center text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
-                                >
-                                  {productId.substring(0, 8)}...
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <span className="text-gray-400">No products</span>
-                          )}
-                        </div>
+                        {taggedProducts.size === 0 && post.taggedProducts && post.taggedProducts.length > 0 ? (
+                          <TaggedProductsSkeleton />
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {/* Display tagged products */}
+                            {post.taggedProducts && post.taggedProducts.length > 0 ? (
+                              post.taggedProducts.map((taggedProduct) => {
+                                const product = taggedProducts.get(taggedProduct.productId);
+                                return product ? (
+                                  <div 
+                                    key={taggedProduct.productId}
+                                    className="flex items-center space-x-2 bg-blue-50 text-blue-700 px-2 py-1 rounded"
+                                  >
+                                    {product.image && (
+                                      <div className="h-6 w-6 relative rounded-sm overflow-hidden">
+                                        <img 
+                                          src={product.image} 
+                                          alt={product.name}
+                                          className="h-full w-full object-cover"
+                                        />
+                                      </div>
+                                    )}
+                                    <span className="text-xs">{product.name}</span>
+                                  </div>
+                                ) : (
+                                  <div 
+                                    key={taggedProduct.productId}
+                                    className="flex items-center text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
+                                  >
+                                    {taggedProduct.productId.substring(0, 8)}...
+                                  </div>
+                                );
+                              })
+                            ) : post.productIds && post.productIds.length > 0 ? (
+                              post.productIds.map((productId) => {
+                                const product = taggedProducts.get(productId);
+                                return product ? (
+                                  <div 
+                                    key={productId}
+                                    className="flex items-center space-x-2 bg-blue-50 text-blue-700 px-2 py-1 rounded"
+                                  >
+                                    {product.image && (
+                                      <div className="h-6 w-6 relative rounded-sm overflow-hidden">
+                                        <img 
+                                          src={product.image} 
+                                          alt={product.name}
+                                          className="h-full w-full object-cover"
+                                        />
+                                      </div>
+                                    )}
+                                    <span className="text-xs">{product.name}</span>
+                                  </div>
+                                ) : (
+                                  <div 
+                                    key={productId}
+                                    className="flex items-center text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
+                                  >
+                                    {productId.substring(0, 8)}...
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <span className="text-gray-400">No products</span>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center">
@@ -551,7 +588,7 @@ export default function ViewClientPost({ postId, onClose }: ViewClientPostProps)
 
       {/* Comments Modal */}
       {commentsModalOpen && (
-        <Dialog open={commentsModalOpen} onOpenChange={() => setCommentsModalOpen(false)}>
+        <Dialog open={commentsModalOpen} onOpenChange={handleCloseCommentsModal}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Comments</DialogTitle>
