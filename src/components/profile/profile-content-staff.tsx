@@ -42,7 +42,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
           setProfile((prevProfile) => ({
             ...prevProfile,
             email: userEmail,
-            username: data.username || data.staff?.username || "New User",
+            username: data.username || data.staff?.username || "",
             bio: data.bio || data.staff?.bio || "",
             imageUrl: data.imageUrl || data.staff?.imageUrl || "/blank-profile.svg",
             department: data.staff?.department || "",
