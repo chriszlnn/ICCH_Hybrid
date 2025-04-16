@@ -26,6 +26,10 @@ const BeautyPost = memo(function BeautyPost({
   const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [markdownContent, setMarkdownContent] = useState<string | null>(null);
 
+  // Add a key to force re-render when like status changes
+  const likeKey = post?.userLiked ? 'liked' : 'not-liked';
+  const likesCount = post?.likes ?? 0;
+
   useEffect(() => {
     const fetchMarkdown = async () => {
       if (!post?.file) {
@@ -97,6 +101,7 @@ const BeautyPost = memo(function BeautyPost({
             onClick={onLike}
             className={post.userLiked ? "text-red-500" : ""}
             disabled={likesLoading}
+            key={likeKey}
           >
             <Heart className={`w-5 h-5 ${post.userLiked ? "fill-current text-red-500" : ""}`} />
           </Button>
@@ -104,7 +109,7 @@ const BeautyPost = memo(function BeautyPost({
           {likesLoading ? (
             <Skeleton className="w-8 h-3 ml-2" />
           ) : (
-            <span className="ml-2 text-xs font-medium">{post.likes ?? 0} likes</span>
+            <span className="ml-2 text-xs font-medium">{likesCount} likes</span>
           )}
         </div>
 

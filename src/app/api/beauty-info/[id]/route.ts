@@ -78,7 +78,7 @@ export async function GET(
     }
 
     const response = NextResponse.json(result.post);
-    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
     response.headers.set('Vary', 'Authorization');
     return response;
   } catch (error) {
@@ -182,6 +182,7 @@ export async function POST(
     const response = NextResponse.json(result);
     response.headers.set('Cache-Control', 'no-store, must-revalidate');
     response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
     return response;
   } catch (error) {
     console.error("Error updating like:", error);
