@@ -56,160 +56,69 @@ export function ProductVotesTable({ products, onSelectProduct, selectedProductId
 
   // Sort products
   const sortedProducts = [...filteredProducts].sort((a, b) => {
-    // First sort by rank to ensure 1st, 2nd, 3rd ranks appear in order
-    // Products with no rank (rank = 0) should appear at the bottom
-    if (a.rank !== 0 && b.rank === 0) return -1;
-    if (a.rank === 0 && b.rank !== 0) return 1;
-    if (a.rank !== 0 && b.rank !== 0) {
-      const rankComparison = a.rank - b.rank;
-      if (rankComparison !== 0) return rankComparison;
+    // If a specific sort field is selected, use that
+    if (sortField !== "votes") {
+      switch (sortField) {
+        case "category":
+          return sortDirection === "asc" 
+            ? a.category.localeCompare(b.category)
+            : b.category.localeCompare(a.category);
+        case "subcategory":
+          return sortDirection === "asc"
+            ? a.subcategory.localeCompare(b.subcategory)
+            : b.subcategory.localeCompare(a.subcategory);
+        case "likes":
+          const aLikes = a.likes || 0;
+          const bLikes = b.likes || 0;
+          return sortDirection === "asc" ? aLikes - bLikes : bLikes - aLikes;
+        case "rating":
+          const aRating = a.rating || 0;
+          const bRating = b.rating || 0;
+          return sortDirection === "asc" ? aRating - bRating : bRating - aRating;
+      }
     }
 
-    // Handle sorting based on the selected sort field
-    let comparison = 0;
+    // Default sorting (by votes/points/rank)
+    // First sort by points (products with points come before products without points)
+    const aPoints = (a.votes || 0) * 3 + (a.rating || 0) * 2 + (a.likes || 0);
+    const bPoints = (b.votes || 0) * 3 + (b.rating || 0) * 2 + (b.likes || 0);
     
-    switch (sortField) {
-      case "category":
-        comparison = a.category.localeCompare(b.category);
-        break;
-      case "subcategory":
-        comparison = a.subcategory.localeCompare(b.subcategory);
-        break;
-      case "votes":
-        // Use votes directly instead of reviewCount
-        comparison = (b.votes || 0) - (a.votes || 0); // Descending by default
-        break;
-      case "likes":
-        comparison = (b.likes || 0) - (a.likes || 0); // Descending by default
-        break;
-      case "rating":
-        comparison = (b.rating || 0) - (a.rating || 0); // Descending by default
-        break;
-      default:
-        // If no specific sort field or if it's the default view,
-        // apply the priority ranking (votes > rating > likes)
-        const aVotes = typeof a.votes === 'number' ? a.votes : 0;
-        const bVotes = typeof b.votes === 'number' ? b.votes : 0;
-        
-        if (aVotes > 0 || bVotes > 0) {
-          // If only one has votes, that one goes first
-          if (aVotes > 0 && bVotes === 0) return -1;
-          if (aVotes === 0 && bVotes > 0) return 1;
-          // If both have votes, sort by vote count
-          if (aVotes !== bVotes) return bVotes - aVotes;
-        }
-        
-        // If neither has votes or they're equal, check ratings
-        const aRating = typeof a.rating === 'number' ? a.rating : 0;
-        const bRating = typeof b.rating === 'number' ? b.rating : 0;
-        
-        if (aRating > 0 || bRating > 0) {
-          // If only one has rating, that one goes first
-          if (aRating > 0 && bRating === 0) return -1;
-          if (aRating === 0 && bRating > 0) return 1;
-          // If both have ratings, sort by rating
-          if (aRating !== bRating) return bRating - aRating;
-        }
-        
-        // Finally, check likes
-        const aLikes = typeof a.likes === 'number' ? a.likes : 0;
-        const bLikes = typeof b.likes === 'number' ? b.likes : 0;
-        
-        if (aLikes > 0 || bLikes > 0) {
-          // If only one has likes, that one goes first
-          if (aLikes > 0 && bLikes === 0) return -1;
-          if (aLikes === 0 && bLikes > 0) return 1;
-          // If both have likes, sort by likes count
-          if (aLikes !== bLikes) return bLikes - aLikes;
-        }
-        
-        // If still tied, sort by name for stability
-        return a.name.localeCompare(b.name);
+    if (aPoints !== bPoints) {
+      return bPoints - aPoints; // Higher points first
     }
-    
-    // Apply sort direction
-    return sortDirection === "asc" ? comparison : -comparison;
-  })
-  
-  // Calculate proper rank for each product based on its metrics
-  // This ensures ranks are calculated even if the database value is missing
-  const productsWithCalculatedRanks = [...sortedProducts];
-  
-  // Group products by subcategory for rank calculation
-  const productsBySubcategory: Record<string, Product[]> = {};
-  
-  productsWithCalculatedRanks.forEach(product => {
-    const subcategory = product.subcategory || 'uncategorized';
-    if (!productsBySubcategory[subcategory]) {
-      productsBySubcategory[subcategory] = [];
-    }
-    productsBySubcategory[subcategory].push(product);
-  });
-  
-  // Process each subcategory to properly assign ranks
-  Object.keys(productsBySubcategory).forEach(subcategory => {
-    const subcategoryProducts = productsBySubcategory[subcategory];
-    
-    // Sort by priority: votes > rating > likes
-    subcategoryProducts.sort((a, b) => {
-      // Check votes first
-      if (a.votes !== b.votes) return b.votes - a.votes;
-      // Then rating
-      if (a.rating !== b.rating) return b.rating - a.rating;
-      // Then likes
-      if (a.likes !== b.likes) return b.likes - a.likes;
-      return 0;
-    });
-    
-    // Assign ranks based on the sorted order
-    subcategoryProducts.forEach((product, index) => {
-      if (product.votes > 0 || product.rating > 0 || product.likes > 0) {
-        // If product has any metrics, assign a rank
-        product.rank = index + 1;
-      } else {
-        // No ranking metrics
-        product.rank = 0;
-      }
-    });
-  });
-  
-  // Now resort the products for display based on rank
-  const finalSortedProducts = productsWithCalculatedRanks.sort((a, b) => {
-    // Products with rank come before products without rank
-    if ((a.rank > 0) && (b.rank === 0)) return -1;
-    if ((a.rank === 0) && (b.rank > 0)) return 1;
-    
-    // Both have ranks - sort by rank ascending (1, 2, 3...)
-    if (a.rank > 0 && b.rank > 0) {
+
+    // If points are equal, use the rank from parent
+    if (a.rank !== b.rank) {
+      // Products with rank (rank > 0) come before products without rank
+      if (a.rank > 0 && b.rank === 0) return -1;
+      if (a.rank === 0 && b.rank > 0) return 1;
+      // Sort by rank number (lower rank is better)
       return a.rank - b.rank;
     }
-    
-    // For products without ranks, sort by the selected sort field
-    let comparison = 0;
-    
-    switch (sortField) {
-      case "category":
-        comparison = a.category.localeCompare(b.category);
-        break;
-      case "subcategory":
-        comparison = a.subcategory.localeCompare(b.subcategory);
-        break;
-      case "votes":
-        comparison = (b.votes || 0) - (a.votes || 0);
-        break;
-      case "likes":
-        comparison = (b.likes || 0) - (a.likes || 0);
-        break;
-      case "rating":
-        comparison = (b.rating || 0) - (a.rating || 0);
-        break;
-      default:
-        // Default sort by name
-        comparison = a.name.localeCompare(b.name);
+
+    // If ranks are equal or both 0, sort by individual metrics
+    if (a.votes !== b.votes) {
+      return b.votes - a.votes;
     }
-    
-    return sortDirection === "asc" ? comparison : -comparison;
+
+    if (a.rating !== b.rating) {
+      const aRating = a.rating || 0;
+      const bRating = b.rating || 0;
+      return bRating - aRating;
+    }
+
+    if (a.likes !== b.likes) {
+      const aLikes = a.likes || 0;
+      const bLikes = b.likes || 0;
+      return bLikes - aLikes;
+    }
+
+    // Finally, sort alphabetically by name
+    return a.name.localeCompare(b.name);
   });
+
+  // Use the sorted products directly without recalculating ranks
+  const finalSortedProducts = sortedProducts;
 
   const handleSort = (field: SortField) => {
     if (field === sortField) {

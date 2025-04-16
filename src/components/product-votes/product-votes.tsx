@@ -65,21 +65,32 @@ export function ProductVotes() {
     setIsLoading(true);
     try {
       const params = new URLSearchParams()
+      
+      // Important: When "all" is selected, don't send any category/subcategory params
+      // to ensure we get all products from all categories
       if (selectedCategory !== "all") {
         params.append("category", selectedCategory)
-      }
-      if (selectedSubcategory) {
-        params.append("subcategory", selectedSubcategory)
+        if (selectedSubcategory) {
+          params.append("subcategory", selectedSubcategory)
+        }
       }
       
       // Add a timestamp to bypass cache
       params.append("_t", Date.now().toString())
       
-      const response = await fetch(`/api/votes/top?${params.toString()}`)
+      // Log the request URL for debugging
+      const url = `/api/votes/top?${params.toString()}`
+      console.log('Fetching products from:', url);
+      
+      const response = await fetch(url)
       const data = await response.json()
       if (data.error) {
         throw new Error(data.error)
       }
+      
+      // Log received products for debugging
+      console.log('Received products:', data.products);
+      console.log('Products count:', data.products.length);
       
       // Process products and calculate ranks based on priority
       const processedProducts = calculateProductRanks(data.products);
@@ -118,14 +129,11 @@ export function ProductVotes() {
 
   // Function to calculate ranks based on priority: votes > stars > likes
   const calculateProductRanks = (apiProducts: (Product | ProductWithVotesArray)[]): Product[] => {
-    // Current date for comparing vote expiration
-    const currentDate = new Date();
-    const oneWeekAgo = new Date(currentDate);
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
-    console.log(`Processing ${apiProducts.length} products for ranking`);
-    
-    // Process each product to handle expired votes
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Starting rank calculation for', apiProducts.length, 'products');
+    }
+
+    // Process each product to handle expired votes and ensure consistent data
     const processedProducts = apiProducts.map(product => {
       let validVoteCount = 0;
       
@@ -137,141 +145,98 @@ export function ProductVotes() {
         const validVotes = votesArray.filter(vote => {
           if (!vote.createdAt) return false;
           const voteDate = new Date(vote.createdAt);
+          const now = new Date();
+          const oneWeekAgo = new Date(now.setDate(now.getDate() - 7));
           return voteDate >= oneWeekAgo;
         });
         
         validVoteCount = validVotes.length;
       } else {
-        // For products with numeric votes
         validVoteCount = typeof product.votes === 'number' ? product.votes : 0;
       }
       
       // Create a consistent product object with updated votes
+      // Ensure rating is properly handled - default to 0 if undefined/null/NaN
+      const rating = typeof product.rating === 'number' && !isNaN(product.rating) ? product.rating : 0;
+      const likes = typeof product.likes === 'number' ? product.likes : 0;
+      
+      // Calculate points immediately
+      const points = (validVoteCount * 3) + (rating * 2) + (likes * 1);
+      
       return {
         ...product,
         votes: validVoteCount,
-        reviewCount: validVoteCount, // Make sure reviewCount matches votes for consistency
-        // Ensure other ranking factors are numbers
-        rating: typeof product.rating === 'number' ? product.rating : 0,
-        likes: typeof product.likes === 'number' ? product.likes : 0
-      } as Product;
+        reviewCount: validVoteCount,
+        rating: rating,
+        likes: likes,
+        points: points,
+        rank: 0 // Initialize rank to 0, will be set based on points
+      } as Product & { points: number };
     });
 
-    // Group products by subcategory
-    const productsBySubcategory: Record<string, Product[]> = {};
+    // Sort products by points and other criteria
+    processedProducts.sort((a, b) => {
+      // First compare points
+      if (a.points !== b.points) {
+        return b.points - a.points;
+      }
+      
+      // If points are equal, compare individual metrics in priority order
+      if (a.votes !== b.votes) {
+        return b.votes - a.votes;
+      }
+      
+      if (a.rating !== b.rating) {
+        return b.rating - a.rating;
+      }
+      
+      if (a.likes !== b.likes) {
+        return b.likes - a.likes;
+      }
+      
+      // If all metrics are equal, sort alphabetically for stability
+      return a.name.localeCompare(b.name);
+    });
+
+    // Assign ranks based on sorted order
+    let currentRank = 1;
+    let previousPoints = -1;
     
     processedProducts.forEach(product => {
-      // Ensure product has a valid subcategory
-      const subcategory = product.subcategory || 'uncategorized';
-      
-      if (!productsBySubcategory[subcategory]) {
-        productsBySubcategory[subcategory] = [];
-      }
-      productsBySubcategory[subcategory].push(product);
-    });
-    
-    // For each subcategory, rank products based on priority: votes > ratings > likes
-    Object.keys(productsBySubcategory).forEach(subcategory => {
-      const subcategoryProducts = productsBySubcategory[subcategory];
-      
-      console.log(`Calculating ranks for subcategory: ${subcategory} (${subcategoryProducts.length} products)`);
-      console.log(`Products in ${subcategory} before sorting:`, subcategoryProducts.map(p => ({
-        id: p.id,
-        name: p.name,
-        votes: p.votes,
-        rating: p.rating,
-        likes: p.likes
-      })));
-      
-      // First check what metrics are available in this subcategory
-      const hasVotes = subcategoryProducts.some(p => p.votes > 0);
-      const hasRatings = subcategoryProducts.some(p => p.rating > 0);
-      const hasLikes = subcategoryProducts.some(p => p.likes > 0);
-      
-      console.log(`Subcategory ${subcategory} metrics availability: hasVotes=${hasVotes}, hasRatings=${hasRatings}, hasLikes=${hasLikes}`);
-      
-      // Sort based on the available metrics, prioritizing votes > ratings > likes
-      if (hasVotes) {
-        console.log(`Subcategory ${subcategory} has products with votes - sorting by vote count`);
-        subcategoryProducts.sort((a, b) => {
-          // Check if products have valid vote counts
-          const aVotes = typeof a.votes === 'number' ? a.votes : 0;
-          const bVotes = typeof b.votes === 'number' ? b.votes : 0;
-          
-          // Double-verify both products have actual votes to prevent incorrect ranking
-          const aHasActualVotes = aVotes > 0;
-          const bHasActualVotes = bVotes > 0;
-          
-          // If only one has actual votes, that one goes first
-          if (aHasActualVotes && !bHasActualVotes) return -1;
-          if (!aHasActualVotes && bHasActualVotes) return 1;
-          
-          // Otherwise, sort by vote count
-          return bVotes - aVotes;
-        });
-      } else if (hasRatings) {
-        console.log(`Subcategory ${subcategory} has products with ratings - sorting by rating`);
-        subcategoryProducts.sort((a, b) => {
-          return (b.rating || 0) - (a.rating || 0);
-        });
-      } else if (hasLikes) {
-        console.log(`Subcategory ${subcategory} has products with likes - sorting by likes`);
-        subcategoryProducts.sort((a, b) => {
-          return (b.likes || 0) - (a.likes || 0);
-        });
-      } else {
-        console.log(`Subcategory ${subcategory} has no votes, ratings, or likes - sorting by ID for stability`);
-        // Sort by ID for stability if no other metrics
-        subcategoryProducts.sort((a, b) => {
-          return (a.id || '').localeCompare(b.id || '');
-        });
-      }
-      
-      console.log(`Products in ${subcategory} after sorting:`, subcategoryProducts.map((p, i) => ({
-        position: i+1,
-        id: p.id,
-        name: p.name,
-        votes: p.votes,
-        rating: p.rating,
-        likes: p.likes
-      })));
-      
-      // Assign ranks based on the sorted order and available metrics
-      subcategoryProducts.forEach((product, index) => {
-        // Always assign a rank if the product has ANY ranking attribute (votes, rating, or likes)
-        if (product.votes > 0 || product.rating > 0 || product.likes > 0) {
-          product.rank = index + 1;
-          console.log(`Assigned rank ${product.rank} to product ${product.id} (${product.name}) - votes: ${product.votes}, rating: ${product.rating}, likes: ${product.likes}`);
-        } else {
-          // No metrics available
-          product.rank = 0;
-          console.log(`Product ${product.id} (${product.name}) has no ranking metrics - assigned rank 0`);
+      if (product.points > 0) {
+        // Only increment rank if points are different from previous product
+        // This ensures products with equal points get the same rank
+        if (product.points !== previousPoints) {
+          currentRank = processedProducts.filter(p => p.points > product.points).length + 1;
         }
-      });
-    });
-    
-    // Double-check that all products with likes or ratings have proper ranks
-    processedProducts.forEach(product => {
-      // If a product has ANY ranking metric but didn't get a rank assigned, fix it
-      if ((product.likes > 0 || product.rating > 0 || product.votes > 0) && 
-          (!product.rank || product.rank === 0)) {
-        console.log(`WARNING: Product ${product.id} (${product.name}) has ranking metrics but no rank assigned. Assigning rank 1.`);
-        product.rank = 1;
+        product.rank = currentRank;
+        previousPoints = product.points;
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Product: ${product.name} (${product.category})
+            Points: ${product.points} (Rank: ${product.rank})
+            - Votes: ${product.votes} (${product.votes * 3} points)
+            - Rating: ${product.rating} (${product.rating * 2} points)
+            - Likes: ${product.likes} (${product.likes * 1} points)`);
+        }
+      } else {
+        product.rank = 0;
       }
     });
-    
-    // Log all products with their ranks for debugging
-    console.log('All products after ranking:', processedProducts.map(p => ({
-      id: p.id,
-      name: p.name,
-      votes: p.votes,
-      rating: p.rating,
-      likes: p.likes,
-      rank: p.rank,
-      subcategory: p.subcategory
-    })));
-    
-    // Return all products with updated ranks
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('\nFinal Rankings:');
+      processedProducts
+        .filter(p => p.points > 0)
+        .sort((a, b) => a.rank - b.rank)
+        .forEach(p => {
+          console.log(`Rank ${p.rank}: ${p.name} - ${p.points} points
+            - Votes: ${p.votes} (${p.votes * 3} points)
+            - Rating: ${p.rating.toFixed(1)} (${(p.rating * 2).toFixed(1)} points)
+            - Likes: ${p.likes} (${p.likes} points)`);
+        });
+    }
+
     return processedProducts;
   };
 

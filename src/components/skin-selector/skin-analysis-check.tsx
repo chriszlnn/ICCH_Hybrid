@@ -14,6 +14,15 @@ export function SkinAnalysisCheck({ isOpen, onClose, onProceed }: SkinAnalysisCh
   const [hasPreviousAnalysis, setHasPreviousAnalysis] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
+  // Reset states when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsLoading(true);
+      setHasPreviousAnalysis(false);
+      setShowConfirmation(false);
+    }
+  }, [isOpen]);
+
   // Check if user has previous skin analysis
   useEffect(() => {
     const checkPreviousAnalysis = async () => {
@@ -40,7 +49,7 @@ export function SkinAnalysisCheck({ isOpen, onClose, onProceed }: SkinAnalysisCh
     }
   }, [isOpen]);
 
-  // Show confirmation dialog if user has previous analysis
+  // Show confirmation if there's a previous analysis
   useEffect(() => {
     if (!isLoading && hasPreviousAnalysis) {
       setShowConfirmation(true);
@@ -98,11 +107,25 @@ export function SkinAnalysisCheck({ isOpen, onClose, onProceed }: SkinAnalysisCh
     );
   }
 
-  // If no previous analysis, proceed directly
-  if (!hasPreviousAnalysis) {
-    onProceed();
-    return null;
-  }
-
-  return null;
+  // If no previous analysis, show the initial dialog
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Start Skin Analysis</DialogTitle>
+          <DialogDescription>
+            Would you like to start a new skin analysis?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex space-x-2 pt-4">
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button onClick={handleProceed}>
+            Start Analysis
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 } 

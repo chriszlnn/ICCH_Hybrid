@@ -49,6 +49,11 @@ export async function GET(req: Request) {
           },
         },
       },
+      orderBy: [
+        { category: 'asc' },
+        { subcategory: 'asc' },
+        { name: 'asc' }
+      ]
     })
 
     // Map the products to include vote count
