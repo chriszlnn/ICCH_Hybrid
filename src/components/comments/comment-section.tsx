@@ -14,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Comment {
   id: string;
@@ -32,6 +33,7 @@ interface CommentSectionProps {
   onCommentDeleted?: () => void; // Callback to update parent component
   onCommentAdded?: () => void; // Callback to update parent component when a comment is added
   postOwnerEmail?: string; // Email of the post owner
+  isLoading?: boolean; // Loading state for comments
 }
 
 export function CommentSection({ 
@@ -39,7 +41,8 @@ export function CommentSection({
   initialComments, 
   onCommentDeleted, 
   onCommentAdded,
-  postOwnerEmail 
+  postOwnerEmail,
+  isLoading = false
 }: CommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>(initialComments);
   const [newComment, setNewComment] = useState("");
@@ -164,54 +167,72 @@ export function CommentSection({
       )}
 
       <div className="space-y-4">
-        {comments.map((comment) => (
-          <div key={comment.id} className="flex gap-3 bg-white p-3 rounded-lg shadow-sm border border-gray-100 hover:border-green-100 transition-colors">
-            <Avatar className="h-8 w-8 border-2 border-green-100">
-              <AvatarImage 
-                src={comment.user.image || "/blank-profile.svg"} 
-                alt={getDisplayName(comment)}
-              />
-              <AvatarFallback className="bg-green-100 text-green-800">
-                {getDisplayName(comment)[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-gray-800">{getDisplayName(comment)}</span>
-                  <span className="text-xs text-gray-500">
-                    {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                  </span>
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex gap-3 bg-white p-3 rounded-lg shadow-sm border border-gray-100">
+                <Skeleton className="h-8 w-8 rounded-full" />
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-24 mb-2" />
+                  <Skeleton className="h-3 w-full mb-1" />
+                  <Skeleton className="h-3 w-3/4" />
                 </div>
-                {/* Show delete button only for users who can delete the comment */}
-                {canDeleteComment(comment) && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
-                        className="text-red-600 focus:text-red-600"
-                        onClick={() => handleDeleteComment(comment.id)}
-                        disabled={isDeleting}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Comment
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
               </div>
-              <p className="text-sm text-gray-700 mt-1">{comment.content}</p>
-            </div>
+            ))}
           </div>
-        ))}
-        {comments.length === 0 && (
-          <div className="text-center py-8 bg-white rounded-lg shadow-sm border border-gray-100">
-            <p className="text-sm text-gray-500">No comments yet. Be the first to comment!</p>
-          </div>
+        ) : (
+          <>
+            {comments.map((comment) => (
+              <div key={comment.id} className="flex gap-3 bg-white p-3 rounded-lg shadow-sm border border-gray-100 hover:border-green-100 transition-colors">
+                <Avatar className="h-8 w-8 border-2 border-green-100">
+                  <AvatarImage 
+                    src={comment.user.image || "/blank-profile.svg"} 
+                    alt={getDisplayName(comment)}
+                  />
+                  <AvatarFallback className="bg-green-100 text-green-800">
+                    {getDisplayName(comment)[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-800">{getDisplayName(comment)}</span>
+                      <span className="text-xs text-gray-500">
+                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                      </span>
+                    </div>
+                    {/* Show delete button only for users who can delete the comment */}
+                    {canDeleteComment(comment) && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            className="text-red-600 focus:text-red-600"
+                            onClick={() => handleDeleteComment(comment.id)}
+                            disabled={isDeleting}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Comment
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-700 mt-1">{comment.content}</p>
+                </div>
+              </div>
+            ))}
+            {comments.length === 0 && (
+              <div className="text-center py-8 bg-white rounded-lg shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-500">No comments yet. Be the first to comment!</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
