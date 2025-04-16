@@ -348,15 +348,19 @@ export function PostContent({ post }: PostContentProps) {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-6">
                 <div className="flex items-center">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleLike}
-                    disabled={isLiking}
-                    className={`hover:text-red-500 ${isLiked || isLikeLoading ? 'text-red-500' : ''}`}
-                  >
-                    <Heart className={`h-5 w-5 ${isLiked || isLikeLoading ? 'fill-current' : ''}`} />
-                  </Button>
+                  {isLikeLoading ? (
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleLike}
+                      disabled={isLiking}
+                      className={`hover:text-red-500 ${isLiked || isLikeLoading ? 'text-red-500' : ''}`}
+                    >
+                      <Heart className={`h-5 w-5 ${isLiked || isLikeLoading ? 'fill-current' : ''}`} />
+                    </Button>
+                  )}
                   {isLikeLoading ? (
                     <Skeleton className="w-8 h-4 ml-1" />
                   ) : (
