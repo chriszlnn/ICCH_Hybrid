@@ -74,6 +74,7 @@ export function PostContent({ post }: PostContentProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   const [isLikeLoading, setIsLikeLoading] = useState(false);
+  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
   const [comments, setComments] = useState(post.comments);
   const router = useRouter();
   const { data: session } = useSession();
@@ -84,6 +85,7 @@ export function PostContent({ post }: PostContentProps) {
   // Function to fetch updated comments - memoized to prevent unnecessary re-renders
   const fetchComments = useCallback(async () => {
     try {
+      setIsCommentsLoading(true);
       const response = await fetch(`/api/client-post/${post.id}/comment`);
       if (response.ok) {
         const updatedComments = await response.json();
@@ -92,6 +94,8 @@ export function PostContent({ post }: PostContentProps) {
       }
     } catch (error) {
       console.error("Error fetching comments:", error);
+    } finally {
+      setIsCommentsLoading(false);
     }
   }, [post.id]);
 
@@ -353,7 +357,11 @@ export function PostContent({ post }: PostContentProps) {
                   >
                     <Heart className={`h-5 w-5 ${isLiked || isLikeLoading ? 'fill-current' : ''}`} />
                   </Button>
-                  <span className="ml-1 font-medium">{likesCount}</span>
+                  {isLikeLoading ? (
+                    <Skeleton className="w-8 h-4 ml-1" />
+                  ) : (
+                    <span className="ml-1 font-medium">{likesCount}</span>
+                  )}
                 </div>
                 <div className="flex items-center">
                   <Button 
@@ -363,7 +371,11 @@ export function PostContent({ post }: PostContentProps) {
                   >
                     <MessageCircle className="h-5 w-5" />
                   </Button>
-                  <span className="ml-1 font-medium">{commentsCount}</span>
+                  {isCommentsLoading ? (
+                    <Skeleton className="w-8 h-4 ml-1" />
+                  ) : (
+                    <span className="ml-1 font-medium">{commentsCount}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -411,6 +423,7 @@ export function PostContent({ post }: PostContentProps) {
                     onCommentDeleted={() => handleCommentChange()}
                     onCommentAdded={() => handleCommentChange()}
                     postOwnerEmail={post.client.email}
+                    isLoading={isCommentsLoading}
                   />
                 </Suspense>
               </div>
