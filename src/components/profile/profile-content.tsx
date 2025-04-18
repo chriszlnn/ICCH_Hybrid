@@ -1,18 +1,21 @@
 "use client"
-import { useEffect, useState, useCallback } from "react"
-import { EditableAvatar } from "@/components/avatar/editable-avatar"
-import { EditProfile } from "@/components/edit-profile/edit-profile"
-import { signOut } from "next-auth/react"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Button } from "../ui/general/button"
-import { Skeleton } from "../ui/skeleton"
-import { ReviewHistoryModal } from "./review-history-modal"
-import Image from "next/image"
-import { Tabs, TabsContent } from "@/components/ui/tabs"
-import type { Prisma } from "@prisma/client"
-import Link from "next/link"
-import { Heart, MessageCircle } from "lucide-react"
-import { useRouter } from "next/navigation"
+
+import { useEffect, useState, useCallback } from "react";
+import { EditableAvatar } from "@/components/avatar/editable-avatar";
+import { EditProfile } from "@/components/edit-profile/edit-profile";
+import { signOut } from "next-auth/react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "../ui/general/button";
+import { Skeleton } from "../ui/skeleton";
+import { ReviewHistoryModal } from "./review-history-modal";
+import Image from "next/image";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { Prisma } from "@prisma/client";
+import Link from "next/link";
+import { Heart, MessageCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+
 
 // Define your types using Prisma's generated types
 type ClientPostWithRelations = Prisma.ClientPostGetPayload<{
@@ -92,12 +95,12 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
   // Memoize fetchPosts to prevent unnecessary re-renders
   const fetchPosts = useCallback(async () => {
     try {
-      setIsPostsLoading(true)
-      setPostsError(null)
-      const res = await fetch(`/api/client-post?email=${encodeURIComponent(userEmail)}`)
+      setIsPostsLoading(true);
+      setPostsError(null);
+      const res = await fetch(`/api/client-post?email=${encodeURIComponent(userEmail)}`);
 
       if (res.ok) {
-        const data: ClientPostWithRelations[] = await res.json()
+        const data: ClientPostWithRelations[] = await res.json();
 
         if (data && Array.isArray(data)) {
           setPosts(
@@ -137,7 +140,8 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
   const handlePostHover = (postId: string) => {
     // Prefetch the post page
     router.prefetch(`/client/profile/posts/${postId}`)
-  }
+  };
+
 
   // Handle avatar update
   const handleAvatarUpdate = async (newSrc: string) => {
