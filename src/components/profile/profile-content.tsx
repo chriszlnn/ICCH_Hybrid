@@ -1,4 +1,4 @@
-"use client";
+"use client"
 import { useEffect, useState, useCallback } from "react";
 import { EditableAvatar } from "@/components/avatar/editable-avatar";
 import { EditProfile } from "@/components/edit-profile/edit-profile";
@@ -9,7 +9,7 @@ import { Skeleton } from "../ui/skeleton";
 import { ReviewHistoryModal } from "./review-history-modal";
 import Image from "next/image";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
-import { Prisma } from '@prisma/client';
+import { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { Heart, MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -95,20 +95,22 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
       setIsPostsLoading(true);
       setPostsError(null);
       const res = await fetch(`/api/client-post?email=${encodeURIComponent(userEmail)}`);
-      
+
       if (res.ok) {
         const data: ClientPostWithRelations[] = await res.json();
-        
+
         if (data && Array.isArray(data)) {
-          setPosts(data.map(post => ({
-            id: post.id,
-            images: post.images,
-            caption: post.content,
-            createdAt: post.createdAt,
-            productIds: post.taggedProducts.map(tp => tp.productId),
-            likes: post.likes?.length || 0,
-            comments: post.comments || []
-          })));
+          setPosts(
+            data.map((post) => ({
+              id: post.id,
+              images: post.images,
+              caption: post.content,
+              createdAt: post.createdAt,
+              productIds: post.taggedProducts.map((tp) => tp.productId),
+              likes: post.likes?.length || 0,
+              comments: post.comments || [],
+            })),
+          )
         } else {
           setPosts([]);
           setPostsError("No posts found");
@@ -134,7 +136,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
   // Prefetch post data when hovering over a post
   const handlePostHover = (postId: string) => {
     // Prefetch the post page
-    router.prefetch(`/client/profile/posts/${postId}`);
+    router.prefetch(`/client/profile/posts/${postId}`)
   };
 
   // Handle avatar update
@@ -190,7 +192,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
             <Skeleton className="h-4 w-96" />
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-1 md:gap-4">
           {[...Array(6)].map((_, index) => (
             <Skeleton key={index} className="aspect-square rounded-md" />
           ))}
@@ -207,35 +209,28 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
             <Button variant="outline">Account</Button>
           </PopoverTrigger>
           <PopoverContent className="w-32">
-            <Button
-              variant="destructive"
-              onClick={() => signOut({ callbackUrl: "/sign-in" })}
-              className="w-full"
-            >
+            <Button variant="destructive" onClick={() => signOut({ callbackUrl: "/sign-in" })} className="w-full">
               Sign Out
             </Button>
           </PopoverContent>
         </Popover>
       </div>
       <div className="flex flex-col md:flex-row items-center md:items-start mb-8">
-        <EditableAvatar
-          alt="Profile"
-          fallback="?"
-          className="w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36"
-          onAvatarUpdate={handleAvatarUpdate}
-        />
-        <div className="pl-9">
-          <h1 className="text-2xl font-bold mb-2">{profile.username}</h1>
-          <h2 className="font-semibold mb-1">{profile.email}</h2>
-          <div className="pb-4">
-            {profile.bio && <p className="text-gray-600">{profile.bio}</p>}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <EditProfile
-              currentProfile={profile}
-              onSaveAction={handleSave}
-            />
-            <ReviewHistoryModal userEmail={userEmail} />
+        <div className="flex flex-col items-center md:items-start md:flex-row w-full">
+          <EditableAvatar
+            alt="Profile"
+            fallback="?"
+            className="w-28 h-28 md:w-32 md:h-32 lg:w-36 lg:h-36"
+            onAvatarUpdate={handleAvatarUpdate}
+          />
+          <div className="mt-4 md:mt-0 md:pl-9 text-center md:text-left w-full">
+            <h1 className="text-2xl font-bold mb-2">{profile.username}</h1>
+            <h2 className="font-semibold mb-1">{profile.email}</h2>
+            <div className="pb-4">{profile.bio && <p className="text-gray-600">{profile.bio}</p>}</div>
+            <div className="flex flex-row gap-2 justify-center md:justify-start">
+              <EditProfile currentProfile={profile} onSaveAction={handleSave} />
+              <ReviewHistoryModal userEmail={userEmail} />
+            </div>
           </div>
         </div>
       </div>
@@ -245,7 +240,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
       <Tabs defaultValue="posts" className="w-full">
         <TabsContent value="posts">
           {isPostsLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-1 md:gap-4">
               {[...Array(6)].map((_, index) => (
                 <div key={index} className="relative aspect-square">
                   <Skeleton className="w-full h-full rounded-md" />
@@ -257,7 +252,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
               <p>{postsError}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-1 md:gap-4">
               {posts.map((post) => (
                 <Link
                   key={post.id}
@@ -267,7 +262,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
                   prefetch={true}
                 >
                   <Image
-                    src={post.images[0]}
+                    src={post.images[0] || "/placeholder.svg"}
                     alt={post.caption}
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
