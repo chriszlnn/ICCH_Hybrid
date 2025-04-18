@@ -100,7 +100,11 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
       // Make API request
       const response = await fetch(`/api/beauty-info/${postId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache"
+        },
         body: JSON.stringify({ liked: newLikedStatus, userEmail: session.user.email }),
       });
 
@@ -124,8 +128,8 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
         userLiked: responseData.liked,
       };
       
-      // Update UI with server response
-      mutate(serverUpdatedPost, false);
+      // Update UI with server response and force a revalidation
+      mutate(serverUpdatedPost, { revalidate: true });
       
     } catch (error) {
       console.error("Error updating like:", error);
