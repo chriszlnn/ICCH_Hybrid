@@ -8,8 +8,8 @@ export const CACHE_KEYS = {
 
 // Function to revalidate beauty post data globally
 export const revalidateBeautyPost = async (postId: number) => {
-  // Revalidate the individual post
-  await mutate(CACHE_KEYS.BEAUTY_POST(postId));
+  // Revalidate the individual post with force revalidation
+  await mutate(CACHE_KEYS.BEAUTY_POST(postId), undefined, { revalidate: true });
   
   // Revalidate the posts list
   await mutate(CACHE_KEYS.BEAUTY_POSTS);

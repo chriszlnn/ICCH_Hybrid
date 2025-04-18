@@ -1,4 +1,5 @@
 "use client"
+
 import { useEffect, useState, useCallback } from "react";
 import { EditableAvatar } from "@/components/avatar/editable-avatar";
 import { EditProfile } from "@/components/edit-profile/edit-profile";
@@ -14,6 +15,8 @@ import Link from "next/link";
 import { Heart, MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+
+
 // Define your types using Prisma's generated types
 type ClientPostWithRelations = Prisma.ClientPostGetPayload<{
   include: {
@@ -21,32 +24,32 @@ type ClientPostWithRelations = Prisma.ClientPostGetPayload<{
       select: {
         productId: true
       }
-    },
+    }
     likes: {
       select: {
         id: true
       }
-    },
+    }
     comments: {
       select: {
         id: true
       }
     }
   }
-}>;
+}>
 
 interface ProfileContentProps {
-  userEmail: string;
+  userEmail: string
 }
 
 interface Post {
-  id: string;
-  images: string[];
-  caption: string;
-  createdAt: Date;
-  productIds: string[];
-  likes: number;
-  comments?: { id: string }[];
+  id: string
+  images: string[]
+  caption: string
+  createdAt: Date
+  productIds: string[]
+  likes: number
+  comments?: { id: string }[]
 }
 
 export function ProfileContent({ userEmail }: ProfileContentProps) {
@@ -55,39 +58,39 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
     username: "",
     bio: "",
     imageUrl: "",
-  });
+  })
 
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPostsLoading, setIsPostsLoading] = useState(true);
-  const [postsError, setPostsError] = useState<string | null>(null);
-  const router = useRouter();
+  const [posts, setPosts] = useState<Post[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isPostsLoading, setIsPostsLoading] = useState(true)
+  const [postsError, setPostsError] = useState<string | null>(null)
+  const router = useRouter()
 
   // Memoize fetchProfile to prevent unnecessary re-renders
   const fetchProfile = useCallback(async () => {
     try {
-      if (!userEmail) return;
+      if (!userEmail) return
 
-      setIsLoading(true);
-      const res = await fetch(`/api/profile?email=${encodeURIComponent(userEmail)}`);
+      setIsLoading(true)
+      const res = await fetch(`/api/profile?email=${encodeURIComponent(userEmail)}`)
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json()
         setProfile((prevProfile) => ({
           ...prevProfile,
           email: userEmail,
           username: data.client?.username || "",
           bio: data.client?.bio || "",
           imageUrl: data.client?.imageUrl || "/blank-profile.svg",
-        }));
+        }))
       } else {
-        console.error("Failed to fetch profile");
+        console.error("Failed to fetch profile")
       }
     } catch (error) {
-      console.error("Error fetching profile:", error);
+      console.error("Error fetching profile:", error)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [userEmail]);
+  }, [userEmail])
 
   // Memoize fetchPosts to prevent unnecessary re-renders
   const fetchPosts = useCallback(async () => {
@@ -112,32 +115,33 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
             })),
           )
         } else {
-          setPosts([]);
-          setPostsError("No posts found");
+          setPosts([])
+          setPostsError("No posts found")
         }
       } else {
-        setPosts([]);
-        setPostsError("Failed to fetch posts");
+        setPosts([])
+        setPostsError("Failed to fetch posts")
       }
     } catch (error) {
-      console.error("Error fetching posts:", error);
-      setPosts([]);
-      setPostsError("Error loading posts");
+      console.error("Error fetching posts:", error)
+      setPosts([])
+      setPostsError("Error loading posts")
     } finally {
-      setIsPostsLoading(false);
+      setIsPostsLoading(false)
     }
-  }, [userEmail]);
+  }, [userEmail])
 
   useEffect(() => {
-    fetchProfile();
-    fetchPosts();
-  }, [fetchProfile, fetchPosts]);
+    fetchProfile()
+    fetchPosts()
+  }, [fetchProfile, fetchPosts])
 
   // Prefetch post data when hovering over a post
   const handlePostHover = (postId: string) => {
     // Prefetch the post page
     router.prefetch(`/client/profile/posts/${postId}`)
   };
+
 
   // Handle avatar update
   const handleAvatarUpdate = async (newSrc: string) => {
@@ -146,17 +150,17 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: profile.email, imageUrl: newSrc }),
-      });
+      })
 
       if (res.ok) {
-        setProfile((prev) => ({ ...prev, imageUrl: newSrc }));
+        setProfile((prev) => ({ ...prev, imageUrl: newSrc }))
       } else {
-        console.error("Failed to update avatar");
+        console.error("Failed to update avatar")
       }
     } catch (error) {
-      console.error("Error updating avatar:", error);
+      console.error("Error updating avatar:", error)
     }
-  };
+  }
 
   // Handle saving profile changes
   const handleSave = async (username: string, bio: string) => {
@@ -165,17 +169,17 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: profile.email, username, bio }),
-      });
+      })
 
       if (res.ok) {
-        setProfile((prev) => ({ ...prev, username, bio }));
+        setProfile((prev) => ({ ...prev, username, bio }))
       } else {
-        console.error("Failed to update profile");
+        console.error("Failed to update profile")
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
+      console.error("Error updating profile:", error)
     }
-  };
+  }
 
   // Skeleton loading state
   if (isLoading) {
@@ -198,7 +202,7 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
           ))}
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -295,5 +299,5 @@ export function ProfileContent({ userEmail }: ProfileContentProps) {
         </TabsContent>
       </Tabs>
     </div>
-  );
+  )
 }

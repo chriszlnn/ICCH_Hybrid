@@ -103,6 +103,7 @@ const BeautyPost = memo(function BeautyPost({
             onClick={onLike}
             className={post.userLiked ? "text-red-500" : ""}
             disabled={likesLoading}
+            
           >
             <Heart className={`w-5 h-5 ${post.userLiked ? "fill-current text-red-500" : ""}`} />
           </Button>
