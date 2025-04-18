@@ -127,6 +127,9 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
       // Update UI with server response
       mutate(serverUpdatedPost, false);
       
+      // Also revalidate the posts list to ensure grid view is updated
+      await revalidateAllBeautyPosts();
+      
     } catch (error) {
       console.error("Error updating like:", error);
       // Revert the optimistic update on error

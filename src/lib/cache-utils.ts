@@ -13,6 +13,11 @@ export const revalidateBeautyPost = async (postId: number) => {
   
   // Revalidate the posts list
   await mutate(CACHE_KEYS.BEAUTY_POSTS);
+  
+  // Return a promise that resolves after a short delay to ensure the revalidation has started
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, 50);
+  });
 };
 
 // Function to revalidate all beauty posts

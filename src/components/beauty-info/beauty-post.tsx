@@ -26,6 +26,12 @@ const BeautyPost = memo(function BeautyPost({
   const [isLoadingContent, setIsLoadingContent] = useState(true);
   const [markdownContent, setMarkdownContent] = useState<string | null>(null);
 
+  // Reset content loading state when post changes
+  useEffect(() => {
+    setIsLoadingContent(true);
+    setMarkdownContent(null);
+  }, [post?.id]);
+
   useEffect(() => {
     const fetchMarkdown = async () => {
       if (!post?.file) {
