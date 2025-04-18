@@ -6,6 +6,7 @@ import ImageCarousel from "./image-carousel";
 import type { BeautyPost as BeautyPostType } from "@/lib/types/types";
 import ReactMarkdown from "react-markdown";
 import { Skeleton } from "@/components/ui/skeleton";
+import Image from "next/image";
 
 interface BeautyPostProps {
   post?: BeautyPostType;
@@ -94,9 +95,27 @@ const BeautyPost = memo(function BeautyPost({
   return (
     <Card className="overflow-hidden max-w-xl mx-auto">
       <CardContent className="p-0">
-        {/* Image Carousel */}
-        {post.images ? (
-          <ImageCarousel images={post.images} aspectRatio={isDetailView ? "auto" : "square"} />
+        {/* Image Carousel with Next.js Image */}
+        {post.images && post.images.length > 0 ? (
+          <div className="relative w-full">
+            {isDetailView ? (
+              // For detail view, show a single optimized image
+              <div className="relative w-full aspect-auto">
+                <Image
+                  src={post.images[0]}
+                  alt={post.title}
+                  width={800}
+                  height={600}
+                  className="object-cover w-full h-auto"
+                  priority
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                />
+              </div>
+            ) : (
+              // For grid view, use the ImageCarousel component
+              <ImageCarousel images={post.images} aspectRatio={isDetailView ? "auto" : "square"} />
+            )}
+          </div>
         ) : (
           <Skeleton className="aspect-square w-full" />
         )}

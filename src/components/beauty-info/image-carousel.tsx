@@ -35,8 +35,14 @@ export default function ImageCarousel({ images, aspectRatio = "square" }: ImageC
         fill={aspectRatio === "square"}
         width={aspectRatio === "auto" ? 1200 : undefined}
         height={aspectRatio === "auto" ? 800 : undefined}
-        className={cn("object-cover", aspectRatio === "auto" && "w-full h-auto max-h-[80vh] relative")}
+        className={cn(
+          "object-cover transition-opacity duration-300",
+          aspectRatio === "auto" && "w-full h-auto max-h-[80vh] relative"
+        )}
         priority
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+        quality={90}
+        loading="eager"
       />
 
       {hasMultipleImages && (
