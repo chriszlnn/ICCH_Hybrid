@@ -54,12 +54,13 @@ export async function GET() {
           console.error("Error in posts fetch operation:", error);
           throw error;
         }
-      }, 10); // Increase retries for this critical endpoint
+      }, 10);
   
       // Add caching headers with optimized settings
       const response = NextResponse.json(posts);
-      response.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
-      response.headers.set('Vary', 'Authorization'); // Vary cache by auth status
+      response.headers.set('Cache-Control', 'no-store, must-revalidate');
+      response.headers.set('Pragma', 'no-cache');
+      response.headers.set('Expires', '0');
       return response;
     } catch (error) {
       console.error("Error fetching posts:", error);

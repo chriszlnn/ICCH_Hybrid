@@ -34,9 +34,10 @@ const BeautyPost = memo(function BeautyPost({
 
   // Add a key to force re-render when like status changes
   useEffect(() => {
-    setIsLoadingContent(true);
-    setMarkdownContent(null);
-  }, [post?.id]);
+    // This effect will run when post.userLiked or post.likes changes
+    console.log("Like status changed:", post?.userLiked, post?.likes);
+  }, [post?.userLiked, post?.likes]);
+
   useEffect(() => {
     const fetchMarkdown = async () => {
       if (!post?.file) {
