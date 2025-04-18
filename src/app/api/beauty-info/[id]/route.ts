@@ -117,8 +117,9 @@ export async function POST(
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
     }
 
-    const { userEmail, liked } = await request.json();
-    if (!userEmail) {
+    const { liked, userEmail } = await request.json();
+    
+    if (userEmail === undefined) {
       return NextResponse.json({ error: "Missing user email" }, { status: 400 });
     }
 

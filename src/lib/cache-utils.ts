@@ -11,8 +11,8 @@ export const revalidateBeautyPost = async (postId: number) => {
   // Revalidate the individual post with force revalidation
   await mutate(CACHE_KEYS.BEAUTY_POST(postId), undefined, { revalidate: true });
   
-  // Revalidate the posts list with force revalidation
-  await mutate(CACHE_KEYS.BEAUTY_POSTS, undefined, { revalidate: true });
+  // Revalidate the posts list
+  await mutate(CACHE_KEYS.BEAUTY_POSTS);
   
   // Return a promise that resolves after a short delay to ensure the revalidation has started
   return new Promise<void>((resolve) => {
