@@ -166,7 +166,11 @@ export default function BeautyPostsGrid() {
     try {
       const response = await fetch(`/api/beauty-info/${postId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache"
+        },
         body: JSON.stringify({ liked: newLikedStatus, userEmail: session.user.email }),
       });
 
@@ -187,8 +191,8 @@ export default function BeautyPostsGrid() {
       // Force a revalidation to ensure we have the latest data
       await revalidateBeautyPost(postId);
       
-      // Update the UI with the server response
-      mutate(serverUpdatedPosts, false);
+      // Update the UI with the server response and force a revalidation
+      mutate(serverUpdatedPosts, { revalidate: true });
       
       // Log the response for debugging
       console.log('Like response:', responseData);
