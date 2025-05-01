@@ -125,7 +125,8 @@ const SignInForm = () => {
           />
 
           <Button 
-            className="w-full bg-[#12B560] hover:bg-[#12B560]/90 transition-all duration-300 shadow-[0_0_20px_rgba(18,181,96,0.3)] hover:shadow-[0_0_30px_rgba(18,181,96,0.5)] active:shadow-[0_0_40px_rgba(18,181,96,0.7)]" 
+            className="w-full bg-[#12B560] hover:bg-[#12B560]/90 transition-all duration-300 shadow-[0_0_20px_rgba(18,181,96,0.3)] 
+            hover:shadow-[0_0_30px_rgba(18,181,96,0.5)] active:shadow-[0_0_40px_rgba(18,181,96,0.7)]" 
             type="submit"
             disabled={isLoading}
           >

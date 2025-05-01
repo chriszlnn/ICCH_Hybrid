@@ -1340,7 +1340,8 @@ export default function ManageProduct() {
                     value={newProduct.name}
                     onChange={handleInputChange}
                     placeholder="Enter product name"
-                    className="w-full px-3 py-2 text-sm text-gray-600 placeholder-gray-400 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm text-gray-600 placeholder-gray-400 border border-gray-200 rounded-md focus:outline-none focus:ring-1
+                     focus:ring-green-500 focus:border-transparent"
                     required
                     disabled={isUploading || isAddingProduct}
                   />
@@ -1354,7 +1355,8 @@ export default function ManageProduct() {
                     value={newProduct.price || ""}
                     onChange={handleInputChange}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 text-sm text-gray-600 placeholder-gray-400 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-3 py-2 text-sm text-gray-600 placeholder-gray-400 border border-gray-200 rounded-md focus:outline-none focus:ring-1
+                     focus:ring-green-500 focus:border-transparent"
                     step="0.01"
                     min="0"
                     required
@@ -1368,7 +1370,8 @@ export default function ManageProduct() {
                     name="category"
                     value={newProduct.category}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
+                    className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md focus:outline-none focus:ring-1
+                     focus:ring-green-500 focus:border-transparent appearance-none bg-white"
                     disabled={isUploading || isAddingProduct}
                   >
                     {categoryOptions.map(category => (
@@ -1385,7 +1388,8 @@ export default function ManageProduct() {
                     name="subcategory"
                     value={newProduct.subcategory}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-green-500 focus:border-transparent appearance-none bg-white"
+                    className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-md focus:outline-none focus:ring-1
+                     focus:ring-green-500 focus:border-transparent appearance-none bg-white"
                     disabled={isUploading || isAddingProduct || availableSubcategories.length === 0}
                   >
                     {availableSubcategories.map(subcategory => (
@@ -1646,7 +1650,8 @@ export default function ManageProduct() {
                     type="file"
                     accept="image/*"
                     onChange={handleImageChange}
-                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 focus:outline-none"
+                    className="block w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium
+                     file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 focus:outline-none"
                     disabled={isUploading || isAddingProduct}
                   />
                   {selectedImageFile && (
