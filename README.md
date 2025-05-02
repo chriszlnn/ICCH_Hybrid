@@ -28,23 +28,30 @@ Ensure you have the following installed on your machine:
 
 ```bash
 git clone https://github.com/chriszlnn/ICCH_Hybrid.git
-
+```
 #### 3. Make sure to insert .env file into the project root directory (same level as package.json)
 
 #### 4. Navigate to project directory
+
+```bash
 cd ICCH_Hybrid
 
+```
 #### 5. Install Project Dependencies
+```bash
 npm install
 
+```
 #### 6. Generate Prisma Client
+```bash
 npx prisma generate
 
+```
 #### 7. Run the program
+```bash
 npm run dev
 
----------
-
+```
 Github Link : https://github.com/chriszlnn/ICCH_Hybrid.git
 
 Website Link : https://www.icch.online
